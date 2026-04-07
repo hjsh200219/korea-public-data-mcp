@@ -4,6 +4,7 @@
  */
 
 import express from "express";
+import cors from "cors";
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "./server.js";
@@ -15,6 +16,14 @@ const serverConfig = loadConfig();
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
 const app = express();
+// Claude 모바일/웹 connector는 브라우저 컨텍스트에서 동작하므로 CORS 필요.
+// mcp-session-id 헤더를 노출해야 클라이언트가 세션을 유지할 수 있다.
+app.use(cors({
+  origin: true,
+  credentials: false,
+  exposedHeaders: ["mcp-session-id"],
+  allowedHeaders: ["Content-Type", "mcp-session-id", "Accept", "Authorization"],
+}));
 app.use(express.json());
 
 // 세션별 transport 관리
@@ -55,7 +64,7 @@ app.get("/openapi.json", (req, res) => {
 });
 
 // MCP endpoint — POST (클라이언트 → 서버 메시지)
-app.post("/mcp", async (req, res) => {
+async function handleMcpPost(req: express.Request, res: express.Response): Promise<void> {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   let transport: StreamableHTTPServerTransport;
@@ -86,10 +95,10 @@ app.post("/mcp", async (req, res) => {
   }
 
   await transport.handleRequest(req, res, req.body);
-});
+}
 
 // MCP endpoint — GET (서버 → 클라이언트 SSE 스트림)
-app.get("/mcp", async (req, res) => {
+async function handleMcpGet(req: express.Request, res: express.Response): Promise<void> {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   if (!sessionId || !sessions.has(sessionId)) {
@@ -99,10 +108,10 @@ app.get("/mcp", async (req, res) => {
 
   const transport = sessions.get(sessionId)!;
   await transport.handleRequest(req, res);
-});
+}
 
 // MCP endpoint — DELETE (세션 종료)
-app.delete("/mcp", async (req, res) => {
+async function handleMcpDelete(req: express.Request, res: express.Response): Promise<void> {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   if (sessionId && sessions.has(sessionId)) {
@@ -112,7 +121,17 @@ app.delete("/mcp", async (req, res) => {
   }
 
   res.status(200).json({ message: "Session closed" });
-});
+}
+
+// /mcp 와 / 양쪽 모두 등록
+// Claude 모바일 connector는 등록된 URL의 루트(`/`)로 직접 MCP 메시지를 보내는 케이스가 있어
+// 양쪽을 모두 받아야 "Failed to generate authorization URL" 같은 디스커버리 실패를 피할 수 있다.
+app.post("/mcp", handleMcpPost);
+app.get("/mcp", handleMcpGet);
+app.delete("/mcp", handleMcpDelete);
+app.post("/", handleMcpPost);
+app.get("/", handleMcpGet);
+app.delete("/", handleMcpDelete);
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`public-data remote server running on port ${PORT}`);
