@@ -27,9 +27,25 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// 요청/응답 로깅 — connector 디버깅용. Claude 모바일/PC 클라이언트가 어떤 경로로
-// 어떤 헤더/바디를 보내는지 파악해야 "Failed to generate authorization URL" 같은
-// 클라이언트 측 에러의 원인을 좁힐 수 있다.
+// Claude.ai의 OAuth proxy(python-httpx)는 Accept: */* 만 보내서 StreamableHTTPServerTransport가
+// 406으로 거절한다. /mcp · / 경로는 transport가 두 형식을 모두 지원하므로 누락된 Accept를
+// 강제로 보강해 호환성을 확보한다.
+app.use((req, res, next) => {
+  if (req.path === "/mcp" || req.path === "/") {
+    const accept = (req.headers.accept || "").toString();
+    const hasJson = accept.includes("application/json") || accept.includes("*/*");
+    const hasSse = accept.includes("text/event-stream") || accept.includes("*/*");
+    if (!hasJson || !hasSse) {
+      req.headers.accept = "application/json, text/event-stream";
+    } else if (accept.includes("*/*") && !accept.includes("text/event-stream")) {
+      // */* 단독이면 transport가 인식 못 할 수 있어 명시적으로 둘 다 추가
+      req.headers.accept = "application/json, text/event-stream";
+    }
+  }
+  next();
+});
+
+// 요청/응답 로깅 — connector 디버깅용.
 app.use((req, res, next) => {
   const ua = (req.headers["user-agent"] || "-").toString().slice(0, 40);
   const accept = req.headers.accept || "-";
@@ -86,34 +102,44 @@ app.get("/openapi.json", (req, res) => {
 async function handleMcpPost(req: express.Request, res: express.Response): Promise<void> {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
-  let transport: StreamableHTTPServerTransport;
-
+  // 기존 세션 재사용
   if (sessionId && sessions.has(sessionId)) {
-    transport = sessions.get(sessionId)!;
-  } else {
-    // 새 세션 또는 재배포 후 stale 세션 → 새로 생성
-    transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-    });
-
-    transport.onclose = () => {
-      if (transport.sessionId) {
-        sessions.delete(transport.sessionId);
-      }
-    };
-
-    const server = createServer(serverConfig);
-    await server.connect(transport);
-
+    const transport = sessions.get(sessionId)!;
     await transport.handleRequest(req, res, req.body);
-
-    if (transport.sessionId) {
-      sessions.set(transport.sessionId, transport);
-    }
     return;
   }
 
+  // sessionId가 있는데 sessions에 없으면 stale → 명시적 404로 클라이언트가 재초기화하도록 안내
+  // (이걸 새 transport로 처리하면 클라이언트가 보낸 tools/list 같은 메서드가 initialize 없이
+  //  들어와서 transport가 400으로 거절하는 잘못된 흐름이 됨)
+  if (sessionId) {
+    res.status(404).json({
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32001, message: "Session not found. Please re-initialize." },
+    });
+    return;
+  }
+
+  // 새 세션 — initialize 메시지 처리
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+  });
+
+  transport.onclose = () => {
+    if (transport.sessionId) {
+      sessions.delete(transport.sessionId);
+    }
+  };
+
+  const server = createServer(serverConfig);
+  await server.connect(transport);
+
   await transport.handleRequest(req, res, req.body);
+
+  if (transport.sessionId) {
+    sessions.set(transport.sessionId, transport);
+  }
 }
 
 // MCP endpoint — GET (서버 → 클라이언트 SSE 스트림)
