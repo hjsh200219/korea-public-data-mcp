@@ -6,7 +6,7 @@ alwaysApply: true
 
 # public-data-mcp
 
-Korean public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시).
+Korean public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융감독원 보험상품 공시).
 
 ## Quick Start
 
@@ -44,10 +44,12 @@ src/
   mafra-types.ts      # 농림축산식품부 TypeScript interfaces (38 lines)
   finlife-api.ts      # 금융감독원 금융상품 비교공시 API client (232 lines)
   finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces (318 lines)
-  routes/             # 도메인별 REST 라우트 (8 files, 960 lines)
-  openapi/            # 도메인별 OpenAPI path 생성기 (8 files, 1381 lines)
+  insurance-api.ts    # 금융감독원 보험상품 공시 API client (249 lines, data.go.kr)
+  insurance-types.ts  # 금융감독원 보험상품 공시 TypeScript interfaces (160 lines)
+  routes/             # 도메인별 REST 라우트 (9 files, ~1086 lines)
+  openapi/            # 도메인별 OpenAPI path 생성기 (9 files, ~1503 lines)
   tools/
-    skills/           # ★ 11개 의도 기반 스킬 도구 + MCP Prompts (v6)
+    skills/           # ★ 12개 의도 기반 스킬 도구 + MCP Prompts (v6)
       index.ts        # 스킬 오케스트레이터 — 전체 등록
       _shared.ts      # createDispatcher, requireParam 공통 유틸
       prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts)
@@ -57,11 +59,12 @@ src/
       import-clearance.ts    # 수입통관 (20 actions, 649 lines, MAFRA 포함)
       export-clearance.ts    # 수출통관 (6 actions, 221 lines)
       shipping-logistics.ts  # 선적/물류 (9 actions, 280 lines)
-      tariff-lookup.ts       # 관세/HS코드/환율 (9 actions, 272 lines, EXIM 포함)
+      tariff-lookup.ts       # 관세/HS코드/환율 (9 actions, 281 lines, EXIM 포함)
       trade-entity.ts        # 무역업체 (11 actions, 324 lines)
       corporate-disclosure.ts # 기업공시 (7 actions, 363 lines, DART + 배당)
       public-data.ts         # 공공데이터포털 (9 actions, 289 lines)
       financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, 금융감독원)
+      insurance.ts           # 보험상품 공시 (5 actions, 422 lines, 금융감독원)
     # 기존 개별 도구 파일 (law-tools, dart-tools 등)은 v6에서 삭제됨
 ```
 
@@ -78,12 +81,12 @@ Protocol (server.ts → tools/skills/index.ts)
                 |
     Data Access (law-api.ts, dart-api.ts, data20-api.ts,
                  unipass-api.ts, exim-api.ts, mafra-api.ts,
-                 finlife-api.ts)
+                 finlife-api.ts, insurance-api.ts)
                 |
     Shared (shared.ts, tools/skills/_shared.ts)
     +  Types (law-types.ts, dart-types.ts, data20-types.ts,
              unipass-types.ts, exim-types.ts, mafra-types.ts,
-             finlife-types.ts)
+             finlife-types.ts, insurance-types.ts)
 ```
 
 - Dependencies flow downward only
@@ -124,9 +127,9 @@ Protocol (server.ts → tools/skills/index.ts)
 ## Conventions
 
 - Korean comments for domain-specific logic
-- MCP 스킬 도구: 11개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택
+- MCP 스킬 도구: 12개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택
 - MCP Prompts: 5개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관)
-- REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`)
+- REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`)
 - Error responses: `isError: true` with Korean messages
 - Domain-specific types in `{domain}-types.ts`, API clients in `{domain}-api.ts`
 - Content truncated at 8000 chars for MCP responses

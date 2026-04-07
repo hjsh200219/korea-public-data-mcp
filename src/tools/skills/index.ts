@@ -1,5 +1,5 @@
 /**
- * 스킬 도구 오케스트레이터 — 10개 스킬 도구 + MCP Prompts 등록
+ * 스킬 도구 오케스트레이터 — 12개 스킬 도구 + MCP Prompts 등록
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -15,6 +15,7 @@ import { registerTradeEntity } from "./trade-entity.js";
 import { registerCorporateDisclosure } from "./corporate-disclosure.js";
 import { registerPublicData } from "./public-data.js";
 import { registerFinancialProduct } from "./financial-product.js";
+import { registerInsurance } from "./insurance.js";
 import { registerSkillPrompts } from "./prompts.js";
 
 export function registerSkillTools(
@@ -37,6 +38,7 @@ export function registerSkillTools(
 
   if (config.data20ServiceKey) {
     registerPublicData(server, config.data20ServiceKey);
+    registerInsurance(server, config.data20ServiceKey);
   }
 
   if (config.finlifeApiKey) {

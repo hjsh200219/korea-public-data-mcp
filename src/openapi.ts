@@ -10,6 +10,7 @@ import { getUnipassPaths } from "./openapi/unipass-paths.js";
 import { getEximPaths } from "./openapi/exim-paths.js";
 import { getMafraPaths } from "./openapi/mafra-paths.js";
 import { getFinlifePaths } from "./openapi/finlife-paths.js";
+import { getInsurancePaths } from "./openapi/insurance-paths.js";
 
 export interface OpenApiSpecOptions {
   baseUrl: string;
@@ -36,6 +37,7 @@ export function generateOpenApiSpec(options: OpenApiSpecOptions) {
       ...getLawPaths(),
       ...(hasDart ? getDartPaths() : {}),
       ...(hasData20 ? getData20Paths() : {}),
+      ...(hasData20 ? getInsurancePaths() : {}),
       ...(hasUnipass ? getUnipassPaths() : {}),
       ...(hasExim ? getEximPaths() : {}),
       ...(hasMafra ? getMafraPaths() : {}),
