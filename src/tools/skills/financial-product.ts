@@ -1,7 +1,7 @@
 /**
  * Skill: financial_product — 금융감독원 금융상품 통합 비교공시
  *
- * 7개 FINLIFE API를 단일 스킬로 제공:
+ * 7개 금융감독원 금융상품 비교공시 API를 단일 스킬로 제공:
  *   - company            금융회사 조회
  *   - deposit            정기예금
  *   - saving             적금

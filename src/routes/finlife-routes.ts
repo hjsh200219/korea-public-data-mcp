@@ -1,5 +1,5 @@
 /**
- * 금융감독원 FINLIFE REST API 라우트 (/finlife/*)
+ * 금융감독원 금융상품 비교공시 REST API 라우트 (/finlife/*)
  */
 
 import type { Router } from "express";

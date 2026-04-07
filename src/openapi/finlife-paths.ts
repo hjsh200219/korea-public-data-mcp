@@ -1,5 +1,5 @@
 /**
- * 금융감독원 FINLIFE OpenAPI 경로 정의
+ * 금융감독원 금융상품 비교공시 OpenAPI 경로 정의
  */
 
 import { jsonResponse } from "./shared.js";

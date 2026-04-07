@@ -6,7 +6,7 @@ alwaysApply: true
 
 # public-data-mcp
 
-Korean public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 FINLIFE).
+Korean public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시).
 
 ## Quick Start
 
@@ -42,8 +42,8 @@ src/
   exim-types.ts       # 수출입은행 TypeScript interfaces (27 lines)
   mafra-api.ts        # 농림축산식품부 API client (103 lines)
   mafra-types.ts      # 농림축산식품부 TypeScript interfaces (38 lines)
-  finlife-api.ts      # 금융감독원 FINLIFE API client (232 lines)
-  finlife-types.ts    # 금융감독원 FINLIFE TypeScript interfaces (318 lines)
+  finlife-api.ts      # 금융감독원 금융상품 비교공시 API client (232 lines)
+  finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces (318 lines)
   routes/             # 도메인별 REST 라우트 (8 files, 960 lines)
   openapi/            # 도메인별 OpenAPI path 생성기 (8 files, 1381 lines)
   tools/
@@ -61,7 +61,7 @@ src/
       trade-entity.ts        # 무역업체 (11 actions, 324 lines)
       corporate-disclosure.ts # 기업공시 (7 actions, 363 lines, DART + 배당)
       public-data.ts         # 공공데이터포털 (9 actions, 289 lines)
-      financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, FINLIFE)
+      financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, 금융감독원)
     # 기존 개별 도구 파일 (law-tools, dart-tools 등)은 v6에서 삭제됨
 ```
 
@@ -118,7 +118,7 @@ Protocol (server.ts → tools/skills/index.ts)
 | `UNIPASS_KEY_API*` | No | 관세청 UNI-PASS API 인증키 (API번호별 개별 키, 없으면 UNI-PASS 도구 비활성화) |
 | `MAFRA_API_KEY` | No | 농림축산식품부 API key (없으면 농림축산식품부 도구 비활성화) |
 | `EXCHANGE_RATE_API_KEY` | No | 수출입은행 환율 API key (없으면 환율 도구 비활성화) |
-| `FINLIFE_API_KEY` | No | 금융감독원 FINLIFE API key (없으면 금융상품 비교공시 도구 비활성화) |
+| `FINLIFE_API_KEY` | No | 금융감독원 금융상품 비교공시 API key (없으면 금융상품 비교공시 도구 비활성화) |
 | `PORT` | No | HTTP server port (default: 3000) |
 
 ## Conventions

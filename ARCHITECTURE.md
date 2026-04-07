@@ -2,7 +2,7 @@
 
 ## System Overview
 
-public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 FINLIFE 금융상품 비교공시. **11개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 114개 API 액션을 제공 (v6.0.0).
+public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시. **11개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 114개 API 액션을 제공 (v6.0.0).
 
 ## High-Level Diagram
 
@@ -58,7 +58,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  unipass-api.ts — 관세청 UNI-PASS XML (42+)  │
 │  exim-api.ts   — 수출입은행 JSON (1 fn)      │
 │  mafra-api.ts  — 농림축산식품부 XML (2 fn)    │
-│  finlife-api.ts — 금감원 FINLIFE JSON (7 fn) │
+│  finlife-api.ts — 금감원 금융상품 JSON (7 fn)│
 │  shared.ts     — truncate, errorResponse    │
 └─────────────────┬───────────────────────────┘
                   │
@@ -71,7 +71,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  unipass-types.ts  — UNI-PASS interfaces    │
 │  exim-types.ts     — 수출입은행 interfaces    │
 │  mafra-types.ts    — 농림축산식품부 interfaces │
-│  finlife-types.ts  — FINLIFE interfaces     │
+│  finlife-types.ts  — 금감원 금융상품 interfaces│
 └─────────────────────────────────────────────┘
                   │
                   ▼
@@ -147,7 +147,7 @@ Dev dependencies: `typescript`, `tsx`, `@types/node`, `@types/express`, `vitest`
 - UNI-PASS: 30s timeout, no retry
 - 수출입은행: 15s timeout, 302 redirect handling
 - 농림축산식품부: 30s timeout, no retry
-- 금감원 FINLIFE: 15s timeout, 2 retries, User-Agent 헤더 필수, `@content2@` 마커 자동 제거
+- 금융감독원 금융상품 비교공시: 15s timeout, 2 retries, User-Agent 헤더 필수, `@content2@` 마커 자동 제거
 
 ### Session Management (HTTP mode)
 - Per-session `StreamableHTTPServerTransport` + `McpServer` instances
@@ -183,5 +183,5 @@ Dev dependencies: `typescript`, `tsx`, `@types/node`, `@types/express`, `vitest`
 | GET | `/api/unipass/*` | 관세청 UNI-PASS endpoints |
 | GET | `/api/exim/*` | 수출입은행 환율 endpoints |
 | GET | `/api/mafra/*` | 농림축산식품부 endpoints |
-| GET | `/api/finlife/*` | 금융감독원 FINLIFE 금융상품 비교공시 endpoints |
+| GET | `/api/finlife/*` | 금융감독원 금융상품 비교공시 endpoints |
 | GET | `/openapi.json` | OpenAPI 3.1 spec |
