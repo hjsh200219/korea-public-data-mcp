@@ -1,5 +1,5 @@
 /**
- * 금융감독원 보험상품 공시 (data.go.kr) API 클라이언트
+ * 금융위원회 보험상품 공시 (data.go.kr) API 클라이언트
  *
  * 5종 오퍼레이션 제공 (3개 서비스):
  *   1. 실손보험정보              GetMedicalReimbursementInsuranceInfoService/getInsuranceInfo

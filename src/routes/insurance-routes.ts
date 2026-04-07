@@ -1,5 +1,5 @@
 /**
- * 금융감독원 보험상품 공시 REST API 라우트 (/insurance/*)
+ * 금융위원회 보험상품 공시 REST API 라우트 (/insurance/*)
  *
  * 5종 오퍼레이션:
  *   GET /insurance/medical-reimbursement   실손보험정보

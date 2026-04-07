@@ -1,5 +1,5 @@
 /**
- * 금융감독원 보험상품 공시 OpenAPI 경로 정의 (data.go.kr)
+ * 금융위원회 보험상품 공시 OpenAPI 경로 정의 (data.go.kr)
  */
 
 import { jsonResponse, paginationParams } from "./shared.js";
@@ -77,7 +77,7 @@ export function getInsurancePaths(): OpenApiPaths {
       get: {
         operationId: "insuranceSearchMedicalReimbursement",
         summary: "실손보험정보 조회",
-        description: "금융감독원 실손의료보험 상품의 회사·담보·나이별 남/여 보험료를 조회합니다.",
+        description: "금융위원회 실손의료보험 상품의 회사·담보·나이별 남/여 보험료를 조회합니다.",
         parameters: MEDICAL_PARAMS,
         responses: jsonResponse("실손보험정보 목록"),
       },

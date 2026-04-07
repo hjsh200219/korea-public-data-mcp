@@ -2,7 +2,7 @@
 
 ## System Overview
 
-public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시, 금융감독원 보험상품 공시. **12개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 119개 API 액션을 제공 (v6.0.0).
+public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시, 금융위원회 보험상품 공시. **12개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 119개 API 액션을 제공 (v6.0.0).
 
 ## High-Level Diagram
 
@@ -187,5 +187,5 @@ Dev dependencies: `typescript`, `tsx`, `@types/node`, `@types/express`, `vitest`
 | GET | `/api/exim/*` | 수출입은행 환율 endpoints |
 | GET | `/api/mafra/*` | 농림축산식품부 endpoints |
 | GET | `/api/finlife/*` | 금융감독원 금융상품 비교공시 endpoints |
-| GET | `/api/insurance/*` | 금융감독원 보험상품 공시 endpoints |
+| GET | `/api/insurance/*` | 금융위원회 보험상품 공시 endpoints |
 | GET | `/openapi.json` | OpenAPI 3.1 spec |

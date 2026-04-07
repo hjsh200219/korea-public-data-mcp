@@ -1,5 +1,5 @@
 /**
- * Skill: insurance — 금융감독원 보험상품 공시 (data.go.kr)
+ * Skill: insurance — 금융위원회 보험상품 공시 (data.go.kr)
  *
  * 5개 보험 공시 API를 단일 스킬로 제공:
  *   - medical_reimbursement   실손보험정보 (남/여 보험료)
@@ -139,7 +139,7 @@ function handleMedicalReimbursement(serviceKey: string) {
         });
       }
       const blocks = result.items.map(renderMedicalReimbursement);
-      const header = "## 실손보험정보 (금융감독원)";
+      const header = "## 실손보험정보 (금융위원회)";
       const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
       return {
         content: [{
@@ -188,7 +188,7 @@ function handlePropertyInsuJoin(serviceKey: string) {
         });
       }
       const blocks = result.items.map(renderPropertyInsuJoin);
-      const header = "## 일반손해보험 가입정보 (금융감독원)";
+      const header = "## 일반손해보험 가입정보 (금융위원회)";
       const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
       return {
         content: [{
@@ -239,7 +239,7 @@ function handleAutoContract(serviceKey: string) {
         });
       }
       const blocks = result.items.map(renderAutoContract);
-      const header = "## 자동차보험 계약정보 (금융감독원)";
+      const header = "## 자동차보험 계약정보 (금융위원회)";
       const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
       return {
         content: [{
@@ -287,7 +287,7 @@ function handleAutoLosCircumstance(serviceKey: string) {
         });
       }
       const blocks = result.items.map(renderAutoLosCircumstance);
-      const header = "## 자동차보험 사고현황 (금융감독원)";
+      const header = "## 자동차보험 사고현황 (금융위원회)";
       const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
       return {
         content: [{
@@ -335,7 +335,7 @@ function handleAutoVictim(serviceKey: string) {
         });
       }
       const blocks = result.items.map(renderAutoVictim);
-      const header = "## 자동차보험 피해자 정보 (금융감독원)";
+      const header = "## 자동차보험 피해자 정보 (금융위원회)";
       const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
       return {
         content: [{
@@ -368,7 +368,7 @@ export function registerInsurance(server: McpServer, serviceKey: string): void {
 
   server.tool(
     "insurance",
-    "금융감독원 보험상품 공시 — 실손보험·일반손해보험·자동차보험 가입정보/사고현황을 조회합니다. (data.go.kr API, 활용신청 필요)",
+    "금융위원회 보험상품 공시 — 실손보험·일반손해보험·자동차보험 가입정보/사고현황을 조회합니다. (data.go.kr API, 활용신청 필요)",
     {
       action: z.enum(ACTIONS).describe(
         "medical_reimbursement=실손보험 보험료 | property_insu_join=일반손해보험 가입정보 | auto_contract=자동차보험 계약정보 | auto_los_circumstance=자동차보험 사고현황 | auto_victim=자동차보험 피해자 정보",
