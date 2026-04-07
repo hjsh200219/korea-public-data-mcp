@@ -28,18 +28,27 @@ app.use(cors({
 app.use(express.json());
 
 // Claude.ai의 OAuth proxy(python-httpx)는 Accept: */* 만 보내서 StreamableHTTPServerTransport가
-// 406으로 거절한다. /mcp · / 경로는 transport가 두 형식을 모두 지원하므로 누락된 Accept를
-// 강제로 보강해 호환성을 확보한다.
+// "Not Acceptable: Client must accept both application/json and text/event-stream" 으로 406을
+// 거절한다. SDK는 req.headers와 req.rawHeaders 양쪽을 참조할 수 있으므로 둘 다 정상화한다.
 app.use((req, res, next) => {
   if (req.path === "/mcp" || req.path === "/") {
     const accept = (req.headers.accept || "").toString();
-    const hasJson = accept.includes("application/json") || accept.includes("*/*");
-    const hasSse = accept.includes("text/event-stream") || accept.includes("*/*");
-    if (!hasJson || !hasSse) {
-      req.headers.accept = "application/json, text/event-stream";
-    } else if (accept.includes("*/*") && !accept.includes("text/event-stream")) {
-      // */* 단독이면 transport가 인식 못 할 수 있어 명시적으로 둘 다 추가
-      req.headers.accept = "application/json, text/event-stream";
+    const ok = accept.includes("application/json") && accept.includes("text/event-stream");
+    if (!ok) {
+      const normalized = "application/json, text/event-stream";
+      req.headers.accept = normalized;
+      // rawHeaders는 [name, value, name, value, ...] 형태. case-insensitive로 찾아 교체.
+      const raw = req.rawHeaders;
+      let replaced = false;
+      for (let i = 0; i < raw.length; i += 2) {
+        if (raw[i].toLowerCase() === "accept") {
+          raw[i + 1] = normalized;
+          replaced = true;
+        }
+      }
+      if (!replaced) {
+        raw.push("Accept", normalized);
+      }
     }
   }
   next();
