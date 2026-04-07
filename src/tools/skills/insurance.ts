@@ -1,12 +1,16 @@
 /**
  * Skill: insurance — 금융위원회 보험상품 공시 (data.go.kr)
  *
- * 5개 보험 공시 API를 단일 스킬로 제공:
+ * 9개 보험 공시 API를 단일 스킬로 제공:
  *   - medical_reimbursement   실손보험정보 (남/여 보험료)
  *   - property_insu_join      일반손해보험 가입정보 (담보별 계약건수/보험료)
  *   - auto_contract           자동차보험 계약정보 (성별·연령·차종별)
  *   - auto_los_circumstance   자동차보험 사고현황 (손해액/사상자)
  *   - auto_victim             자동차보험 피해자 정보 (사상/과실 등급)
+ *   - variable_insurance_fund 변액보험 펀드정보 (회사·펀드별 기준가/순자산)
+ *   - life_insu_join_status   생명보험 가입현황 (지역·성별·연령별 가입건수/율)
+ *   - individual_annuity_insu 개인연금보험 가입정보 (납입·세제·모집형태별)
+ *   - retirement_pension_fund 퇴직연금 펀드정보 (회사·펀드별 기준가/순자산)
  *
  * 인증: DATA20_SERVICE_KEY 재사용 (data.go.kr 통합 키).
  *       단, 각 API별로 활용신청 승인이 필요합니다.
@@ -20,6 +24,10 @@ import {
   searchAutoContract,
   searchAutoLosCircumstance,
   searchAutoVictim,
+  searchVariableInsuranceFund,
+  searchLifeInsuJoinStatus,
+  searchIndividualAnnuityInsu,
+  searchRetirementPensionFund,
 } from "../../insurance-api.js";
 import type {
   MedicalReimbursementItem,
@@ -27,6 +35,10 @@ import type {
   AutoContractItem,
   AutoLosCircumstanceItem,
   AutoVictimItem,
+  VariableInsuranceFundItem,
+  LifeInsuJoinStatusItem,
+  IndividualAnnuityInsuItem,
+  RetirementPensionFundItem,
 } from "../../insurance-types.js";
 import { errorResponse, truncate } from "../../shared.js";
 import {
@@ -41,6 +53,10 @@ const ACTIONS = [
   "auto_contract",
   "auto_los_circumstance",
   "auto_victim",
+  "variable_insurance_fund",
+  "life_insu_join_status",
+  "individual_annuity_insu",
+  "retirement_pension_fund",
 ] as const;
 
 type InsuranceParams = {
@@ -84,6 +100,23 @@ type InsuranceParams = {
   imp_yn?: string;
   inj_lvlcnt_cd?: string;
   imp_lvlcnt_cd?: string;
+  // 변액보험 / 퇴직연금 (펀드 공통)
+  like_cmpy_nm?: string;
+  fnd_nm?: string;
+  like_fnd_nm?: string;
+  fnd_cd?: string;
+  like_bas_dt?: string;
+  begin_basprc?: string;
+  end_basprc?: string;
+  // 생명보험 가입현황
+  area_nm?: string;
+  rchn_aggr?: string;
+  isu_kind_nm?: string;
+  // 개인연금보험
+  tax_prql_yn?: string;
+  pymt_mth_nm?: string;
+  offr_ty_nm?: string;
+  yer_unit_pymt_term?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -350,6 +383,214 @@ function handleAutoVictim(serviceKey: string) {
 }
 
 // ---------------------------------------------------------------------------
+// 6. 변액보험 펀드정보
+// ---------------------------------------------------------------------------
+
+function renderVariableInsuranceFund(item: VariableInsuranceFundItem): string {
+  return [
+    `### ${item.cmpyNm || "-"} — ${item.fndNm || "-"}`,
+    `회사코드: ${item.cmpyCd || "-"} | 펀드코드: ${item.fndCd || "-"} | 기준일: ${item.basDt || "-"}`,
+    `기준가: ${item.basprc ?? "-"} | 순자산금액: ${item.nPptAmt ?? "-"}`,
+  ].join("\n");
+}
+
+function handleVariableInsuranceFund(serviceKey: string) {
+  return async (p: InsuranceParams): Promise<SkillResult> => {
+    try {
+      const result = await searchVariableInsuranceFund(serviceKey, {
+        cmpyCd: p.cmpy_cd,
+        cmpyNm: p.cmpy_nm,
+        likeCmpyNm: p.like_cmpy_nm,
+        fndNm: p.fnd_nm,
+        likeFndNm: p.like_fnd_nm,
+        fndCd: p.fnd_cd,
+        basDt: p.bas_dt,
+        beginBasDt: p.begin_bas_dt,
+        endBasDt: p.end_bas_dt,
+        likeBasDt: p.like_bas_dt,
+        pageNo: p.page_no,
+        numOfRows: p.num_of_rows,
+      });
+      if (result.items.length === 0) {
+        return emptyResultMessage("변액보험 펀드정보", {
+          cmpy_nm: p.cmpy_nm,
+          like_cmpy_nm: p.like_cmpy_nm,
+          fnd_nm: p.fnd_nm,
+          like_fnd_nm: p.like_fnd_nm,
+          bas_dt: p.bas_dt,
+        });
+      }
+      const blocks = result.items.map(renderVariableInsuranceFund);
+      const header = "## 변액보험 펀드정보 (금융위원회)";
+      const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
+      return {
+        content: [{
+          type: "text",
+          text: truncate(`${header}\n\n${blocks.join("\n\n")}${footer}`),
+        }],
+      };
+    } catch (error) {
+      return errorResponse("변액보험 펀드정보 조회", error);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 7. 생명보험 가입현황
+// ---------------------------------------------------------------------------
+
+function renderLifeInsuJoinStatus(item: LifeInsuJoinStatusItem): string {
+  return [
+    `### ${item.sttsAccmlTrgtYr || "-"}년 — ${item.isuKindNm || "-"}`,
+    `지역: ${item.areaNm || "-"} | 성별: ${item.sexNm || "-"} | 연령대: ${item.rchnAggr || "-"}`,
+    `가입건수: ${num(item.joinCnt, "건")} | 가입율: ${num(item.joinRto, "%")}`,
+  ].join("\n");
+}
+
+function handleLifeInsuJoinStatus(serviceKey: string) {
+  return async (p: InsuranceParams): Promise<SkillResult> => {
+    try {
+      const result = await searchLifeInsuJoinStatus(serviceKey, {
+        sttsAccmlTrgtYr: p.stts_accml_trgt_yr,
+        areaNm: p.area_nm,
+        sexNm: p.sex_nm,
+        rchnAggr: p.rchn_aggr,
+        isuKindNm: p.isu_kind_nm,
+        pageNo: p.page_no,
+        numOfRows: p.num_of_rows,
+      });
+      if (result.items.length === 0) {
+        return emptyResultMessage("생명보험 가입현황", {
+          stts_accml_trgt_yr: p.stts_accml_trgt_yr,
+          area_nm: p.area_nm,
+          sex_nm: p.sex_nm,
+          rchn_aggr: p.rchn_aggr,
+          isu_kind_nm: p.isu_kind_nm,
+        });
+      }
+      const blocks = result.items.map(renderLifeInsuJoinStatus);
+      const header = "## 생명보험 가입현황 (금융위원회)";
+      const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
+      return {
+        content: [{
+          type: "text",
+          text: truncate(`${header}\n\n${blocks.join("\n\n")}${footer}`),
+        }],
+      };
+    } catch (error) {
+      return errorResponse("생명보험 가입현황 조회", error);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 8. 개인연금보험 가입정보
+// ---------------------------------------------------------------------------
+
+function renderIndividualAnnuityInsu(item: IndividualAnnuityInsuItem): string {
+  return [
+    `### ${item.sttsAccmlTrgtYr || "-"}년 — ${item.rchnAggr || "-"}`,
+    `세제적격: ${item.taxPrqlYn || "-"} | 납입방법: ${item.pymtMthNm || "-"} | 모집형태: ${item.offrTyNm || "-"}`,
+    `납입기간: ${item.yerUnitPymtTerm || "-"} | 가입건수: ${num(item.joinCnt, "건")}`,
+  ].join("\n");
+}
+
+function handleIndividualAnnuityInsu(serviceKey: string) {
+  return async (p: InsuranceParams): Promise<SkillResult> => {
+    try {
+      const result = await searchIndividualAnnuityInsu(serviceKey, {
+        sttsAccmlTrgtYr: p.stts_accml_trgt_yr,
+        rchnAggr: p.rchn_aggr,
+        taxPrqlYn: p.tax_prql_yn,
+        pymtMthNm: p.pymt_mth_nm,
+        offrTyNm: p.offr_ty_nm,
+        yerUnitPymtTerm: p.yer_unit_pymt_term,
+        pageNo: p.page_no,
+        numOfRows: p.num_of_rows,
+      });
+      if (result.items.length === 0) {
+        return emptyResultMessage("개인연금보험 가입정보", {
+          stts_accml_trgt_yr: p.stts_accml_trgt_yr,
+          rchn_aggr: p.rchn_aggr,
+          tax_prql_yn: p.tax_prql_yn,
+          pymt_mth_nm: p.pymt_mth_nm,
+          offr_ty_nm: p.offr_ty_nm,
+        });
+      }
+      const blocks = result.items.map(renderIndividualAnnuityInsu);
+      const header = "## 개인연금보험 가입정보 (금융위원회)";
+      const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
+      return {
+        content: [{
+          type: "text",
+          text: truncate(`${header}\n\n${blocks.join("\n\n")}${footer}`),
+        }],
+      };
+    } catch (error) {
+      return errorResponse("개인연금보험 가입정보 조회", error);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 9. 퇴직연금 펀드정보
+// ---------------------------------------------------------------------------
+
+function renderRetirementPensionFund(item: RetirementPensionFundItem): string {
+  return [
+    `### ${item.cmpyNm || "-"} — ${item.fndNm || "-"}`,
+    `회사코드: ${item.cmpyCd || "-"} | 펀드코드: ${item.fndCd || "-"} | 기준일: ${item.basDt || "-"}`,
+    `기준가: ${item.basprc ?? "-"} | 순자산금액: ${item.nPptAmt ?? "-"}`,
+    `제공기관: ${item.ofrInstNm || "-"}`,
+  ].join("\n");
+}
+
+function handleRetirementPensionFund(serviceKey: string) {
+  return async (p: InsuranceParams): Promise<SkillResult> => {
+    try {
+      const result = await searchRetirementPensionFund(serviceKey, {
+        cmpyCd: p.cmpy_cd,
+        cmpyNm: p.cmpy_nm,
+        likeCmpyNm: p.like_cmpy_nm,
+        fndNm: p.fnd_nm,
+        likeFndNm: p.like_fnd_nm,
+        fndCd: p.fnd_cd,
+        basDt: p.bas_dt,
+        beginBasDt: p.begin_bas_dt,
+        endBasDt: p.end_bas_dt,
+        likeBasDt: p.like_bas_dt,
+        beginBasprc: p.begin_basprc,
+        endBasprc: p.end_basprc,
+        ofrInstNm: p.ofr_inst_nm,
+        pageNo: p.page_no,
+        numOfRows: p.num_of_rows,
+      });
+      if (result.items.length === 0) {
+        return emptyResultMessage("퇴직연금 펀드정보", {
+          cmpy_nm: p.cmpy_nm,
+          like_cmpy_nm: p.like_cmpy_nm,
+          fnd_nm: p.fnd_nm,
+          like_fnd_nm: p.like_fnd_nm,
+          bas_dt: p.bas_dt,
+          ofr_inst_nm: p.ofr_inst_nm,
+        });
+      }
+      const blocks = result.items.map(renderRetirementPensionFund);
+      const header = "## 퇴직연금 펀드정보 (금융위원회)";
+      const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
+      return {
+        content: [{
+          type: "text",
+          text: truncate(`${header}\n\n${blocks.join("\n\n")}${footer}`),
+        }],
+      };
+    } catch (error) {
+      return errorResponse("퇴직연금 펀드정보 조회", error);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 디스패처 + MCP 등록
 // ---------------------------------------------------------------------------
 
@@ -360,6 +601,10 @@ export function createInsuranceHandler(serviceKey: string) {
     auto_contract: handleAutoContract(serviceKey),
     auto_los_circumstance: handleAutoLosCircumstance(serviceKey),
     auto_victim: handleAutoVictim(serviceKey),
+    variable_insurance_fund: handleVariableInsuranceFund(serviceKey),
+    life_insu_join_status: handleLifeInsuJoinStatus(serviceKey),
+    individual_annuity_insu: handleIndividualAnnuityInsu(serviceKey),
+    retirement_pension_fund: handleRetirementPensionFund(serviceKey),
   });
 }
 
@@ -368,10 +613,10 @@ export function registerInsurance(server: McpServer, serviceKey: string): void {
 
   server.tool(
     "insurance",
-    "금융위원회 보험상품 공시 — 실손보험·일반손해보험·자동차보험 가입정보/사고현황을 조회합니다. (data.go.kr API, 활용신청 필요)",
+    "금융위원회 보험상품 공시 — 실손/일반손해/자동차/변액/생명/개인연금/퇴직연금 보험 정보를 조회합니다. (data.go.kr API, 활용신청 필요)",
     {
       action: z.enum(ACTIONS).describe(
-        "medical_reimbursement=실손보험 보험료 | property_insu_join=일반손해보험 가입정보 | auto_contract=자동차보험 계약정보 | auto_los_circumstance=자동차보험 사고현황 | auto_victim=자동차보험 피해자 정보",
+        "medical_reimbursement=실손보험 보험료 | property_insu_join=일반손해보험 가입정보 | auto_contract=자동차보험 계약정보 | auto_los_circumstance=자동차보험 사고현황 | auto_victim=자동차보험 피해자 정보 | variable_insurance_fund=변액보험 펀드정보 | life_insu_join_status=생명보험 가입현황 | individual_annuity_insu=개인연금보험 가입정보 | retirement_pension_fund=퇴직연금 펀드정보",
       ),
       // 공통 페이징
       page_no: z.number().int().min(1).optional().describe("페이지 번호 (기본 1)"),
@@ -416,6 +661,26 @@ export function registerInsurance(server: McpServer, serviceKey: string): void {
       imp_yn: z.string().optional().describe("[피해자] 과실여부 (Y/N)"),
       inj_lvlcnt_cd: z.string().optional().describe("[피해자] 부상등급코드"),
       imp_lvlcnt_cd: z.string().optional().describe("[피해자] 과실등급코드"),
+
+      // 변액보험·퇴직연금 펀드 공통 (variable_insurance_fund / retirement_pension_fund)
+      like_cmpy_nm: z.string().optional().describe("[변액/퇴직연금] 회사명 부분 일치"),
+      fnd_nm: z.string().optional().describe("[변액/퇴직연금] 펀드명 (정확히 일치)"),
+      like_fnd_nm: z.string().optional().describe("[변액/퇴직연금] 펀드명 부분 일치"),
+      fnd_cd: z.string().optional().describe("[변액/퇴직연금] 펀드코드"),
+      like_bas_dt: z.string().optional().describe("[변액/퇴직연금] 기준일자 부분 일치"),
+      begin_basprc: z.string().optional().describe("[퇴직연금] 기준가 이상"),
+      end_basprc: z.string().optional().describe("[퇴직연금] 기준가 미만"),
+
+      // 생명보험 가입현황 (life_insu_join_status)
+      area_nm: z.string().optional().describe("[생명/가입현황] 지역명"),
+      rchn_aggr: z.string().optional().describe("[생명/개인연금] 도달연령대"),
+      isu_kind_nm: z.string().optional().describe("[생명/가입현황] 보험종류명"),
+
+      // 개인연금보험 가입정보 (individual_annuity_insu)
+      tax_prql_yn: z.string().optional().describe("[개인연금] 세제적격여부 (Y/N)"),
+      pymt_mth_nm: z.string().optional().describe("[개인연금] 납입방법명"),
+      offr_ty_nm: z.string().optional().describe("[개인연금] 모집형태명"),
+      yer_unit_pymt_term: z.string().optional().describe("[개인연금] 년단위납입기간"),
     },
     async (params) => handler(params as InsuranceParams),
   );

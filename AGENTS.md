@@ -44,8 +44,8 @@ src/
   mafra-types.ts      # 농림축산식품부 TypeScript interfaces (38 lines)
   finlife-api.ts      # 금융감독원 금융상품 비교공시 API client (232 lines)
   finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces (318 lines)
-  insurance-api.ts    # 금융위원회 보험상품 공시 API client (249 lines, data.go.kr)
-  insurance-types.ts  # 금융위원회 보험상품 공시 TypeScript interfaces (160 lines)
+  insurance-api.ts    # 금융위원회 보험상품 공시 API client (367 lines, data.go.kr)
+  insurance-types.ts  # 금융위원회 보험상품 공시 TypeScript interfaces (275 lines)
   routes/             # 도메인별 REST 라우트 (9 files, ~1086 lines)
   openapi/            # 도메인별 OpenAPI path 생성기 (9 files, ~1503 lines)
   tools/
@@ -64,7 +64,7 @@ src/
       corporate-disclosure.ts # 기업공시 (7 actions, 363 lines, DART + 배당)
       public-data.ts         # 공공데이터포털 (9 actions, 289 lines)
       financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, 금융감독원)
-      insurance.ts           # 보험상품 공시 (5 actions, 422 lines, 금융위원회)
+      insurance.ts           # 보험상품 공시 (9 actions, 687 lines, 금융위원회)
     # 기존 개별 도구 파일 (law-tools, dart-tools 등)은 v6에서 삭제됨
 ```
 

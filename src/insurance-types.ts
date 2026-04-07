@@ -1,12 +1,16 @@
 /**
  * 금융위원회 보험상품 공시 (data.go.kr) API 타입 정의
  *
- * 3개 서비스, 5개 오퍼레이션 제공:
+ * 6개 서비스, 9개 오퍼레이션 제공:
  *   1. 실손보험정보             GetMedicalReimbursementInsuranceInfoService/getInsuranceInfo
  *   2. 일반손해보험가입정보     GetFPPptInsuJoinInfoService/getPropertyInsuJoinInfo
  *   3. 자동차보험가입정보       GetFPAtmbInsujoinInfoService/getContractInfo
  *                                                          /getLosCircumstance
  *                                                          /getVictimInfo
+ *   4. 변액보험기본정보         GetVariableInsuranceInfoService/getFundInfo
+ *   5. 생명보험가입정보         GetFPLifeInsuJoinInfoService/getLifeInsuJoinStatus
+ *                                                         /getIndividualAnnuityInsuInfo
+ *   6. 퇴직연금기본정보         GetRetirementPensionInfoService/getFundInfo
  *
  * 공통 응답 구조 (data.go.kr 표준):
  *   { response: { header: { resultCode, resultMsg }, body: { items: { item: [...] }, totalCount, pageNo, numOfRows } } }
@@ -144,6 +148,117 @@ export interface AutoVictimSearchParams {
   impYn?: string;
   injLvlcntCd?: string;
   impLvlcntCd?: string;
+  pageNo?: number;
+  numOfRows?: number;
+}
+
+// ---------------------------------------------------------------------------
+// 6. 변액보험 기본정보 (getFundInfo)
+// ---------------------------------------------------------------------------
+
+export interface VariableInsuranceFundItem {
+  cmpyCd: string;             // 회사코드
+  cmpyNm: string;             // 회사명
+  fndNm: string;              // 펀드명
+  fndCd: string;              // 펀드코드
+  basDt: string;              // 기준일자 YYYYMMDD
+  basprc: string | null;      // 기준가
+  nPptAmt: string | null;     // 순자산금액
+}
+
+export interface VariableInsuranceFundSearchParams {
+  cmpyCd?: string;
+  cmpyNm?: string;
+  likeCmpyNm?: string;
+  fndNm?: string;
+  likeFndNm?: string;
+  fndCd?: string;
+  basDt?: string;
+  beginBasDt?: string;
+  endBasDt?: string;
+  likeBasDt?: string;
+  pageNo?: number;
+  numOfRows?: number;
+}
+
+// ---------------------------------------------------------------------------
+// 7. 생명보험 가입현황 (getLifeInsuJoinStatus)
+// ---------------------------------------------------------------------------
+
+export interface LifeInsuJoinStatusItem {
+  isuKindNm: string;          // 보험종류명
+  joinCnt: number | null;     // 가입건수
+  joinRto: number | null;     // 가입율
+  sttsAccmlTrgtYr: string;    // 통계집적대상년도
+  areaNm: string;             // 지역명
+  sexNm: string;              // 성별명
+  rchnAggr: string;           // 도달연령대
+}
+
+export interface LifeInsuJoinStatusSearchParams {
+  sttsAccmlTrgtYr?: string;
+  areaNm?: string;
+  sexNm?: string;
+  rchnAggr?: string;
+  isuKindNm?: string;
+  pageNo?: number;
+  numOfRows?: number;
+}
+
+// ---------------------------------------------------------------------------
+// 8. 개인연금보험 가입정보 (getIndividualAnnuityInsuInfo)
+// ---------------------------------------------------------------------------
+
+export interface IndividualAnnuityInsuItem {
+  sttsAccmlTrgtYr: string;    // 통계집적대상년도
+  rchnAggr: string;           // 도달연령대
+  taxPrqlYn: string;          // 세제적격여부 (Y/N)
+  pymtMthNm: string;          // 납입방법명
+  offrTyNm: string;           // 모집형태명
+  yerUnitPymtTerm: string;    // 년단위납입기간
+  joinCnt: number | null;     // 가입건수
+}
+
+export interface IndividualAnnuityInsuSearchParams {
+  sttsAccmlTrgtYr?: string;
+  rchnAggr?: string;
+  taxPrqlYn?: string;
+  pymtMthNm?: string;
+  offrTyNm?: string;
+  yerUnitPymtTerm?: string;
+  pageNo?: number;
+  numOfRows?: number;
+}
+
+// ---------------------------------------------------------------------------
+// 9. 퇴직연금 기본정보 (getFundInfo)
+// ---------------------------------------------------------------------------
+
+export interface RetirementPensionFundItem {
+  cmpyCd: string;             // 회사코드
+  cmpyNm: string;             // 회사명
+  fndNm: string;              // 펀드명
+  fndCd: string;              // 펀드코드
+  basDt: string;              // 기준일자 YYYYMMDD
+  basprc: string | null;      // 기준가
+  nPptAmt: string | null;     // 순자산금액
+  ofrInstNm: string;          // 제공기관명
+}
+
+export interface RetirementPensionFundSearchParams {
+  cmpyCd?: string;
+  cmpyNm?: string;
+  likeCmpyNm?: string;
+  fndNm?: string;
+  likeFndNm?: string;
+  fndCd?: string;
+  basDt?: string;
+  beginBasDt?: string;
+  endBasDt?: string;
+  likeBasDt?: string;
+  beginBasprc?: string;
+  endBasprc?: string;
+  ofrInstNm?: string;
   pageNo?: number;
   numOfRows?: number;
 }

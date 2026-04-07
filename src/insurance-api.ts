@@ -1,12 +1,16 @@
 /**
  * 금융위원회 보험상품 공시 (data.go.kr) API 클라이언트
  *
- * 5종 오퍼레이션 제공 (3개 서비스):
+ * 9종 오퍼레이션 제공 (6개 서비스):
  *   1. 실손보험정보              GetMedicalReimbursementInsuranceInfoService/getInsuranceInfo
  *   2. 일반손해보험가입정보      GetFPPptInsuJoinInfoService/getPropertyInsuJoinInfo
  *   3. 자동차보험 계약정보       GetFPAtmbInsujoinInfoService/getContractInfo
  *   4. 자동차보험 사고현황       GetFPAtmbInsujoinInfoService/getLosCircumstance
  *   5. 자동차보험 피해자정보     GetFPAtmbInsujoinInfoService/getVictimInfo
+ *   6. 변액보험 펀드정보         GetVariableInsuranceInfoService/getFundInfo
+ *   7. 생명보험 가입현황         GetFPLifeInsuJoinInfoService/getLifeInsuJoinStatus
+ *   8. 개인연금보험 가입정보     GetFPLifeInsuJoinInfoService/getIndividualAnnuityInsuInfo
+ *   9. 퇴직연금 펀드정보         GetRetirementPensionInfoService/getFundInfo
  *
  * 인증: DATA20_SERVICE_KEY 재사용 (data.go.kr 통합 API 키).
  *       단, 각 API별로 활용신청이 별도 승인되어야 호출 가능.
@@ -30,6 +34,14 @@ import type {
   AutoLosCircumstanceSearchParams,
   AutoVictimItem,
   AutoVictimSearchParams,
+  VariableInsuranceFundItem,
+  VariableInsuranceFundSearchParams,
+  LifeInsuJoinStatusItem,
+  LifeInsuJoinStatusSearchParams,
+  IndividualAnnuityInsuItem,
+  IndividualAnnuityInsuSearchParams,
+  RetirementPensionFundItem,
+  RetirementPensionFundSearchParams,
 } from "./insurance-types.js";
 
 const REQUEST_TIMEOUT_MS = 15000;
@@ -243,6 +255,112 @@ export async function searchAutoVictim(
       impYn: params.impYn || "",
       injLvlcntCd: params.injLvlcntCd || "",
       impLvlcntCd: params.impLvlcntCd || "",
+      ...pageParams(params.pageNo, params.numOfRows),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 6. 변액보험 펀드정보 (GetVariableInsuranceInfoService/getFundInfo)
+// ---------------------------------------------------------------------------
+
+export async function searchVariableInsuranceFund(
+  serviceKey: string,
+  params: VariableInsuranceFundSearchParams,
+): Promise<InsuranceFetchResult<VariableInsuranceFundItem>> {
+  return fetchJson<VariableInsuranceFundItem>(
+    "https://apis.data.go.kr/1160100/service/GetVariableInsuranceInfoService/getFundInfo",
+    serviceKey,
+    {
+      resultType: "json",
+      cmpyCd: params.cmpyCd || "",
+      cmpyNm: params.cmpyNm || "",
+      likeCmpyNm: params.likeCmpyNm || "",
+      fndNm: params.fndNm || "",
+      likeFndNm: params.likeFndNm || "",
+      fndCd: params.fndCd || "",
+      basDt: params.basDt || "",
+      beginBasDt: params.beginBasDt || "",
+      endBasDt: params.endBasDt || "",
+      likeBasDt: params.likeBasDt || "",
+      ...pageParams(params.pageNo, params.numOfRows),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 7. 생명보험 가입현황 (GetFPLifeInsuJoinInfoService/getLifeInsuJoinStatus)
+// ---------------------------------------------------------------------------
+
+export async function searchLifeInsuJoinStatus(
+  serviceKey: string,
+  params: LifeInsuJoinStatusSearchParams,
+): Promise<InsuranceFetchResult<LifeInsuJoinStatusItem>> {
+  return fetchJson<LifeInsuJoinStatusItem>(
+    "https://apis.data.go.kr/1160100/service/GetFPLifeInsuJoinInfoService/getLifeInsuJoinStatus",
+    serviceKey,
+    {
+      resultType: "json",
+      sttsAccmlTrgtYr: params.sttsAccmlTrgtYr || "",
+      areaNm: params.areaNm || "",
+      sexNm: params.sexNm || "",
+      rchnAggr: params.rchnAggr || "",
+      isuKindNm: params.isuKindNm || "",
+      ...pageParams(params.pageNo, params.numOfRows),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 8. 개인연금보험 가입정보 (GetFPLifeInsuJoinInfoService/getIndividualAnnuityInsuInfo)
+// ---------------------------------------------------------------------------
+
+export async function searchIndividualAnnuityInsu(
+  serviceKey: string,
+  params: IndividualAnnuityInsuSearchParams,
+): Promise<InsuranceFetchResult<IndividualAnnuityInsuItem>> {
+  return fetchJson<IndividualAnnuityInsuItem>(
+    "https://apis.data.go.kr/1160100/service/GetFPLifeInsuJoinInfoService/getIndividualAnnuityInsuInfo",
+    serviceKey,
+    {
+      resultType: "json",
+      sttsAccmlTrgtYr: params.sttsAccmlTrgtYr || "",
+      rchnAggr: params.rchnAggr || "",
+      taxPrqlYn: params.taxPrqlYn || "",
+      pymtMthNm: params.pymtMthNm || "",
+      offrTyNm: params.offrTyNm || "",
+      yerUnitPymtTerm: params.yerUnitPymtTerm || "",
+      ...pageParams(params.pageNo, params.numOfRows),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 9. 퇴직연금 펀드정보 (GetRetirementPensionInfoService/getFundInfo)
+// ---------------------------------------------------------------------------
+
+export async function searchRetirementPensionFund(
+  serviceKey: string,
+  params: RetirementPensionFundSearchParams,
+): Promise<InsuranceFetchResult<RetirementPensionFundItem>> {
+  return fetchJson<RetirementPensionFundItem>(
+    "https://apis.data.go.kr/1160100/service/GetRetirementPensionInfoService/getFundInfo",
+    serviceKey,
+    {
+      resultType: "json",
+      cmpyCd: params.cmpyCd || "",
+      cmpyNm: params.cmpyNm || "",
+      likeCmpyNm: params.likeCmpyNm || "",
+      fndNm: params.fndNm || "",
+      likeFndNm: params.likeFndNm || "",
+      fndCd: params.fndCd || "",
+      basDt: params.basDt || "",
+      beginBasDt: params.beginBasDt || "",
+      endBasDt: params.endBasDt || "",
+      likeBasDt: params.likeBasDt || "",
+      beginBasprc: params.beginBasprc || "",
+      endBasprc: params.endBasprc || "",
+      ofrInstNm: params.ofrInstNm || "",
       ...pageParams(params.pageNo, params.numOfRows),
     },
   );

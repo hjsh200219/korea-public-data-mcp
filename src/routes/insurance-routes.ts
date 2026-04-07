@@ -1,12 +1,16 @@
 /**
  * 금융위원회 보험상품 공시 REST API 라우트 (/insurance/*)
  *
- * 5종 오퍼레이션:
- *   GET /insurance/medical-reimbursement   실손보험정보
- *   GET /insurance/property-insu-join      일반손해보험 가입정보
- *   GET /insurance/auto-contract           자동차보험 계약정보
- *   GET /insurance/auto-los-circumstance   자동차보험 사고현황
- *   GET /insurance/auto-victim             자동차보험 피해자 정보
+ * 9종 오퍼레이션:
+ *   GET /insurance/medical-reimbursement     실손보험정보
+ *   GET /insurance/property-insu-join        일반손해보험 가입정보
+ *   GET /insurance/auto-contract             자동차보험 계약정보
+ *   GET /insurance/auto-los-circumstance     자동차보험 사고현황
+ *   GET /insurance/auto-victim               자동차보험 피해자 정보
+ *   GET /insurance/variable-insurance-fund   변액보험 펀드정보
+ *   GET /insurance/life-insu-join-status     생명보험 가입현황
+ *   GET /insurance/individual-annuity-insu   개인연금보험 가입정보
+ *   GET /insurance/retirement-pension-fund   퇴직연금 펀드정보
  */
 
 import type { Router } from "express";
@@ -17,6 +21,10 @@ import {
   searchAutoContract,
   searchAutoLosCircumstance,
   searchAutoVictim,
+  searchVariableInsuranceFund,
+  searchLifeInsuJoinStatus,
+  searchIndividualAnnuityInsu,
+  searchRetirementPensionFund,
 } from "../insurance-api.js";
 
 function str(v: unknown): string | undefined {
@@ -118,6 +126,84 @@ export function registerInsuranceRoutes(router: Router, serviceKey: string): voi
         impYn: str(q.imp_yn),
         injLvlcntCd: str(q.inj_lvlcnt_cd),
         impLvlcntCd: str(q.imp_lvlcnt_cd),
+        pageNo: intOr(q.page_no),
+        numOfRows: intOr(q.num_of_rows),
+      });
+    }),
+  );
+
+  router.get(
+    "/insurance/variable-insurance-fund",
+    handle(async (req) => {
+      const q = req.query as Record<string, unknown>;
+      return searchVariableInsuranceFund(serviceKey, {
+        cmpyCd: str(q.cmpy_cd),
+        cmpyNm: str(q.cmpy_nm),
+        likeCmpyNm: str(q.like_cmpy_nm),
+        fndNm: str(q.fnd_nm),
+        likeFndNm: str(q.like_fnd_nm),
+        fndCd: str(q.fnd_cd),
+        basDt: str(q.bas_dt),
+        beginBasDt: str(q.begin_bas_dt),
+        endBasDt: str(q.end_bas_dt),
+        likeBasDt: str(q.like_bas_dt),
+        pageNo: intOr(q.page_no),
+        numOfRows: intOr(q.num_of_rows),
+      });
+    }),
+  );
+
+  router.get(
+    "/insurance/life-insu-join-status",
+    handle(async (req) => {
+      const q = req.query as Record<string, unknown>;
+      return searchLifeInsuJoinStatus(serviceKey, {
+        sttsAccmlTrgtYr: str(q.stts_accml_trgt_yr),
+        areaNm: str(q.area_nm),
+        sexNm: str(q.sex_nm),
+        rchnAggr: str(q.rchn_aggr),
+        isuKindNm: str(q.isu_kind_nm),
+        pageNo: intOr(q.page_no),
+        numOfRows: intOr(q.num_of_rows),
+      });
+    }),
+  );
+
+  router.get(
+    "/insurance/individual-annuity-insu",
+    handle(async (req) => {
+      const q = req.query as Record<string, unknown>;
+      return searchIndividualAnnuityInsu(serviceKey, {
+        sttsAccmlTrgtYr: str(q.stts_accml_trgt_yr),
+        rchnAggr: str(q.rchn_aggr),
+        taxPrqlYn: str(q.tax_prql_yn),
+        pymtMthNm: str(q.pymt_mth_nm),
+        offrTyNm: str(q.offr_ty_nm),
+        yerUnitPymtTerm: str(q.yer_unit_pymt_term),
+        pageNo: intOr(q.page_no),
+        numOfRows: intOr(q.num_of_rows),
+      });
+    }),
+  );
+
+  router.get(
+    "/insurance/retirement-pension-fund",
+    handle(async (req) => {
+      const q = req.query as Record<string, unknown>;
+      return searchRetirementPensionFund(serviceKey, {
+        cmpyCd: str(q.cmpy_cd),
+        cmpyNm: str(q.cmpy_nm),
+        likeCmpyNm: str(q.like_cmpy_nm),
+        fndNm: str(q.fnd_nm),
+        likeFndNm: str(q.like_fnd_nm),
+        fndCd: str(q.fnd_cd),
+        basDt: str(q.bas_dt),
+        beginBasDt: str(q.begin_bas_dt),
+        endBasDt: str(q.end_bas_dt),
+        likeBasDt: str(q.like_bas_dt),
+        beginBasprc: str(q.begin_basprc),
+        endBasprc: str(q.end_basprc),
+        ofrInstNm: str(q.ofr_inst_nm),
         pageNo: intOr(q.page_no),
         numOfRows: intOr(q.num_of_rows),
       });
