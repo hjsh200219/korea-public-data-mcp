@@ -127,9 +127,11 @@ function fmtFooter(now: number, num: number, total: number): string {
   return `\n\n_총 ${total}건 / 페이지 ${now} (페이지당 ${num}건)_`;
 }
 
-function num(v: number | null | undefined, suffix = ""): string {
-  if (v == null) return "-";
-  return `${Number(v).toLocaleString()}${suffix}`;
+function num(v: number | string | null | undefined, suffix = ""): string {
+  if (v == null || v === "") return "-";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return `${v}${suffix}`;
+  return `${n.toLocaleString()}${suffix}`;
 }
 
 // ---------------------------------------------------------------------------

@@ -187,8 +187,8 @@ export interface VariableInsuranceFundSearchParams {
 
 export interface LifeInsuJoinStatusItem {
   isuKindNm: string;          // 보험종류명
-  joinCnt: number | null;     // 가입건수
-  joinRto: number | null;     // 가입율
+  joinCnt: string | null;     // 가입건수 (data.go.kr이 문자열로 직렬화)
+  joinRto: string | null;     // 가입율 (% 단위, 문자열)
   sttsAccmlTrgtYr: string;    // 통계집적대상년도
   areaNm: string;             // 지역명
   sexNm: string;              // 성별명
@@ -216,7 +216,7 @@ export interface IndividualAnnuityInsuItem {
   pymtMthNm: string;          // 납입방법명
   offrTyNm: string;           // 모집형태명
   yerUnitPymtTerm: string;    // 년단위납입기간
-  joinCnt: number | null;     // 가입건수
+  joinCnt: string | null;     // 가입건수 (data.go.kr이 문자열로 직렬화)
 }
 
 export interface IndividualAnnuityInsuSearchParams {
