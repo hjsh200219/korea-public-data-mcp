@@ -28,12 +28,17 @@ app.use(cors({
 app.use(express.json());
 
 // 요청/응답 로깅 — connector 디버깅용. Claude 모바일/PC 클라이언트가 어떤 경로로
-// 어떤 헤더를 보내는지 파악해야 "Failed to generate authorization URL" 같은
+// 어떤 헤더/바디를 보내는지 파악해야 "Failed to generate authorization URL" 같은
 // 클라이언트 측 에러의 원인을 좁힐 수 있다.
 app.use((req, res, next) => {
-  const origin = req.headers.origin || "-";
-  const ua = (req.headers["user-agent"] || "-").toString().slice(0, 60);
-  console.log(`→ ${req.method} ${req.path} origin=${origin} ua=${ua}`);
+  const ua = (req.headers["user-agent"] || "-").toString().slice(0, 40);
+  const accept = req.headers.accept || "-";
+  const ct = req.headers["content-type"] || "-";
+  const sid = req.headers["mcp-session-id"] || "-";
+  console.log(`→ ${req.method} ${req.path} ua="${ua}" accept="${accept}" ct="${ct}" sid="${sid}"`);
+  if (req.method === "POST" && req.body && Object.keys(req.body).length > 0) {
+    console.log(`  body: ${JSON.stringify(req.body).slice(0, 600)}`);
+  }
   res.on("finish", () => {
     console.log(`← ${req.method} ${req.path} ${res.statusCode}`);
   });
