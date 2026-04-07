@@ -10,6 +10,7 @@ export interface ServerConfig {
   unipassApiKeys?: Record<string, string>;
   eximApiKey?: string;
   mafraApiKey?: string;
+  finlifeApiKey?: string;
 }
 
 function collectUnipassKeys(): Record<string, string> {
@@ -27,6 +28,7 @@ export function loadConfig(): ServerConfig {
   const data20ServiceKey = process.env.DATA20_SERVICE_KEY || "";
   const exchangeRateApiKey = process.env.EXCHANGE_RATE_API_KEY || "";
   const mafraApiKey = process.env.MAFRA_API_KEY || "";
+  const finlifeApiKey = process.env.FINLIFE_API_KEY || "";
   const unipassKeys = collectUnipassKeys();
 
   if (!lawApiOc) {
@@ -56,6 +58,10 @@ export function loadConfig(): ServerConfig {
     console.warn("MAFRA_API_KEY 미설정 — 수입축산물 이력 도구 비활성화");
   }
 
+  if (!finlifeApiKey) {
+    console.warn("FINLIFE_API_KEY 미설정 — 금융상품 비교공시 도구 비활성화");
+  }
+
   return {
     lawApiOc,
     dartApiKey: dartApiKey || undefined,
@@ -63,5 +69,6 @@ export function loadConfig(): ServerConfig {
     unipassApiKeys: Object.keys(unipassKeys).length > 0 ? unipassKeys : undefined,
     eximApiKey: exchangeRateApiKey || undefined,
     mafraApiKey: mafraApiKey || undefined,
+    finlifeApiKey: finlifeApiKey || undefined,
   };
 }

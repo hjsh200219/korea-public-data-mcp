@@ -14,6 +14,7 @@ import { registerTariffLookup } from "./tariff-lookup.js";
 import { registerTradeEntity } from "./trade-entity.js";
 import { registerCorporateDisclosure } from "./corporate-disclosure.js";
 import { registerPublicData } from "./public-data.js";
+import { registerFinancialProduct } from "./financial-product.js";
 import { registerSkillPrompts } from "./prompts.js";
 
 export function registerSkillTools(
@@ -36,6 +37,10 @@ export function registerSkillTools(
 
   if (config.data20ServiceKey) {
     registerPublicData(server, config.data20ServiceKey);
+  }
+
+  if (config.finlifeApiKey) {
+    registerFinancialProduct(server, config.finlifeApiKey);
   }
 
   registerSkillPrompts(server);

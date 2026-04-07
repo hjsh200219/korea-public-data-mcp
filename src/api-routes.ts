@@ -10,6 +10,7 @@ import { registerData20Routes } from "./routes/data20-routes.js";
 import { registerUnipassRoutes } from "./routes/unipass-routes.js";
 import { registerEximRoutes } from "./routes/exim-routes.js";
 import { registerMafraRoutes } from "./routes/mafra-routes.js";
+import { registerFinlifeRoutes } from "./routes/finlife-routes.js";
 
 export function createApiRouter(config: ServerConfig): Router {
   const router = Router();
@@ -34,6 +35,10 @@ export function createApiRouter(config: ServerConfig): Router {
 
   if (config.mafraApiKey) {
     registerMafraRoutes(router, config.mafraApiKey);
+  }
+
+  if (config.finlifeApiKey) {
+    registerFinlifeRoutes(router, config.finlifeApiKey);
   }
 
   return router;

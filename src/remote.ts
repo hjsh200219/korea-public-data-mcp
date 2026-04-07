@@ -50,6 +50,7 @@ app.get("/openapi.json", (req, res) => {
     hasUnipass: !!(serverConfig.unipassApiKeys && Object.keys(serverConfig.unipassApiKeys).length > 0),
     hasExim: !!serverConfig.eximApiKey,
     hasMafra: !!serverConfig.mafraApiKey,
+    hasFinlife: !!serverConfig.finlifeApiKey,
   }));
 });
 

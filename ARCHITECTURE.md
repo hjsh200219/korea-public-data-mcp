@@ -2,7 +2,7 @@
 
 ## System Overview
 
-public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부. **10개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 107개 API 액션을 제공 (v6.0.0).
+public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 FINLIFE 금융상품 비교공시. **11개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 114개 API 액션을 제공 (v6.0.0).
 
 ## High-Level Diagram
 
@@ -31,7 +31,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 └──────┬───────┘ └────┬─────┘ └──────────┘
        │              │
        │  ┌────────────────────────────────────────┐
-       │  │  tools/skills/ (10 Skills + 5 Prompts)  │
+       │  │  tools/skills/ (11 Skills + 5 Prompts)  │
        │  │  index.ts          — 오케스트레이터      │
        │  │  _shared.ts        — 공통 디스패처       │
        │  │  prompts.ts        — 워크플로 가이드      │
@@ -45,6 +45,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
        │  │  trade-entity      (11 actions)          │
        │  │  corporate-disclosure(7 actions)         │
        │  │  public-data       (9 actions)           │
+       │  │  financial-product (7 actions)           │
        │  └───────────┬────────────────────────────┘
        │              │
        └──────┬───────┘
@@ -57,6 +58,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  unipass-api.ts — 관세청 UNI-PASS XML (42+)  │
 │  exim-api.ts   — 수출입은행 JSON (1 fn)      │
 │  mafra-api.ts  — 농림축산식품부 XML (2 fn)    │
+│  finlife-api.ts — 금감원 FINLIFE JSON (7 fn) │
 │  shared.ts     — truncate, errorResponse    │
 └─────────────────┬───────────────────────────┘
                   │
@@ -69,6 +71,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  unipass-types.ts  — UNI-PASS interfaces    │
 │  exim-types.ts     — 수출입은행 interfaces    │
 │  mafra-types.ts    — 농림축산식품부 interfaces │
+│  finlife-types.ts  — FINLIFE interfaces     │
 └─────────────────────────────────────────────┘
                   │
                   ▼
@@ -78,6 +81,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  apis.data.go.kr  |  api.odcloud.kr         │
 │  unipass.customs.go.kr                      │
 │  koreaexim.go.kr  |  data.mafra.go.kr       │
+│  finlife.fss.or.kr                          │
 └─────────────────────────────────────────────┘
 ```
 
@@ -86,11 +90,11 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 | Layer | File(s) | Lines | Responsibility |
 |-------|---------|-------|---------------|
 | **Entrypoint** | `index.ts`, `remote.ts`, `config.ts` | 23 + 115 + 67 | Process bootstrap, transport init, env validation |
-| **Protocol** | `server.ts`, `tools/skills/` (10 skills + prompts) | 21 + 4,087 (구현만) | MCP 스킬 도구 등록, action 디스패치, zod validation |
-| **HTTP Adapter** | `api-routes.ts` + `routes/` (7 files), `openapi.ts` + `openapi/` | 40+890, 42+1279 | REST routes, OpenAPI 3.1 spec |
-| **Data Access** | `law-api.ts`, `dart-api.ts`, `data20-api.ts`, `unipass-api.ts`, `exim-api.ts`, `mafra-api.ts` | 1546 + 375 + 355 + 1501 + 82 + 103 | API clients: fetch, parse, rate-limit, retry |
+| **Protocol** | `server.ts`, `tools/skills/` (11 skills + prompts) | 21 + 4,525 (구현만) | MCP 스킬 도구 등록, action 디스패치, zod validation |
+| **HTTP Adapter** | `api-routes.ts` + `routes/` (8 files), `openapi.ts` + `openapi/` | 40+960, 42+1381 | REST routes, OpenAPI 3.1 spec |
+| **Data Access** | `law-api.ts`, `dart-api.ts`, `data20-api.ts`, `unipass-api.ts`, `exim-api.ts`, `mafra-api.ts`, `finlife-api.ts` | 1546 + 375 + 355 + 1501 + 82 + 103 + 232 | API clients: fetch, parse, rate-limit, retry |
 | **Shared** | `shared.ts`, `http-client.ts` | 18 + 125 | Cross-cutting utilities, shared HTTP client |
-| **Types** | `law-types.ts`, `dart-types.ts`, `data20-types.ts`, `unipass-types.ts`, `exim-types.ts`, `mafra-types.ts` | 598 + 153 + 143 + 568 + 27 + 38 | TypeScript interfaces per domain |
+| **Types** | `law-types.ts`, `dart-types.ts`, `data20-types.ts`, `unipass-types.ts`, `exim-types.ts`, `mafra-types.ts`, `finlife-types.ts` | 598 + 153 + 143 + 568 + 27 + 38 + 318 | TypeScript interfaces per domain |
 
 ## Dependency Rules
 
@@ -143,6 +147,7 @@ Dev dependencies: `typescript`, `tsx`, `@types/node`, `@types/express`, `vitest`
 - UNI-PASS: 30s timeout, no retry
 - 수출입은행: 15s timeout, 302 redirect handling
 - 농림축산식품부: 30s timeout, no retry
+- 금감원 FINLIFE: 15s timeout, 2 retries, User-Agent 헤더 필수, `@content2@` 마커 자동 제거
 
 ### Session Management (HTTP mode)
 - Per-session `StreamableHTTPServerTransport` + `McpServer` instances
@@ -178,4 +183,5 @@ Dev dependencies: `typescript`, `tsx`, `@types/node`, `@types/express`, `vitest`
 | GET | `/api/unipass/*` | 관세청 UNI-PASS endpoints |
 | GET | `/api/exim/*` | 수출입은행 환율 endpoints |
 | GET | `/api/mafra/*` | 농림축산식품부 endpoints |
+| GET | `/api/finlife/*` | 금융감독원 FINLIFE 금융상품 비교공시 endpoints |
 | GET | `/openapi.json` | OpenAPI 3.1 spec |

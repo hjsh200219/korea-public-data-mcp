@@ -9,6 +9,7 @@ import { getData20Paths } from "./openapi/data20-paths.js";
 import { getUnipassPaths } from "./openapi/unipass-paths.js";
 import { getEximPaths } from "./openapi/exim-paths.js";
 import { getMafraPaths } from "./openapi/mafra-paths.js";
+import { getFinlifePaths } from "./openapi/finlife-paths.js";
 
 export interface OpenApiSpecOptions {
   baseUrl: string;
@@ -17,16 +18,17 @@ export interface OpenApiSpecOptions {
   hasUnipass?: boolean;
   hasExim?: boolean;
   hasMafra?: boolean;
+  hasFinlife?: boolean;
 }
 
 export function generateOpenApiSpec(options: OpenApiSpecOptions) {
-  const { baseUrl, hasDart, hasData20, hasUnipass, hasExim, hasMafra } = options;
+  const { baseUrl, hasDart, hasData20, hasUnipass, hasExim, hasMafra, hasFinlife } = options;
 
   return {
     openapi: "3.1.0",
     info: {
       title: "Korean Public Data MCP - 대한민국 공공데이터 API",
-      description: "대한민국 공공데이터 MCP 서버 - 법제처·DART·공공데이터포털·관세청 UNI-PASS·수출입은행 API 통합 서비스",
+      description: "대한민국 공공데이터 MCP 서버 - 법제처·DART·공공데이터포털·관세청 UNI-PASS·수출입은행·금융감독원 API 통합 서비스",
       version: "6.0.0",
     },
     servers: [{ url: baseUrl }],
@@ -37,6 +39,7 @@ export function generateOpenApiSpec(options: OpenApiSpecOptions) {
       ...(hasUnipass ? getUnipassPaths() : {}),
       ...(hasExim ? getEximPaths() : {}),
       ...(hasMafra ? getMafraPaths() : {}),
+      ...(hasFinlife ? getFinlifePaths() : {}),
     },
   };
 }
