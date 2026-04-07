@@ -17,14 +17,28 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 
 const app = express();
 // Claude 모바일/웹 connector는 브라우저 컨텍스트에서 동작하므로 CORS 필요.
+// 정상 동작 사례(sns-monitor)와 동일하게 origin "*" 와일드카드 사용 — 일부 모바일
+// 클라이언트가 Origin 헤더 없이 요청하거나 와일드카드 응답을 기대할 수 있다.
 // mcp-session-id 헤더를 노출해야 클라이언트가 세션을 유지할 수 있다.
 app.use(cors({
-  origin: true,
-  credentials: false,
+  origin: "*",
   exposedHeaders: ["mcp-session-id"],
   allowedHeaders: ["Content-Type", "mcp-session-id", "Accept", "Authorization"],
 }));
 app.use(express.json());
+
+// 요청/응답 로깅 — connector 디버깅용. Claude 모바일/PC 클라이언트가 어떤 경로로
+// 어떤 헤더를 보내는지 파악해야 "Failed to generate authorization URL" 같은
+// 클라이언트 측 에러의 원인을 좁힐 수 있다.
+app.use((req, res, next) => {
+  const origin = req.headers.origin || "-";
+  const ua = (req.headers["user-agent"] || "-").toString().slice(0, 60);
+  console.log(`→ ${req.method} ${req.path} origin=${origin} ua=${ua}`);
+  res.on("finish", () => {
+    console.log(`← ${req.method} ${req.path} ${res.statusCode}`);
+  });
+  next();
+});
 
 // 세션별 transport 관리
 const sessions = new Map<string, StreamableHTTPServerTransport>();
