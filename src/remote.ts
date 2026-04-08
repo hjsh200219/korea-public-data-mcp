@@ -1,5 +1,5 @@
 /**
- * Korean Public Data MCP 서버 - Remote HTTP 진입점
+ * K Public Data MCP 서버 - Remote HTTP 진입점
  * Claude 모바일/웹 앱에서 Remote MCP 커넥터로 연결
  */
 

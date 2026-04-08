@@ -1,12 +1,12 @@
 ---
-description: Korean Public Data MCP 프로젝트 규칙 - 한국 공공데이터 MCP 서버
+description: K Public Data MCP 프로젝트 규칙 - 한국 공공데이터 MCP 서버
 globs:
 alwaysApply: true
 ---
 
 # public-data-mcp
 
-Korean public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시).
+K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시).
 
 ## Quick Start
 

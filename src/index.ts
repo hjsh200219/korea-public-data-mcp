@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Korean Public Data MCP 서버 - stdio 진입점
+ * K Public Data MCP 서버 - stdio 진입점
  * Claude Desktop 등 로컬 MCP 클라이언트용
  */
 

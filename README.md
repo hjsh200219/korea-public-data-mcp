@@ -1,4 +1,4 @@
-# Korean Public Data MCP
+# K Public Data MCP
 
 대한민국 공공데이터 MCP(Model Context Protocol) 서버입니다.
 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털 API를 통합하여 법령·판례·기업공시·생활정보를 검색/조회합니다.
