@@ -115,7 +115,7 @@ export type FinlifeDepositResponse = FinlifeResultWrapper<
 // 3. 적금 API (savingProductsSearch.json)
 // ---------------------------------------------------------------------------
 
-export interface FinlifeSavingBase extends FinlifeDepositBase {}
+export type FinlifeSavingBase = FinlifeDepositBase;
 
 export interface FinlifeSavingOption {
   dcls_month: string;

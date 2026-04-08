@@ -3,7 +3,9 @@
  */
 
 import type { Router } from "express";
+import { z } from "zod";
 import { handle } from "./route-helpers.js";
+import { validateQuery } from "./_validation.js";
 import {
   getCargoTracking,
   getContainerInfo,
@@ -59,400 +61,421 @@ import {
   getBondedTransportInfo,
 } from "../unipass-api.js";
 
+// --- 재사용 스키마 빌더 ---
+
+function reqStr(fieldName: string) {
+  return z.string().min(1, `${fieldName} 파라미터가 필요합니다`);
+}
+
+// --- 엔드포인트별 스키마 ---
+
+const blNumberSchema = z.object({ bl_number: reqStr("bl_number") });
+const hsCodeSchema = z.object({ hs_code: reqStr("hs_code") });
+const querySchema = z.object({ query: reqStr("query") });
+const nameSchema = z.object({ name: reqStr("name") });
+
+const customsRateSchema = z.object({
+  currencies: z.string().optional(),
+});
+
+const declarationSchema = z.object({ declaration_no: reqStr("declaration_no") });
+
+const importReqSchema = z.object({
+  req_apre_no: reqStr("req_apre_no"),
+  imex_tpcd: reqStr("imex_tpcd"),
+});
+
+const shedInfoSchema = z.object({
+  customs_code: z.string().optional(),
+  shed_code: z.string().optional(),
+});
+
+const forwarderDetailSchema = z.object({ forwarder_code: reqStr("forwarder_code") });
+const airlineDetailSchema = z.object({ airline_code: reqStr("airline_code") });
+
+const overseasSupplierSchema = z.object({
+  country_code: reqStr("country_code"),
+  company_name: reqStr("company_name"),
+});
+
+const brokerDetailSchema = z.object({ lca_code: reqStr("lca_code") });
+
+const simpleDrawbackSchema = z.object({
+  base_date: reqStr("base_date"),
+  hs_code: z.string().optional(),
+});
+
+const statisticsCodeSchema = z.object({
+  code_type: reqStr("code_type"),
+  value_name: z.string().optional(),
+});
+
+const bondedVehicleSchema = z.object({
+  btco_code: z.string().optional(),
+  vehicle_no: z.string().optional(),
+});
+
+const portEntryExitSchema = z.object({
+  imo_no: reqStr("imo_no"),
+  io_type: reqStr("io_type"),
+  customs_code: z.string().optional(),
+});
+
+const customsCheckSchema = z.object({
+  hs_code: reqStr("hs_code"),
+  imex_type: reqStr("imex_type"),
+});
+
+const attachmentStatusSchema = z.object({
+  doc_type_code: reqStr("doc_type_code"),
+  submit_no: reqStr("submit_no"),
+});
+
+const reimportBalanceSchema = z.object({
+  export_decl_no: reqStr("export_decl_no"),
+  line_no: reqStr("line_no"),
+  stsz_srno: z.string().optional(),
+});
+
+const verifyExportSchema = z.object({
+  pubs_no: reqStr("pubs_no"),
+  decl_no: reqStr("decl_no"),
+  brno: reqStr("brno"),
+  country: reqStr("country"),
+  product: reqStr("product"),
+  weight: reqStr("weight"),
+});
+
+const postalClearanceSchema = z.object({
+  postal_type: reqStr("postal_type"),
+  postal_no: reqStr("postal_no"),
+});
+
+const unloadingDeclSchema = z.object({
+  entry_date: reqStr("entry_date"),
+  customs_code: reqStr("customs_code"),
+});
+
+const seaDepartureSchema = z.object({
+  submit_no: z.string().optional(),
+  permit_no: z.string().optional(),
+});
+
+const airDepartureSchema = z.object({
+  submit_no: z.string().optional(),
+  flight: z.string().optional(),
+});
+
+const airArrivalReportSchema = z.object({
+  flight_name: z.string().optional(),
+  submit_no: z.string().optional(),
+});
+
+const reexportLineSchema = z.object({
+  import_decl_no: reqStr("import_decl_no"),
+  line_no: reqStr("line_no"),
+});
+
+const declarationCorrectionSchema = z.object({
+  submit_no: reqStr("submit_no"),
+  imex_type: reqStr("imex_type"),
+  request_count: reqStr("request_count"),
+  request_date: z.string().optional(),
+});
+
+const bondedTransportInfoSchema = z.object({
+  start_date: reqStr("start_date"),
+  end_date: reqStr("end_date"),
+  btco_code: z.string().optional(),
+});
+
 export function registerUnipassRoutes(router: Router, keys: Record<string, string>): void {
-  router.get("/unipass/cargo", handle(async (req) => {
-    const bl = String(req.query.bl_number || "");
-    if (!bl) throw new Error("bl_number 파라미터가 필요합니다.");
-    return getCargoTracking(keys, bl);
+  router.get("/unipass/cargo", validateQuery(blNumberSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof blNumberSchema>;
+    return getCargoTracking(keys, q.bl_number);
   }));
 
-  router.get("/unipass/containers", handle(async (req) => {
-    const bl = String(req.query.bl_number || "");
-    if (!bl) throw new Error("bl_number 파라미터가 필요합니다.");
-    return getContainerInfo(keys, bl);
+  router.get("/unipass/containers", validateQuery(blNumberSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof blNumberSchema>;
+    return getContainerInfo(keys, q.bl_number);
   }));
 
-  router.get("/unipass/declaration", handle(async (req) => {
-    const no = String(req.query.declaration_no || "");
-    if (!no) throw new Error("declaration_no 파라미터가 필요합니다.");
-    return verifyImportDeclaration(keys, no);
+  router.get("/unipass/declaration", validateQuery(declarationSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof declarationSchema>;
+    return verifyImportDeclaration(keys, q.declaration_no);
   }));
 
-  router.get("/unipass/hs-code", handle(async (req) => {
-    const code = String(req.query.hs_code || "");
-    if (!code) throw new Error("hs_code 파라미터가 필요합니다.");
-    return searchHsCode(keys, code);
+  router.get("/unipass/hs-code", validateQuery(hsCodeSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof hsCodeSchema>;
+    return searchHsCode(keys, q.hs_code);
   }));
 
-  router.get("/unipass/tariff-rate", handle(async (req) => {
-    const code = String(req.query.hs_code || "");
-    if (!code) throw new Error("hs_code 파라미터가 필요합니다.");
-    return getTariffRate(keys, code);
+  router.get("/unipass/tariff-rate", validateQuery(hsCodeSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof hsCodeSchema>;
+    return getTariffRate(keys, q.hs_code);
   }));
 
-  router.get("/unipass/customs-rate", handle(async (req) => {
-    const curr = req.query.currencies;
-    const currencies = typeof curr === "string" ? curr.split(",") : undefined;
+  router.get("/unipass/customs-rate", validateQuery(customsRateSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof customsRateSchema>;
+    const currencies = q.currencies ? q.currencies.split(",") : undefined;
     const result = await getCustomsExchangeRates(keys, currencies);
     return result.rates;
   }));
 
-  router.get("/unipass/company", handle(async (req) => {
-    const q = String(req.query.query || "");
-    if (!q) throw new Error("query 파라미터가 필요합니다.");
-    return searchCompany(keys, q);
+  router.get("/unipass/company", validateQuery(querySchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof querySchema>;
+    return searchCompany(keys, q.query);
   }));
 
-  router.get("/unipass/broker", handle(async (req) => {
-    const q = String(req.query.query || "");
-    if (!q) throw new Error("query 파라미터가 필요합니다.");
-    return searchBroker(keys, q);
+  router.get("/unipass/broker", validateQuery(querySchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof querySchema>;
+    return searchBroker(keys, q.query);
   }));
 
-  router.get("/unipass/inspection", handle(async (req) => {
-    const bl = String(req.query.bl_number || "");
-    if (!bl) throw new Error("bl_number 파라미터가 필요합니다.");
-    return getInspectionInfo(keys, bl);
+  router.get("/unipass/inspection", validateQuery(blNumberSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof blNumberSchema>;
+    return getInspectionInfo(keys, q.bl_number);
   }));
 
-  router.get("/unipass/arrival-report", handle(async (req) => {
-    const bl = String(req.query.bl_number || "");
-    if (!bl) throw new Error("bl_number 파라미터가 필요합니다.");
-    return getArrivalReport(keys, bl);
+  router.get("/unipass/arrival-report", validateQuery(blNumberSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof blNumberSchema>;
+    return getArrivalReport(keys, q.bl_number);
   }));
 
-  router.get("/unipass/animal-plant-company", handle(async (req) => {
-    const name = String(req.query.company_name || "");
-    if (!name) throw new Error("company_name 파라미터가 필요합니다.");
-    return searchAnimalPlantCompany(keys, name);
+  router.get("/unipass/animal-plant-company", validateQuery(z.object({ company_name: reqStr("company_name") })), handle(async (req) => {
+    const q = req.query as unknown as { company_name: string };
+    return searchAnimalPlantCompany(keys, q.company_name);
   }));
 
-  router.get("/unipass/bonded-area", handle(async (req) => {
-    const no = String(req.query.cargo_no || "");
-    if (!no) throw new Error("cargo_no 파라미터가 필요합니다.");
-    return getBondedAreaStorage(keys, no);
+  router.get("/unipass/bonded-area", validateQuery(z.object({ cargo_no: reqStr("cargo_no") })), handle(async (req) => {
+    const q = req.query as unknown as { cargo_no: string };
+    return getBondedAreaStorage(keys, q.cargo_no);
   }));
 
-  router.get("/unipass/tax-payment", handle(async (req) => {
-    const no = String(req.query.declaration_no || "");
-    if (!no) throw new Error("declaration_no 파라미터가 필요합니다.");
-    return getTaxPaymentInfo(keys, no);
+  router.get("/unipass/tax-payment", validateQuery(declarationSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof declarationSchema>;
+    return getTaxPaymentInfo(keys, q.declaration_no);
   }));
 
-  router.get("/unipass/export-performance", handle(async (req) => {
-    const no = String(req.query.export_declaration_no || "");
-    if (!no) throw new Error("export_declaration_no 파라미터가 필요합니다.");
-    return getExportPerformance(keys, no);
+  router.get("/unipass/export-performance", validateQuery(z.object({ export_declaration_no: reqStr("export_declaration_no") })), handle(async (req) => {
+    const q = req.query as unknown as { export_declaration_no: string };
+    return getExportPerformance(keys, q.export_declaration_no);
   }));
 
-  router.get("/unipass/import-requirement", handle(async (req) => {
-    const reqApreNo = String(req.query.req_apre_no || "");
-    const imexTpcd = String(req.query.imex_tpcd || "");
-    if (!reqApreNo) throw new Error("req_apre_no 파라미터가 필요합니다.");
-    if (!imexTpcd) throw new Error("imex_tpcd 파라미터가 필요합니다.");
-    return getImportRequirement(keys, reqApreNo, imexTpcd);
+  router.get("/unipass/import-requirement", validateQuery(importReqSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof importReqSchema>;
+    return getImportRequirement(keys, q.req_apre_no, q.imex_tpcd);
   }));
 
-  router.get("/unipass/shed-info", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
+  router.get("/unipass/shed-info", validateQuery(shedInfoSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof shedInfoSchema>;
     return getShedInfo(keys, {
-      jrsdCstmCd: q.customs_code ? String(q.customs_code) : undefined,
-      snarSgn: q.shed_code ? String(q.shed_code) : undefined,
+      jrsdCstmCd: q.customs_code,
+      snarSgn: q.shed_code,
     });
   }));
 
-  router.get("/unipass/forwarder-list", handle(async (req) => {
-    const name = String(req.query.name || "");
-    if (!name) throw new Error("name 파라미터가 필요합니다.");
-    return getForwarderList(keys, name);
+  router.get("/unipass/forwarder-list", validateQuery(nameSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof nameSchema>;
+    return getForwarderList(keys, q.name);
   }));
 
-  router.get("/unipass/forwarder-detail", handle(async (req) => {
-    const code = String(req.query.forwarder_code || "");
-    if (!code) throw new Error("forwarder_code 파라미터가 필요합니다.");
-    return getForwarderDetail(keys, code);
+  router.get("/unipass/forwarder-detail", validateQuery(forwarderDetailSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof forwarderDetailSchema>;
+    return getForwarderDetail(keys, q.forwarder_code);
   }));
 
-  router.get("/unipass/airline-list", handle(async (req) => {
-    const name = String(req.query.name || "");
-    if (!name) throw new Error("name 파라미터가 필요합니다.");
-    return getAirlineList(keys, name);
+  router.get("/unipass/airline-list", validateQuery(nameSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof nameSchema>;
+    return getAirlineList(keys, q.name);
   }));
 
-  router.get("/unipass/airline-detail", handle(async (req) => {
-    const code = String(req.query.airline_code || "");
-    if (!code) throw new Error("airline_code 파라미터가 필요합니다.");
-    return getAirlineDetail(keys, code);
+  router.get("/unipass/airline-detail", validateQuery(airlineDetailSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof airlineDetailSchema>;
+    return getAirlineDetail(keys, q.airline_code);
   }));
 
-  router.get("/unipass/overseas-supplier", handle(async (req) => {
-    const cntySgn = String(req.query.country_code || "");
-    const conm = String(req.query.company_name || "");
-    if (!cntySgn) throw new Error("country_code 파라미터가 필요합니다.");
-    if (!conm) throw new Error("company_name 파라미터가 필요합니다.");
-    return getOverseasSupplier(keys, cntySgn, conm);
+  router.get("/unipass/overseas-supplier", validateQuery(overseasSupplierSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof overseasSupplierSchema>;
+    return getOverseasSupplier(keys, q.country_code, q.company_name);
   }));
 
-  router.get("/unipass/broker-detail", handle(async (req) => {
-    const code = String(req.query.lca_code || "");
-    if (!code) throw new Error("lca_code 파라미터가 필요합니다.");
-    return getBrokerDetail(keys, code);
+  router.get("/unipass/broker-detail", validateQuery(brokerDetailSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof brokerDetailSchema>;
+    return getBrokerDetail(keys, q.lca_code);
   }));
 
-  router.get("/unipass/simple-drawback", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    const baseDt = String(q.base_date || "");
-    if (!baseDt) throw new Error("base_date 파라미터가 필요합니다.");
-    return getSimpleDrawbackRate(keys, {
-      baseDt,
-      hsSgn: q.hs_code ? String(q.hs_code) : undefined,
-    });
+  router.get("/unipass/simple-drawback", validateQuery(simpleDrawbackSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof simpleDrawbackSchema>;
+    return getSimpleDrawbackRate(keys, { baseDt: q.base_date, hsSgn: q.hs_code });
   }));
 
-  router.get("/unipass/simple-drawback-company", handle(async (req) => {
-    const ecm = String(req.query.business_no || "");
-    if (!ecm) throw new Error("business_no 파라미터가 필요합니다.");
-    return getSimpleDrawbackCompany(keys, ecm);
+  router.get("/unipass/simple-drawback-company", validateQuery(z.object({ business_no: reqStr("business_no") })), handle(async (req) => {
+    const q = req.query as unknown as { business_no: string };
+    return getSimpleDrawbackCompany(keys, q.business_no);
   }));
 
-  router.get("/unipass/export-period-short", handle(async (req) => {
-    const code = String(req.query.hs_code || "");
-    if (!code) throw new Error("hs_code 파라미터가 필요합니다.");
-    return getExportPeriodShortTarget(keys, code);
+  router.get("/unipass/export-period-short", validateQuery(hsCodeSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof hsCodeSchema>;
+    return getExportPeriodShortTarget(keys, q.hs_code);
   }));
 
-  router.get("/unipass/statistics-code", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    const statsSgnTp = String(q.code_type || "");
-    if (!statsSgnTp) throw new Error("code_type 파라미터가 필요합니다.");
-    return getStatisticsCode(keys, {
-      statsSgnTp,
-      cdValtValNm: q.value_name ? String(q.value_name) : undefined,
-    });
+  router.get("/unipass/statistics-code", validateQuery(statisticsCodeSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof statisticsCodeSchema>;
+    return getStatisticsCode(keys, { statsSgnTp: q.code_type, cdValtValNm: q.value_name });
   }));
 
-  router.get("/unipass/bonded-vehicle", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    return getBondedTransportVehicle(keys, {
-      btcoSgn: q.btco_code ? String(q.btco_code) : undefined,
-      vhclNoSanm: q.vehicle_no ? String(q.vehicle_no) : undefined,
-    });
+  router.get("/unipass/bonded-vehicle", validateQuery(bondedVehicleSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof bondedVehicleSchema>;
+    return getBondedTransportVehicle(keys, { btcoSgn: q.btco_code, vhclNoSanm: q.vehicle_no });
   }));
 
-  router.get("/unipass/port-entry-exit", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    const shipCallImoNo = String(q.imo_no || "");
-    const seaFlghIoprTpcd = String(q.io_type || "");
-    if (!shipCallImoNo) throw new Error("imo_no 파라미터가 필요합니다.");
-    if (!seaFlghIoprTpcd) throw new Error("io_type 파라미터가 필요합니다.");
+  router.get("/unipass/port-entry-exit", validateQuery(portEntryExitSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof portEntryExitSchema>;
     return getPortEntryExit(keys, {
-      shipCallImoNo,
-      seaFlghIoprTpcd,
-      cstmSgn: q.customs_code ? String(q.customs_code) : undefined,
+      shipCallImoNo: q.imo_no,
+      seaFlghIoprTpcd: q.io_type,
+      cstmSgn: q.customs_code,
     });
   }));
 
-  router.get("/unipass/single-window", handle(async (req) => {
-    const reqNo = String(req.query.request_no || "");
-    if (!reqNo) throw new Error("request_no 파라미터가 필요합니다.");
-    return getSingleWindowHistory(keys, reqNo);
+  router.get("/unipass/single-window", validateQuery(z.object({ request_no: reqStr("request_no") })), handle(async (req) => {
+    const q = req.query as unknown as { request_no: string };
+    return getSingleWindowHistory(keys, q.request_no);
   }));
 
-  router.get("/unipass/ship-company-list", handle(async (req) => {
-    const name = String(req.query.name || "");
-    if (!name) throw new Error("name 파라미터가 필요합니다.");
-    return getShipCompanyList(keys, name);
+  router.get("/unipass/ship-company-list", validateQuery(nameSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof nameSchema>;
+    return getShipCompanyList(keys, q.name);
   }));
 
-  router.get("/unipass/ship-company-detail", handle(async (req) => {
-    const code = String(req.query.ship_company_code || "");
-    if (!code) throw new Error("ship_company_code 파라미터가 필요합니다.");
-    return getShipCompanyDetail(keys, code);
+  router.get("/unipass/ship-company-detail", validateQuery(z.object({ ship_company_code: reqStr("ship_company_code") })), handle(async (req) => {
+    const q = req.query as unknown as { ship_company_code: string };
+    return getShipCompanyDetail(keys, q.ship_company_code);
   }));
 
-  router.get("/unipass/customs-check", handle(async (req) => {
-    const hsSgn = String(req.query.hs_code || "");
-    const imexTp = String(req.query.imex_type || "");
-    if (!hsSgn) throw new Error("hs_code 파라미터가 필요합니다.");
-    if (!imexTp) throw new Error("imex_type 파라미터가 필요합니다.");
-    return getCustomsCheckItems(keys, hsSgn, imexTp);
+  router.get("/unipass/customs-check", validateQuery(customsCheckSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof customsCheckSchema>;
+    return getCustomsCheckItems(keys, q.hs_code, q.imex_type);
   }));
 
-  router.get("/unipass/postal-customs", handle(async (req) => {
-    const code = String(req.query.postal_code || "");
-    if (!code) throw new Error("postal_code 파라미터가 필요합니다.");
-    return getPostalCustoms(keys, code);
+  router.get("/unipass/postal-customs", validateQuery(z.object({ postal_code: reqStr("postal_code") })), handle(async (req) => {
+    const q = req.query as unknown as { postal_code: string };
+    return getPostalCustoms(keys, q.postal_code);
   }));
 
-  router.get("/unipass/attachment-status", handle(async (req) => {
-    const docType = String(req.query.doc_type_code || "");
-    const submitNo = String(req.query.submit_no || "");
-    if (!docType) throw new Error("doc_type_code 파라미터가 필요합니다.");
-    if (!submitNo) throw new Error("submit_no 파라미터가 필요합니다.");
-    return getAttachmentSubmitStatus(keys, docType, submitNo);
+  router.get("/unipass/attachment-status", validateQuery(attachmentStatusSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof attachmentStatusSchema>;
+    return getAttachmentSubmitStatus(keys, q.doc_type_code, q.submit_no);
   }));
 
-  router.get("/unipass/reimport-balance", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    const expDclrNo = String(q.export_decl_no || "");
-    const expDclrLnNo = String(q.line_no || "");
-    if (!expDclrNo) throw new Error("export_decl_no 파라미터가 필요합니다.");
-    if (!expDclrLnNo) throw new Error("line_no 파라미터가 필요합니다.");
+  router.get("/unipass/reimport-balance", validateQuery(reimportBalanceSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof reimportBalanceSchema>;
     return getReimportExportBalance(keys, {
-      expDclrNo,
-      expDclrLnNo,
-      expDclrStszSrno: q.stsz_srno ? String(q.stsz_srno) : undefined,
+      expDclrNo: q.export_decl_no,
+      expDclrLnNo: q.line_no,
+      expDclrStszSrno: q.stsz_srno,
     });
   }));
 
-  router.get("/unipass/verify-export", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    const pubsNo = String(q.pubs_no || "");
-    const dclrNo = String(q.decl_no || "");
-    const brno = String(q.brno || "");
-    const country = String(q.country || "");
-    const product = String(q.product || "");
-    const weight = String(q.weight || "");
-    if (!pubsNo) throw new Error("pubs_no 파라미터가 필요합니다.");
-    if (!dclrNo) throw new Error("decl_no 파라미터가 필요합니다.");
-    if (!brno) throw new Error("brno 파라미터가 필요합니다.");
-    if (!country) throw new Error("country 파라미터가 필요합니다.");
-    if (!product) throw new Error("product 파라미터가 필요합니다.");
-    if (!weight) throw new Error("weight 파라미터가 필요합니다.");
+  router.get("/unipass/verify-export", validateQuery(verifyExportSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof verifyExportSchema>;
     return verifyExportDeclaration(keys, {
-      expDclrCrfnPblsNo: pubsNo,
-      expDclrNo: dclrNo,
-      txprBrno: brno,
-      orcyCntyCd: country,
-      prnm: product,
-      ntwg: weight,
+      expDclrCrfnPblsNo: q.pubs_no,
+      expDclrNo: q.decl_no,
+      txprBrno: q.brno,
+      orcyCntyCd: q.country,
+      prnm: q.product,
+      ntwg: q.weight,
     });
   }));
 
-  router.get("/unipass/export-by-vehicle", handle(async (req) => {
-    const cbno = String(req.query.vehicle_no || "");
-    if (!cbno) throw new Error("vehicle_no 파라미터가 필요합니다.");
-    return getExportByVehicle(keys, { cbno });
+  router.get("/unipass/export-by-vehicle", validateQuery(z.object({ vehicle_no: reqStr("vehicle_no") })), handle(async (req) => {
+    const q = req.query as unknown as { vehicle_no: string };
+    return getExportByVehicle(keys, { cbno: q.vehicle_no });
   }));
 
-  router.get("/unipass/postal-clearance", handle(async (req) => {
-    const psmtKcd = String(req.query.postal_type || "");
-    const psmtNo = String(req.query.postal_no || "");
-    if (!psmtKcd) throw new Error("postal_type 파라미터가 필요합니다.");
-    if (!psmtNo) throw new Error("postal_no 파라미터가 필요합니다.");
-    return getPostalClearance(keys, psmtKcd, psmtNo);
+  router.get("/unipass/postal-clearance", validateQuery(postalClearanceSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof postalClearanceSchema>;
+    return getPostalClearance(keys, q.postal_type, q.postal_no);
   }));
 
-  router.get("/unipass/unloading-declarations", handle(async (req) => {
-    const etprDt = String(req.query.entry_date || "");
-    const dclrCstmSgn = String(req.query.customs_code || "");
-    if (!etprDt) throw new Error("entry_date 파라미터가 필요합니다.");
-    if (!dclrCstmSgn) throw new Error("customs_code 파라미터가 필요합니다.");
-    return getUnloadingDeclarations(keys, etprDt, dclrCstmSgn);
+  router.get("/unipass/unloading-declarations", validateQuery(unloadingDeclSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof unloadingDeclSchema>;
+    return getUnloadingDeclarations(keys, q.entry_date, q.customs_code);
   }));
 
-  router.get("/unipass/sea-departure", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    return getSeaDeparturePermit(keys, {
-      ioprSbmtNo: q.submit_no ? String(q.submit_no) : undefined,
-      tkofPermNo: q.permit_no ? String(q.permit_no) : undefined,
-    });
+  router.get("/unipass/sea-departure", validateQuery(seaDepartureSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof seaDepartureSchema>;
+    return getSeaDeparturePermit(keys, { ioprSbmtNo: q.submit_no, tkofPermNo: q.permit_no });
   }));
 
-  router.get("/unipass/air-departure", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    return getAirDeparturePermit(keys, {
-      ioprSbmtNo: q.submit_no ? String(q.submit_no) : undefined,
-      shipFlgtNm: q.flight ? String(q.flight) : undefined,
-    });
+  router.get("/unipass/air-departure", validateQuery(airDepartureSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof airDepartureSchema>;
+    return getAirDeparturePermit(keys, { ioprSbmtNo: q.submit_no, shipFlgtNm: q.flight });
   }));
 
-  router.get("/unipass/reexport-balance", handle(async (req) => {
-    const no = String(req.query.import_decl_no || "");
-    if (!no) throw new Error("import_decl_no 파라미터가 필요합니다.");
-    return getReexportDutyFreeBalance(keys, no);
+  router.get("/unipass/reexport-balance", validateQuery(z.object({ import_decl_no: reqStr("import_decl_no") })), handle(async (req) => {
+    const q = req.query as unknown as { import_decl_no: string };
+    return getReexportDutyFreeBalance(keys, q.import_decl_no);
   }));
 
-  router.get("/unipass/hs-navigation", handle(async (req) => {
-    const code = String(req.query.hs_code || "");
-    if (!code) throw new Error("hs_code 파라미터가 필요합니다.");
-    return getHsCodeNavigation(keys, code);
+  router.get("/unipass/hs-navigation", validateQuery(hsCodeSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof hsCodeSchema>;
+    return getHsCodeNavigation(keys, q.hs_code);
   }));
 
-  router.get("/unipass/air-arrival-report", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    return getAirArrivalReport(keys, {
-      shipFlgtNm: q.flight_name ? String(q.flight_name) : undefined,
-      ioprSbmtNo: q.submit_no ? String(q.submit_no) : undefined,
-    });
+  router.get("/unipass/air-arrival-report", validateQuery(airArrivalReportSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof airArrivalReportSchema>;
+    return getAirArrivalReport(keys, { shipFlgtNm: q.flight_name, ioprSbmtNo: q.submit_no });
   }));
 
-  router.get("/unipass/reexport-deadline", handle(async (req) => {
-    const impDclrNo = String(req.query.import_decl_no || "");
-    const lnNo = String(req.query.line_no || "");
-    if (!impDclrNo) throw new Error("import_decl_no 파라미터가 필요합니다.");
-    if (!lnNo) throw new Error("line_no 파라미터가 필요합니다.");
-    return getReexportDeadline(keys, impDclrNo, lnNo);
+  router.get("/unipass/reexport-deadline", validateQuery(reexportLineSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof reexportLineSchema>;
+    return getReexportDeadline(keys, q.import_decl_no, q.line_no);
   }));
 
-  router.get("/unipass/reexport-completion", handle(async (req) => {
-    const impDclrNo = String(req.query.import_decl_no || "");
-    const lnNo = String(req.query.line_no || "");
-    if (!impDclrNo) throw new Error("import_decl_no 파라미터가 필요합니다.");
-    if (!lnNo) throw new Error("line_no 파라미터가 필요합니다.");
-    return getReexportCompletion(keys, impDclrNo, lnNo);
+  router.get("/unipass/reexport-completion", validateQuery(reexportLineSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof reexportLineSchema>;
+    return getReexportCompletion(keys, q.import_decl_no, q.line_no);
   }));
 
-  router.get("/unipass/bonded-release", handle(async (req) => {
-    const no = String(req.query.business_no || "");
-    if (!no) throw new Error("business_no 파라미터가 필요합니다.");
-    return getBondedRelease(keys, no);
+  router.get("/unipass/bonded-release", validateQuery(z.object({ business_no: reqStr("business_no") })), handle(async (req) => {
+    const q = req.query as unknown as { business_no: string };
+    return getBondedRelease(keys, q.business_no);
   }));
 
-  router.get("/unipass/collateral-release", handle(async (req) => {
-    const no = String(req.query.import_decl_no || "");
-    if (!no) throw new Error("import_decl_no 파라미터가 필요합니다.");
-    return getCollateralRelease(keys, no);
+  router.get("/unipass/collateral-release", validateQuery(z.object({ import_decl_no: reqStr("import_decl_no") })), handle(async (req) => {
+    const q = req.query as unknown as { import_decl_no: string };
+    return getCollateralRelease(keys, q.import_decl_no);
   }));
 
-  router.get("/unipass/ecommerce-export-load", handle(async (req) => {
-    const no = String(req.query.ecommerce_decl_no || "");
-    if (!no) throw new Error("ecommerce_decl_no 파라미터가 필요합니다.");
-    return getEcommerceExportLoad(keys, no);
+  router.get("/unipass/ecommerce-export-load", validateQuery(z.object({ ecommerce_decl_no: reqStr("ecommerce_decl_no") })), handle(async (req) => {
+    const q = req.query as unknown as { ecommerce_decl_no: string };
+    return getEcommerceExportLoad(keys, q.ecommerce_decl_no);
   }));
 
-  router.get("/unipass/declaration-correction", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    const dcshSbmtNo = String(q.submit_no || "");
-    const imexTpcd = String(q.imex_type || "");
-    const mdfyRqstDgcnt = String(q.request_count || "");
-    if (!dcshSbmtNo) throw new Error("submit_no 파라미터가 필요합니다.");
-    if (!imexTpcd) throw new Error("imex_type 파라미터가 필요합니다.");
-    if (!mdfyRqstDgcnt) throw new Error("request_count 파라미터가 필요합니다.");
+  router.get("/unipass/declaration-correction", validateQuery(declarationCorrectionSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof declarationCorrectionSchema>;
     return getDeclarationCorrection(keys, {
-      dcshSbmtNo,
-      imexTpcd,
-      mdfyRqstDgcnt,
-      mdfyRqstDt: q.request_date ? String(q.request_date) : undefined,
+      dcshSbmtNo: q.submit_no,
+      imexTpcd: q.imex_type,
+      mdfyRqstDgcnt: q.request_count,
+      mdfyRqstDt: q.request_date,
     });
   }));
 
-  router.get("/unipass/loading-inspection", handle(async (req) => {
-    const no = String(req.query.export_decl_no || "");
-    if (!no) throw new Error("export_decl_no 파라미터가 필요합니다.");
-    return getLoadingInspection(keys, no);
+  router.get("/unipass/loading-inspection", validateQuery(z.object({ export_decl_no: reqStr("export_decl_no") })), handle(async (req) => {
+    const q = req.query as unknown as { export_decl_no: string };
+    return getLoadingInspection(keys, q.export_decl_no);
   }));
 
-  router.get("/unipass/bonded-transport-info", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
-    const qryStrtDt = String(q.start_date || "");
-    const qryEndDt = String(q.end_date || "");
-    if (!qryStrtDt) throw new Error("start_date 파라미터가 필요합니다.");
-    if (!qryEndDt) throw new Error("end_date 파라미터가 필요합니다.");
+  router.get("/unipass/bonded-transport-info", validateQuery(bondedTransportInfoSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof bondedTransportInfoSchema>;
     return getBondedTransportInfo(keys, {
-      qryStrtDt,
-      qryEndDt,
-      btcoSgn: q.btco_code ? String(q.btco_code) : undefined,
+      qryStrtDt: q.start_date,
+      qryEndDt: q.end_date,
+      btcoSgn: q.btco_code,
     });
   }));
 }

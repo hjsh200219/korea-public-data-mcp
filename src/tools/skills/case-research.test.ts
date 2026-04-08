@@ -196,6 +196,41 @@ describe("case_research 스킬", () => {
     expect(result.content[0].text).toContain("주문");
   });
 
+  it("search_cases_빈items_결과없음", async () => {
+    vi.mocked(searchCases).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_cases", query: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_constitutional_빈items_결과없음", async () => {
+    vi.mocked(searchConstitutional).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_constitutional", query: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_interpretations_빈items_결과없음", async () => {
+    vi.mocked(searchInterpretations).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_interpretations", query: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_committee_decisions_빈items_결과없음", async () => {
+    vi.mocked(searchCommitteeDecisions).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_committee_decisions", committee: "ftc" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_admin_appeals_빈items_결과없음", async () => {
+    vi.mocked(searchAdminAppeals).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_admin_appeals", query: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
   it("API예외_errorResponse반환", async () => {
     vi.mocked(searchCases).mockRejectedValue(new Error("Network timeout"));
 

@@ -85,6 +85,13 @@ describe("tariff_lookup 스킬", () => {
     expect(getTariffRate).toHaveBeenCalledWith(MOCK_KEYS, "0201100000");
   });
 
+  it("tariff_rate_빈배열_안내", async () => {
+    vi.mocked(getTariffRate).mockResolvedValue([]);
+    const r = await handler({ action: "tariff_rate", hs_code: "9999999999" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("관세율 조회 검색 결과가 없습니다");
+  });
+
   // -- customs_rate --
 
   it("customs_rate_유효한결과_포맷팅반환", async () => {
@@ -123,6 +130,13 @@ describe("tariff_lookup 스킬", () => {
     expect(getCustomsExchangeRates).toHaveBeenCalledWith(MOCK_KEYS, ["USD", "EUR"]);
   });
 
+  it("customs_rate_빈rates_안내", async () => {
+    vi.mocked(getCustomsExchangeRates).mockResolvedValue({ rates: [], queriedDate: "20260403", isFallback: false } as any);
+    const r = await handler({ action: "customs_rate" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("관세 환율 정보를 찾을 수 없습니다");
+  });
+
   // -- simple_drawback --
 
   it("simple_drawback_base_date필수", async () => {
@@ -140,6 +154,13 @@ describe("tariff_lookup 스킬", () => {
     expect(result.content[0].text).toContain("환급율");
   });
 
+  it("simple_drawback_빈배열_결과없음", async () => {
+    vi.mocked(getSimpleDrawbackRate).mockResolvedValue([]);
+    const r = await handler({ action: "simple_drawback", base_date: "20260101" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("결과가 없습니다");
+  });
+
   // -- simple_drawback_company --
 
   it("simple_drawback_company_유효한결과", async () => {
@@ -151,6 +172,13 @@ describe("tariff_lookup 스킬", () => {
     expect(result.content[0].text).toContain("테스트기업");
   });
 
+  it("simple_drawback_company_null_결과없음", async () => {
+    vi.mocked(getSimpleDrawbackCompany).mockResolvedValue(null as any);
+    const r = await handler({ action: "simple_drawback_company", business_no: "0000000000" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("결과를 찾을 수 없습니다");
+  });
+
   // -- export_period_short --
 
   it("export_period_short_유효한결과", async () => {
@@ -160,6 +188,13 @@ describe("tariff_lookup 스킬", () => {
 
     const result = await handler({ action: "export_period_short", hs_code: "0201" });
     expect(result.content[0].text).toContain("수출이행기간");
+  });
+
+  it("export_period_short_빈배열_결과없음", async () => {
+    vi.mocked(getExportPeriodShortTarget).mockResolvedValue([]);
+    const r = await handler({ action: "export_period_short", hs_code: "9999" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("결과가 없습니다");
   });
 
   // -- statistics_code --
@@ -179,6 +214,13 @@ describe("tariff_lookup 스킬", () => {
     expect(result.content[0].text).toContain("통계부호");
   });
 
+  it("statistics_code_빈배열_결과없음", async () => {
+    vi.mocked(getStatisticsCode).mockResolvedValue([]);
+    const r = await handler({ action: "statistics_code", code_type: "country" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("결과가 없습니다");
+  });
+
   // -- hs_navigation --
 
   it("hs_navigation_유효한결과", async () => {
@@ -188,6 +230,13 @@ describe("tariff_lookup 스킬", () => {
 
     const result = await handler({ action: "hs_navigation", hs_code: "0201" });
     expect(result.content[0].text).toContain("내비게이션");
+  });
+
+  it("hs_navigation_빈배열_결과없음", async () => {
+    vi.mocked(getHsCodeNavigation).mockResolvedValue([]);
+    const r = await handler({ action: "hs_navigation", hs_code: "9999" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("결과가 없습니다");
   });
 
   // -- market_exchange --
@@ -215,6 +264,13 @@ describe("tariff_lookup 스킬", () => {
     const result = await handler({ action: "market_exchange" });
     expect(result.content[0].text).toContain("비영업일");
     expect(result.content[0].text).toContain("2026-04-03");
+  });
+
+  it("market_exchange_빈rates_안내", async () => {
+    vi.mocked(getMarketExchangeRates).mockResolvedValue({ rates: [], queriedDate: "20260403", isFallback: false } as any);
+    const r = await handler({ action: "market_exchange" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("환율 정보를 찾을 수 없습니다");
   });
 
   it("market_exchange_eximApiKey없으면_안내", async () => {

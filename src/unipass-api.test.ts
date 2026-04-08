@@ -200,10 +200,9 @@ describe("getCargoTracking", () => {
     expect(result[0].prgsStts).toBe("반입");
   });
 
-  it("getCargoTracking_네트워크에러_빈배열반환", async () => {
+  it("getCargoTracking_네트워크에러_throw", async () => {
     mockFetchError();
-    const result = await getCargoTracking(VALID_KEYS, "BL123");
-    expect(result).toEqual([]);
+    await expect(getCargoTracking(VALID_KEYS, "BL123")).rejects.toThrow("UNI-PASS");
   });
 });
 
@@ -423,10 +422,9 @@ describe("getInspectionInfo", () => {
     expect(result[0].inqrDt).toBe("20260401");
   });
 
-  it("네트워크에러_빈배열반환", async () => {
+  it("네트워크에러_throw", async () => {
     mockFetchError();
-    const result = await getInspectionInfo(VALID_KEYS, "BL123");
-    expect(result).toEqual([]);
+    await expect(getInspectionInfo(VALID_KEYS, "BL123")).rejects.toThrow("UNI-PASS");
   });
 });
 
@@ -484,10 +482,9 @@ describe("searchAnimalPlantCompany", () => {
     expect(result[0].bsntCd).toBe("AP001");
   });
 
-  it("네트워크에러_빈배열반환", async () => {
+  it("네트워크에러_throw", async () => {
     mockFetchError();
-    const result = await searchAnimalPlantCompany(VALID_KEYS, "테스트");
-    expect(result).toEqual([]);
+    await expect(searchAnimalPlantCompany(VALID_KEYS, "테스트")).rejects.toThrow("UNI-PASS");
   });
 });
 
@@ -546,10 +543,9 @@ describe("getTaxPaymentInfo", () => {
     expect(result[0].txpymAmt).toBe("1500000");
   });
 
-  it("네트워크에러_빈배열반환", async () => {
+  it("네트워크에러_throw", async () => {
     mockFetchError();
-    const result = await getTaxPaymentInfo(VALID_KEYS, "BAD");
-    expect(result).toEqual([]);
+    await expect(getTaxPaymentInfo(VALID_KEYS, "BAD")).rejects.toThrow("UNI-PASS");
   });
 });
 

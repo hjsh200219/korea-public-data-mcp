@@ -59,6 +59,13 @@ describe("law_amendment 스킬", () => {
     expect(searchOldNewLaw).toHaveBeenCalledWith(OC, { query: "민법", page: 1, display: 20 });
   });
 
+  it("search_old_new_law_빈items_결과없음", async () => {
+    vi.mocked(searchOldNewLaw).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_old_new_law", query: "없는법" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("신구법비교 검색 결과가 없습니다");
+  });
+
   it("search_old_new_law_query누락_에러", async () => {
     const result = await handler({ action: "search_old_new_law" } as any);
     expect(result.isError).toBe(true);
@@ -119,6 +126,13 @@ describe("law_amendment 스킬", () => {
     expect(getLawSystemDetail).toHaveBeenCalledWith(OC, 200);
   });
 
+  it("search_law_system_빈items_결과없음", async () => {
+    vi.mocked(searchLawSystem).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_law_system", query: "없는법" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("법령 체계도 검색 결과가 없습니다");
+  });
+
   it("search_three_way_comp_유효한결과_포맷팅반환", async () => {
     vi.mocked(searchThreeWayComp).mockResolvedValue({
       totalCount: 1,
@@ -133,6 +147,13 @@ describe("law_amendment 스킬", () => {
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain("3단비교 검색 결과");
     expect(searchThreeWayComp).toHaveBeenCalledWith(OC, { query: "국세기본법", page: 1, display: 20 });
+  });
+
+  it("search_three_way_comp_빈items_결과없음", async () => {
+    vi.mocked(searchThreeWayComp).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_three_way_comp", query: "없는법" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("3단비교 검색 결과가 없습니다");
   });
 
   it("get_three_way_comp_detail_comparison_type전달_위임조문", async () => {
@@ -171,6 +192,13 @@ describe("law_amendment 스킬", () => {
     expect(searchLawChangeHistory).toHaveBeenCalledWith(OC, { regDt: "20260101", page: 1, display: 20 });
   });
 
+  it("search_law_change_history_빈items_결과없음", async () => {
+    vi.mocked(searchLawChangeHistory).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_law_change_history", date: "20990101" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("변경된 법령이 없습니다");
+  });
+
   it("search_admin_rule_old_new_유효한결과_포맷팅반환", async () => {
     vi.mocked(searchAdminRuleOldNew).mockResolvedValue({
       totalCount: 1,
@@ -186,6 +214,13 @@ describe("law_amendment 스킬", () => {
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain("행정규칙 신구법비교 검색 결과");
     expect(searchAdminRuleOldNew).toHaveBeenCalledWith(OC, { query: "법인세법", page: 1, display: 20 });
+  });
+
+  it("search_admin_rule_old_new_빈items_결과없음", async () => {
+    vi.mocked(searchAdminRuleOldNew).mockResolvedValue({ totalCount: 0, currentPage: 1, items: [] } as any);
+    const r = await handler({ action: "search_admin_rule_old_new", query: "없는규칙" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("행정규칙 신구법비교 검색 결과가 없습니다");
   });
 
   it("get_admin_rule_old_new_detail_유효한결과_포맷팅반환", async () => {

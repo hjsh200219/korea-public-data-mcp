@@ -23,36 +23,45 @@ npm run dev:remote   # Dev with tsx (HTTP)
 ```
 src/
   index.ts            # Stdio entrypoint (23 lines)
-  remote.ts           # HTTP entrypoint - Express (115 lines)
-  config.ts           # 환경변수 수집, ServerConfig 로드 (67 lines)
+  remote.ts           # HTTP entrypoint - Express (195 lines)
+  config.ts           # 환경변수 수집, ServerConfig 로드 (74 lines)
   server.ts           # MCP 서버 오케스트레이터 — 스킬 도구 등록 (21 lines)
-  api-routes.ts       # REST 라우트 오케스트레이터 (40 lines)
-  openapi.ts          # OpenAPI 스펙 오케스트레이터 (42 lines)
-  http-client.ts      # 공통 HTTP fetch/retry/throttle (125 lines)
+  api-routes.ts       # REST 라우트 오케스트레이터 (47 lines)
+  openapi.ts          # OpenAPI 스펙 오케스트레이터 (47 lines)
+  http-client.ts      # 공통 HTTP fetch/retry/throttle (128 lines)
   shared.ts           # Shared utilities - truncate, errorResponse (18 lines)
-  law-api.ts          # 법제처 API client (1546 lines)
+  kst-date.ts         # KST 날짜 유틸리티 (41 lines)
+  logger.ts           # 구조화 로깅 모듈 (35 lines)
+  law-api.ts          # 법제처 API re-export barrel (7 lines)
+  law/                # 법제처 API 모듈 분리
+    helpers.ts        # XML 파서, HTTP, 변환 유틸 (~190 lines)
+    search.ts         # 검색 (법령/행정규칙/자치법규/조약/영문/약칭 등)
+    detail.ts         # 상세 (법령/행정규칙/조약/조항호목)
+    case.ts           # 판례/해석례/헌재/위원회/행정심판
+    amendment.ts      # 신구법비교/법령체계도/3단비교/변경이력
+    index.ts          # barrel re-export
   law-types.ts        # 법제처 TypeScript interfaces (598 lines)
   dart-api.ts         # DART 전자공시 API client (375 lines)
   dart-types.ts       # DART TypeScript interfaces (153 lines)
-  data20-api.ts       # 공공데이터포털 API client (355 lines)
+  data20-api.ts       # 공공데이터포털 API client (341 lines)
   data20-types.ts     # 공공데이터포털 TypeScript interfaces (143 lines)
-  unipass-api.ts      # 관세청 UNI-PASS API client (1501 lines)
-  unipass-types.ts    # 관세청 UNI-PASS TypeScript interfaces (568 lines)
-  exim-api.ts         # 수출입은행 API client (82 lines)
+  unipass-api.ts      # 관세청 UNI-PASS API client (1560 lines)
+  unipass-types.ts    # 관세청 UNI-PASS TypeScript interfaces (574 lines)
+  exim-api.ts         # 수출입은행 API client (113 lines)
   exim-types.ts       # 수출입은행 TypeScript interfaces (27 lines)
-  mafra-api.ts        # 농림축산식품부 API client (103 lines)
+  mafra-api.ts        # 농림축산식품부 API client (104 lines)
   mafra-types.ts      # 농림축산식품부 TypeScript interfaces (38 lines)
   finlife-api.ts      # 금융감독원 금융상품 비교공시 API client (232 lines)
   finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces (318 lines)
-  insurance-api.ts    # 금융위원회 보험상품 공시 API client (367 lines, data.go.kr)
+  insurance-api.ts    # 금융위원회 보험상품 공시 API client (367 lines)
   insurance-types.ts  # 금융위원회 보험상품 공시 TypeScript interfaces (275 lines)
-  routes/             # 도메인별 REST 라우트 (9 files, ~1086 lines)
-  openapi/            # 도메인별 OpenAPI path 생성기 (9 files, ~1503 lines)
+  routes/             # 도메인별 REST 라우트 (9 files, ~1172 lines)
+  openapi/            # 도메인별 OpenAPI path 생성기 (9 files, ~1589 lines)
   tools/
     skills/           # ★ 12개 의도 기반 스킬 도구 + MCP Prompts (v6)
-      index.ts        # 스킬 오케스트레이터 — 전체 등록
-      _shared.ts      # createDispatcher, requireParam 공통 유틸
-      prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts)
+      index.ts        # 스킬 오케스트레이터 — 전체 등록 (49 lines)
+      _shared.ts      # createDispatcher, requireParam 공통 유틸 (77 lines)
+      prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts, 135 lines)
       legal-research.ts      # 법령 리서치 (17 actions, 663 lines)
       case-research.ts       # 판례/해석례 리서치 (10 actions, 428 lines)
       law-amendment.ts       # 법령 비교/개정 (9 actions, 366 lines)
@@ -64,8 +73,7 @@ src/
       corporate-disclosure.ts # 기업공시 (7 actions, 363 lines, DART + 배당)
       public-data.ts         # 공공데이터포털 (9 actions, 289 lines)
       financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, 금융감독원)
-      insurance.ts           # 보험상품 공시 (9 actions, 687 lines, 금융위원회)
-    # 기존 개별 도구 파일 (law-tools, dart-tools 등)은 v6에서 삭제됨
+      insurance.ts           # 보험상품 공시 (9 actions, 689 lines, 금융위원회)
 ```
 
 ## Layer Rules

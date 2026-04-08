@@ -134,6 +134,26 @@ describe("legal_research 스킬", () => {
     expect(searchAdminRules).toHaveBeenCalledWith(MOCK_OC, expect.objectContaining({ query: "행정규칙" }));
   });
 
+  // -- get_admin_rule_detail --
+
+  it("get_admin_rule_detail_유효한결과_포맷팅반환", async () => {
+    vi.mocked(getAdminRuleDetail).mockResolvedValue({
+      id: 100,
+      ruleName: "테스트행정규칙",
+      ruleType: "훈령",
+      issuanceDate: "20210101",
+      issuanceNumber: "1",
+      departmentName: "국세청",
+      amendmentType: "제정",
+      content: "",
+    });
+
+    const result = await handler({ action: "get_admin_rule_detail", admrul_id: 100 });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("테스트행정규칙");
+    expect(getAdminRuleDetail).toHaveBeenCalledWith(MOCK_OC, 100);
+  });
+
   // -- search_ordinances --
 
   it("search_ordinances_유효한결과_포맷팅반환", async () => {
@@ -149,6 +169,24 @@ describe("legal_research 스킬", () => {
     expect(searchOrdinances).toHaveBeenCalledWith(MOCK_OC, expect.objectContaining({ query: "서울시" }));
   });
 
+  // -- get_ordinance_detail --
+
+  it("get_ordinance_detail_유효한결과_포맷팅반환", async () => {
+    vi.mocked(getOrdinanceDetail).mockResolvedValue({
+      ordinanceId: "ORD001",
+      ordinanceName: "서울시테스트조례",
+      localGovName: "서울특별시",
+      promulgationDate: "20210301",
+      enforcementDate: "20210401",
+      articles: [],
+    });
+
+    const result = await handler({ action: "get_ordinance_detail", ordin_id: 200 });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("ORD001");
+    expect(getOrdinanceDetail).toHaveBeenCalledWith(MOCK_OC, 200);
+  });
+
   // -- search_treaties --
 
   it("search_treaties_유효한결과_포맷팅반환", async () => {
@@ -162,6 +200,27 @@ describe("legal_research 스킬", () => {
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain("한미FTA");
     expect(searchTreaties).toHaveBeenCalledWith(MOCK_OC, expect.objectContaining({ query: "FTA" }));
+  });
+
+  // -- get_treaty_detail --
+
+  it("get_treaty_detail_유효한결과_포맷팅반환", async () => {
+    vi.mocked(getTreatyDetail).mockResolvedValue({
+      id: 300,
+      treatyNameKo: "한미FTA",
+      treatyNameEn: "KORUS FTA",
+      effectiveDate: "20120315",
+      signDate: "20110630",
+      treatyNumber: "2100",
+      counterpartyCountry: "미국",
+      treatyField: "경제",
+      content: "",
+    });
+
+    const result = await handler({ action: "get_treaty_detail", treaty_id: 300 });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("2100");
+    expect(getTreatyDetail).toHaveBeenCalledWith(MOCK_OC, 300);
   });
 
   // -- search_legal_terms --
@@ -215,6 +274,23 @@ describe("legal_research 스킬", () => {
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain("Civil Act");
     expect(searchEnglishLaws).toHaveBeenCalledWith(MOCK_OC, expect.objectContaining({ query: "Civil Act" }));
+  });
+
+  // -- get_english_law_detail --
+
+  it("get_english_law_detail_유효한결과_포맷팅반환", async () => {
+    vi.mocked(getEnglishLawDetail).mockResolvedValue({
+      lawId: "E001",
+      lawNameEn: "Civil Act",
+      promulgationDate: "20200101",
+      promulgationNumber: "17000",
+      articles: [],
+    });
+
+    const result = await handler({ action: "get_english_law_detail", law_id: 400 });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("E001");
+    expect(getEnglishLawDetail).toHaveBeenCalledWith(MOCK_OC, 400);
   });
 
   // -- search_attached_forms --

@@ -104,6 +104,55 @@ describe("export_clearance 스킬", () => {
     expect(getExportByVehicle).toHaveBeenCalledWith(MOCK_KEYS, { cbno: "VH-001" });
   });
 
+  it("export_by_vehicle_vehicle_no필수", async () => {
+    const result = await handler({ action: "export_by_vehicle" } as any);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("vehicle_no");
+  });
+
+  it("export_by_vehicle_빈배열_결과없음메시지", async () => {
+    vi.mocked(getExportByVehicle).mockResolvedValue([] as any);
+
+    const result = await handler({ action: "export_by_vehicle", vehicle_no: "VH-001" });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("해당 차대번호의 수출이행 내역이 없습니다.");
+  });
+
+  it("export_performance_null결과_결과없음", async () => {
+    vi.mocked(getExportPerformance).mockResolvedValue(null as any);
+    const r = await handler({ action: "export_performance", export_declaration_no: "X" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("이행내역을 찾을 수 없습니다");
+  });
+
+  it("verify_export_null결과_결과없음", async () => {
+    vi.mocked(verifyExportDeclaration).mockResolvedValue(null as any);
+    const r = await handler({ action: "verify_export", pubs_no: "PUB-X" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("검증 결과를 찾을 수 없습니다");
+  });
+
+  it("loading_inspection_null결과_결과없음", async () => {
+    vi.mocked(getLoadingInspection).mockResolvedValue(null as any);
+    const r = await handler({ action: "loading_inspection", export_declaration_no: "X" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("적재지 검사정보를 찾을 수 없습니다");
+  });
+
+  it("ecommerce_export_load_null결과_결과없음", async () => {
+    vi.mocked(getEcommerceExportLoad).mockResolvedValue(null as any);
+    const r = await handler({ action: "ecommerce_export_load", ecommerce_decl_no: "EC-X" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("적재이행 정보를 찾을 수 없습니다");
+  });
+
+  it("bonded_release_null결과_결과없음", async () => {
+    vi.mocked(getBondedRelease).mockResolvedValue(null as any);
+    const r = await handler({ action: "bonded_release", business_no: "0000000000" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("반출신고 정보를 찾을 수 없습니다");
+  });
+
   it("loading_inspection_유효한결과_포맷팅반환", async () => {
     vi.mocked(getLoadingInspection).mockResolvedValue({
       expInscTrgtYn: "Y",
@@ -115,6 +164,12 @@ describe("export_clearance 스킬", () => {
     expect(result.content[0].text).toContain("적재지 검사정보");
     expect(result.content[0].text).toContain("EXP-003");
     expect(getLoadingInspection).toHaveBeenCalledWith(MOCK_KEYS, "EXP-003");
+  });
+
+  it("loading_inspection_export_declaration_no필수", async () => {
+    const result = await handler({ action: "loading_inspection" } as any);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("export_declaration_no");
   });
 
   it("ecommerce_export_load_유효한결과_포맷팅반환", async () => {
@@ -129,6 +184,12 @@ describe("export_clearance 스킬", () => {
     expect(getEcommerceExportLoad).toHaveBeenCalledWith(MOCK_KEYS, "EC-001");
   });
 
+  it("ecommerce_export_load_ecommerce_decl_no필수", async () => {
+    const result = await handler({ action: "ecommerce_export_load" } as any);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("ecommerce_decl_no");
+  });
+
   it("bonded_release_유효한결과_포맷팅반환", async () => {
     vi.mocked(getBondedRelease).mockResolvedValue({
       rlbrDt: "20260401",
@@ -140,6 +201,12 @@ describe("export_clearance 스킬", () => {
     expect(result.content[0].text).toContain("보세구역 반출신고");
     expect(result.content[0].text).toContain("9876543210");
     expect(getBondedRelease).toHaveBeenCalledWith(MOCK_KEYS, "9876543210");
+  });
+
+  it("bonded_release_business_no필수", async () => {
+    const result = await handler({ action: "bonded_release" } as any);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("business_no");
   });
 
   it("API예외_errorResponse반환", async () => {

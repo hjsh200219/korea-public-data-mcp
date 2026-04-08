@@ -3,7 +3,9 @@
  */
 
 import type { Router } from "express";
+import { z } from "zod";
 import { handle } from "./route-helpers.js";
+import { validateQuery } from "./_validation.js";
 import {
   resolveCorpCode,
   searchDisclosures,
@@ -13,49 +15,84 @@ import {
   getDisclosureDocument,
 } from "../dart-api.js";
 
+const corpCodeSchema = z.object({
+  corp_name: z.string().min(1, "회사명을 입력해주세요"),
+});
+
+const disclosureSchema = z.object({
+  corp_code: z.string().optional(),
+  bgn_de: z.string().regex(/^\d{8}$/, "시작일은 YYYYMMDD 형식이어야 합니다").optional(),
+  end_de: z.string().regex(/^\d{8}$/, "종료일은 YYYYMMDD 형식이어야 합니다").optional(),
+  pblntf_ty: z.string().optional(),
+  page_no: z.coerce.number().int().positive().optional().default(1),
+  page_count: z.coerce.number().int().positive().optional().default(20),
+});
+
+const companySchema = z.object({
+  corp_code: z.string().min(1, "DART 고유번호(corp_code)를 입력해주세요"),
+});
+
+const financialsSchema = z.object({
+  corp_code: z.string().min(1, "DART 고유번호(corp_code)를 입력해주세요"),
+  bsns_year: z.string().regex(/^\d{4}$/, "사업연도는 YYYY 형식이어야 합니다"),
+  reprt_code: z.enum(["11013", "11012", "11014", "11011"]).optional().default("11011"),
+  fs_div: z.enum(["OFS", "CFS"]).optional().default("CFS"),
+});
+
+const keyAccountsSchema = z.object({
+  corp_code: z.string().min(1, "DART 고유번호(corp_code)를 입력해주세요"),
+  bsns_year: z.string().regex(/^\d{4}$/, "사업연도는 YYYY 형식이어야 합니다"),
+  reprt_code: z.enum(["11013", "11012", "11014", "11011"]).optional().default("11011"),
+});
+
+const documentSchema = z.object({
+  rcept_no: z.string().min(1, "접수번호(rcept_no)를 입력해주세요"),
+});
+
 export function registerDartRoutes(router: Router, dartKey: string): void {
-  router.get("/dart/corp-code", handle(async (req) =>
-    resolveCorpCode(dartKey, String(req.query.corp_name || ""))
-  ));
+  router.get("/dart/corp-code", validateQuery(corpCodeSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof corpCodeSchema>;
+    return resolveCorpCode(dartKey, q.corp_name);
+  }));
 
-  router.get("/dart/disclosures", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
+  router.get("/dart/disclosures", validateQuery(disclosureSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof disclosureSchema>;
     return searchDisclosures(dartKey, {
-      corp_code: q.corp_code as string | undefined,
-      bgn_de: q.bgn_de as string | undefined,
-      end_de: q.end_de as string | undefined,
-      pblntf_ty: q.pblntf_ty as string | undefined,
-      page_no: Number(q.page_no) || 1,
-      page_count: Number(q.page_count) || 20,
+      corp_code: q.corp_code,
+      bgn_de: q.bgn_de,
+      end_de: q.end_de,
+      pblntf_ty: q.pblntf_ty,
+      page_no: q.page_no,
+      page_count: q.page_count,
     });
   }));
 
-  router.get("/dart/company", handle(async (req) =>
-    getCompanyInfo(dartKey, String(req.query.corp_code || ""))
-  ));
+  router.get("/dart/company", validateQuery(companySchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof companySchema>;
+    return getCompanyInfo(dartKey, q.corp_code);
+  }));
 
-  router.get("/dart/financials", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
+  router.get("/dart/financials", validateQuery(financialsSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof financialsSchema>;
     return getFinancialStatements(dartKey, {
-      corp_code: String(q.corp_code || ""),
-      bsns_year: String(q.bsns_year || ""),
-      reprt_code: String(q.reprt_code || "11011"),
-      fs_div: (q.fs_div as "OFS" | "CFS") || "CFS",
+      corp_code: q.corp_code,
+      bsns_year: q.bsns_year,
+      reprt_code: q.reprt_code,
+      fs_div: q.fs_div,
     });
   }));
 
-  router.get("/dart/key-accounts", handle(async (req) => {
-    const q = req.query as Record<string, unknown>;
+  router.get("/dart/key-accounts", validateQuery(keyAccountsSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof keyAccountsSchema>;
     return getKeyAccounts(dartKey, {
-      corp_code: String(q.corp_code || ""),
-      bsns_year: String(q.bsns_year || ""),
-      reprt_code: String(q.reprt_code || "11011"),
+      corp_code: q.corp_code,
+      bsns_year: q.bsns_year,
+      reprt_code: q.reprt_code,
     });
   }));
 
-  router.get("/dart/document", handle(async (req) => {
-    const rceptNo = String(req.query.rcept_no || "");
-    if (!rceptNo) throw new Error("rcept_no 파라미터가 필요합니다.");
-    return getDisclosureDocument(dartKey, rceptNo);
+  router.get("/dart/document", validateQuery(documentSchema), handle(async (req) => {
+    const q = req.query as unknown as z.infer<typeof documentSchema>;
+    return getDisclosureDocument(dartKey, q.rcept_no);
   }));
 }

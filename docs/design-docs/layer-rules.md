@@ -4,13 +4,15 @@
 
 ```
 1. Entrypoint      index.ts, remote.ts, config.ts
-2. Protocol         server.ts → tools/skills/ (10 skills + prompts)
+2. Protocol         server.ts → tools/skills/ (12 skills + prompts)
 3. HTTP Adapter     api-routes.ts → routes/, openapi.ts → openapi/
 4. Data Access      law-api.ts, dart-api.ts, data20-api.ts,
-                    unipass-api.ts, exim-api.ts, mafra-api.ts
-4b. Shared          shared.ts, http-client.ts, tools/skills/_shared.ts
+                    unipass-api.ts, exim-api.ts, mafra-api.ts,
+                    finlife-api.ts, insurance-api.ts
+4b. Shared          shared.ts, http-client.ts, kst-date.ts, tools/skills/_shared.ts
 5. Types            law-types.ts, dart-types.ts, data20-types.ts,
-                    unipass-types.ts, exim-types.ts, mafra-types.ts
+                    unipass-types.ts, exim-types.ts, mafra-types.ts,
+                    finlife-types.ts, insurance-types.ts
 ```
 
 ## Rules
@@ -27,18 +29,19 @@ Forbidden:  law-api.ts → server.ts
 Only `index.ts` and `remote.ts` may read environment variables and initialize transports. Lower layers receive configuration as function parameters.
 
 ### R3: Types layer has zero runtime dependencies
-Type files (`types.ts`, `dart-types.ts`, `data20-types.ts`, `unipass-types.ts`, `exim-types.ts`, `mafra-types.ts`) contain only TypeScript interfaces and type definitions. No functions, no imports from other project files.
+Type files (`law-types.ts`, `dart-types.ts`, `data20-types.ts`, `unipass-types.ts`, `exim-types.ts`, `mafra-types.ts`, `finlife-types.ts`, `insurance-types.ts`) contain only TypeScript interfaces and type definitions. No functions, no imports from other project files.
 
 ### R4: Data Access is transport-agnostic
-API client files (`law-api.ts`, `dart-api.ts`, `data20-api.ts`, `unipass-api.ts`, `exim-api.ts`, `mafra-api.ts`) must not import MCP SDK, Express, or any transport library. They receive API keys as strings and return typed objects.
+API client files (`law-api.ts`, `dart-api.ts`, `data20-api.ts`, `unipass-api.ts`, `exim-api.ts`, `mafra-api.ts`, `finlife-api.ts`, `insurance-api.ts`) must not import MCP SDK, Express, or any transport library. They receive API keys as strings and return typed objects.
 
 ### R5: Protocol and HTTP Adapter are peers
 `server.ts`/`tools/*` (MCP tools) and `api-routes.ts` (REST) both depend on Data Access but must not depend on each other.
 
 ```
 server.ts ──────────────────┐
-tools/skills/ (10 skills) ──┼──→ law-api.ts, dart-api.ts, data20-api.ts,
-                            │    unipass-api.ts, exim-api.ts, mafra-api.ts → types
+tools/skills/ (12 skills) ──┼──→ law-api.ts, dart-api.ts, data20-api.ts,
+                            │    unipass-api.ts, exim-api.ts, mafra-api.ts,
+                            │    finlife-api.ts, insurance-api.ts → types
 api-routes.ts → routes/ ────┘
 ```
 

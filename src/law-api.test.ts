@@ -5,11 +5,38 @@ import {
   searchCases,
   getCaseDetail,
   searchConstitutional,
+  getConstitutionalDetail,
   searchInterpretations,
+  getInterpretationDetail,
   searchAdminRules,
-  searchLegalTerms,
-  searchEnglishLaws,
+  getAdminRuleDetail,
+  searchOrdinances,
+  getOrdinanceDetail,
   searchTreaties,
+  getTreatyDetail,
+  searchLegalTerms,
+  getLegalTermDetail,
+  searchEnglishLaws,
+  getEnglishLawDetail,
+  getCommitteeName,
+  searchCommitteeDecisions,
+  getCommitteeDecisionDetail,
+  searchAdminAppeals,
+  getAdminAppealDetail,
+  searchOldNewLaw,
+  getOldNewLawDetail,
+  searchLawSystem,
+  getLawSystemDetail,
+  searchThreeWayComp,
+  getThreeWayCompDetail,
+  searchAttachedForms,
+  searchLawAbbreviations,
+  searchLawChangeHistory,
+  getLawArticleSub,
+  searchAILegalTerms,
+  searchLinkedOrdinances,
+  searchAdminRuleOldNew,
+  getAdminRuleOldNewDetail,
 } from "./law-api.js";
 
 const OC = "test_oc";
@@ -756,5 +783,918 @@ describe("searchTreaties", () => {
   it("searchTreaties_네트워크에러_예외발생", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
     await expect(searchTreaties(OC, { query: "테스트" })).rejects.toThrow("connection refused");
+  });
+});
+
+// =========================================================
+// 추가 export 함수 (상세·기타 API)
+// =========================================================
+
+describe("getConstitutionalDetail", () => {
+  it("getConstitutionalDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <DetcService>
+        <헌재결정례일련번호>300001</헌재결정례일련번호>
+        <종국일자>20260101</종국일자>
+        <사건번호>2024헌바1</사건번호>
+        <사건명>위헌소원</사건명>
+        <사건종류명>위헌</사건종류명>
+        <판시사항>판시</판시사항>
+        <결정요지>요지</결정요지>
+        <전문>전문</전문>
+        <참조조문>민법</참조조문>
+        <참조판례>대법원</참조판례>
+      </DetcService>
+    `);
+    const r = await getConstitutionalDetail(OC, 300001);
+    expect(r.id).toBe(300001);
+    expect(r.caseNumber).toBe("2024헌바1");
+    expect(r.holdings).toBe("판시");
+  });
+});
+
+describe("getInterpretationDetail", () => {
+  it("getInterpretationDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <ExpcService>
+        <법령해석례일련번호>400001</법령해석례일련번호>
+        <안건명>해석안건</안건명>
+        <안건번호>법제처-1</안건번호>
+        <해석일자>20260201</해석일자>
+        <해석기관명>법제처</해석기관명>
+        <질의기관명>서울시</질의기관명>
+        <질의요지>질의</질의요지>
+        <회답>회답본문</회답>
+        <이유>이유본문</이유>
+      </ExpcService>
+    `);
+    const r = await getInterpretationDetail(OC, 400001);
+    expect(r.id).toBe(400001);
+    expect(r.title).toBe("해석안건");
+    expect(r.reply).toContain("회답본문");
+  });
+});
+
+describe("getAdminRuleDetail", () => {
+  it("getAdminRuleDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <AdmRulService>
+        <행정규칙기본정보>
+          <행정규칙일련번호>500001</행정규칙일련번호>
+          <행정규칙명>테스트훈령</행정규칙명>
+          <행정규칙종류>훈령</행정규칙종류>
+          <발령일자>20260101</발령일자>
+          <발령번호>10</발령번호>
+          <소관부처명>부처</소관부처명>
+          <제개정구분명>제정</제개정구분명>
+        </행정규칙기본정보>
+        <조문내용>조문본문</조문내용>
+      </AdmRulService>
+    `);
+    const r = await getAdminRuleDetail(OC, 500001);
+    expect(r.id).toBe(500001);
+    expect(r.ruleName).toBe("테스트훈령");
+    expect(r.content).toBe("조문본문");
+  });
+});
+
+describe("searchOrdinances", () => {
+  it("searchOrdinances_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <OrdinSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <law>
+          <자치법규일련번호>600001</자치법규일련번호>
+          <자치법규명>서울시 조례</자치법규명>
+          <자치법규ID>ORD1</자치법규ID>
+          <공포일자>20200101</공포일자>
+          <공포번호>1</공포번호>
+          <제개정구분명>제정</제개정구분명>
+          <지자체기관명>서울시</지자체기관명>
+          <자치법규종류>조례</자치법규종류>
+          <시행일자>20200201</시행일자>
+          <자치법규상세링크>/o</자치법규상세링크>
+        </law>
+      </OrdinSearch>
+    `);
+    const r = await searchOrdinances(OC, { query: "조례" });
+    expect(r.totalCount).toBe(1);
+    expect(r.items[0].ordinanceName).toBe("서울시 조례");
+    expect(r.items[0].localGovName).toBe("서울시");
+  });
+});
+
+describe("getOrdinanceDetail", () => {
+  it("getOrdinanceDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <LawService>
+        <자치법규기본정보>
+          <자치법규ID>O1</자치법규ID>
+          <자치법규명>조례명</자치법규명>
+          <지자체기관명>기관</지자체기관명>
+          <공포일자>20200101</공포일자>
+          <시행일자>20200201</시행일자>
+        </자치법규기본정보>
+        <조문>
+          <조>
+            <조문번호>1</조문번호>
+            <조제목>제목</조제목>
+            <조내용>조내용텍스트</조내용>
+          </조>
+        </조문>
+      </LawService>
+    `);
+    const r = await getOrdinanceDetail(OC, 600001);
+    expect(r.ordinanceId).toBe("O1");
+    expect(r.articles).toHaveLength(1);
+    expect(r.articles[0].articleContent).toBe("조내용텍스트");
+  });
+});
+
+describe("getTreatyDetail", () => {
+  it("getTreatyDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <BothTrtyService>
+        <조약기본정보>
+          <조약일련번호>700001</조약일련번호>
+          <조약명_한글>한글조약</조약명_한글>
+          <조약명_영문>En Treaty</조약명_영문>
+          <발효일자>20000101</발효일자>
+          <서명일자>19990101</서명일자>
+          <조약번호>99</조약번호>
+        </조약기본정보>
+        <추가정보>
+          <체결대상국가한글>미국</체결대상국가한글>
+          <양자조약분야명>경제</양자조약분야명>
+        </추가정보>
+        <조약내용>
+          <조약내용>조약본문</조약내용>
+        </조약내용>
+      </BothTrtyService>
+    `);
+    const r = await getTreatyDetail(OC, 700001);
+    expect(r.id).toBe(700001);
+    expect(r.treatyNameKo).toBe("한글조약");
+    expect(r.counterpartyCountry).toBe("미국");
+    expect(r.content).toBe("조약본문");
+  });
+});
+
+describe("getLegalTermDetail", () => {
+  it("getLegalTermDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <LsTrmService>
+        <법령용어일련번호>TSEQ1</법령용어일련번호>
+        <법령용어명_한글>용어한글</법령용어명_한글>
+        <법령용어명_한자>漢字</법령용어명_한자>
+        <법령용어정의>정의본문</법령용어정의>
+        <출처>출처</출처>
+      </LsTrmService>
+    `);
+    const r = await getLegalTermDetail(OC, "TSEQ1");
+    expect(r.id).toBe("TSEQ1");
+    expect(r.termName).toBe("용어한글");
+    expect(r.definition).toBe("정의본문");
+  });
+});
+
+describe("getEnglishLawDetail", () => {
+  it("getEnglishLawDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <Law>
+        <InfSection>
+          <lsId>ELAW1</lsId>
+          <lsNmEng>Civil Act</lsNmEng>
+          <ancYd>19580222</ancYd>
+          <ancNo>471</ancNo>
+        </InfSection>
+        <JoSection>
+          <Jo>
+            <joYn>조문</joYn>
+            <joNo>1</joNo>
+            <joTtl>General</joTtl>
+            <joCts>Article text</joCts>
+          </Jo>
+        </JoSection>
+      </Law>
+    `);
+    const r = await getEnglishLawDetail(OC, 600000);
+    expect(r.lawId).toBe("ELAW1");
+    expect(r.lawNameEn).toBe("Civil Act");
+    expect(r.articles[0].articleContent).toBe("Article text");
+  });
+});
+
+describe("getCommitteeName", () => {
+  it("getCommitteeName_등록위원회_한글명반환", () => {
+    expect(getCommitteeName("ftc")).toBe("공정거래위원회");
+  });
+  it("getCommitteeName_미등록키_그대로반환", () => {
+    expect(getCommitteeName("unknown_key")).toBe("unknown_key");
+  });
+});
+
+describe("searchCommitteeDecisions", () => {
+  it("searchCommitteeDecisions_ftc_정상XML", async () => {
+    mockFetchXml(`
+      <Ftc>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <ftc>
+          <결정문일련번호>800001</결정문일련번호>
+          <사건명>불공정거래</사건명>
+          <사건번호>2024-1</사건번호>
+          <결정일자>20260301</결정일자>
+          <결정문상세링크>/d</결정문상세링크>
+        </ftc>
+      </Ftc>
+    `);
+    const r = await searchCommitteeDecisions(OC, "ftc", { query: "거래" });
+    expect(r.items[0].id).toBe(800001);
+    expect(r.items[0].title).toBe("불공정거래");
+  });
+});
+
+describe("getCommitteeDecisionDetail", () => {
+  it("getCommitteeDecisionDetail_ftc_정상XML", async () => {
+    mockFetchXml(`
+      <FtcService>
+        <결정문일련번호>800001</결정문일련번호>
+        <사건명>상세사건</사건명>
+        <사건번호>2024-2</사건번호>
+        <기관명>공정위</기관명>
+        <결정일자>20260302</결정일자>
+        <주문>인용</주문>
+        <이유>이유텍스트</이유>
+        <결정요지>요지텍스트</결정요지>
+        <피심정보>피심</피심정보>
+      </FtcService>
+    `);
+    const r = await getCommitteeDecisionDetail(OC, "ftc", 800001);
+    expect(r.id).toBe(800001);
+    expect(r.ruling).toBe("인용");
+    expect((r.extras as any).피심정보).toBe("피심");
+  });
+});
+
+describe("searchAdminAppeals", () => {
+  it("searchAdminAppeals_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <Decc>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <decc>
+          <행정심판재결례일련번호>900001</행정심판재결례일련번호>
+          <사건명>심판사건</사건명>
+          <사건번호>심2024-1</사건번호>
+          <처분일자>20250101</처분일자>
+          <의결일자>20250201</의결일자>
+          <처분청>청A</처분청>
+          <재결청>청B</재결청>
+          <재결구분명>취소</재결구분명>
+          <재결구분코드>1</재결구분코드>
+          <행정심판례상세링크>/a</행정심판례상세링크>
+        </decc>
+      </Decc>
+    `);
+    const r = await searchAdminAppeals(OC, { query: "심판" });
+    expect(r.items[0].caseName).toBe("심판사건");
+    expect(r.items[0].dispositionAgency).toBe("청A");
+  });
+});
+
+describe("getAdminAppealDetail", () => {
+  it("getAdminAppealDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <PrecService>
+        <행정심판례일련번호>900001</행정심판례일련번호>
+        <사건명>상세심판</사건명>
+        <사건번호>심2024-2</사건번호>
+        <처분일자>20250102</처분일자>
+        <의결일자>20250202</의결일자>
+        <처분청>처분</처분청>
+        <재결청>재결</재결청>
+        <재결례유형명>유형</재결례유형명>
+        <주문>기각</주문>
+        <청구취지>취지</청구취지>
+        <이유>이유</이유>
+        <재결요지>요지</재결요지>
+      </PrecService>
+    `);
+    const r = await getAdminAppealDetail(OC, 900001);
+    expect(r.ruling).toBe("기각");
+    expect(r.summary).toBe("요지");
+  });
+});
+
+describe("searchOldNewLaw", () => {
+  it("searchOldNewLaw_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <OldAndNewLawSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <oldAndNew>
+          <신구법일련번호>110001</신구법일련번호>
+          <현행연혁코드>현행</현행연혁코드>
+          <신구법명>신구법</신구법명>
+          <신구법ID>ON1</신구법ID>
+          <공포일자>20200101</공포일자>
+          <공포번호>1</공포번호>
+          <제개정구분명>개정</제개정구분명>
+          <소관부처코드>1</소관부처코드>
+          <소관부처명>부처</소관부처명>
+          <법령구분명>법률</법령구분명>
+          <시행일자>20200201</시행일자>
+          <신구법상세링크>/on</신구법상세링크>
+        </oldAndNew>
+      </OldAndNewLawSearch>
+    `);
+    const r = await searchOldNewLaw(OC, { query: "신구" });
+    expect(r.items[0].lawName).toBe("신구법");
+    expect(r.items[0].lawId).toBe("ON1");
+  });
+});
+
+describe("getOldNewLawDetail", () => {
+  it("getOldNewLawDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <OldAndNewService>
+        <구조문_기본정보>
+          <법령ID>OLD1</법령ID>
+          <법령일련번호>1</법령일련번호>
+          <시행일자>20200101</시행일자>
+          <공포일자>20190101</공포일자>
+          <공포번호>1</공포번호>
+          <현행여부>Y</현행여부>
+          <제개정구분명>전부</제개정구분명>
+          <법령명>구법</법령명>
+          <법종구분>법률</법종구분>
+        </구조문_기본정보>
+        <신조문_기본정보>
+          <법령ID>NEW1</법령ID>
+          <법령일련번호>2</법령일련번호>
+          <시행일자>20210101</시행일자>
+          <공포일자>20200101</공포일자>
+          <공포번호>2</공포번호>
+          <현행여부>Y</현행여부>
+          <제개정구분명>개정</제개정구분명>
+          <법령명>신법</법령명>
+          <법종구분>법률</법종구분>
+        </신조문_기본정보>
+        <구조문목록><조문>구조문</조문></구조문목록>
+        <신조문목록><조문>신조문</조문></신조문목록>
+      </OldAndNewService>
+    `);
+    const r = await getOldNewLawDetail(OC, 110001);
+    expect(r.oldBasicInfo.lawName).toBe("구법");
+    expect(r.newBasicInfo.lawName).toBe("신법");
+    expect(r.oldArticles).toContain("구조문");
+    expect(r.newArticles).toContain("신조문");
+  });
+});
+
+describe("searchLawSystem", () => {
+  it("searchLawSystem_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <LsStmdSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <law>
+          <법령일련번호>120001</법령일련번호>
+          <법령명>체계도법</법령명>
+          <법령ID>LS1</법령ID>
+          <공포일자>20200101</공포일자>
+          <공포번호>1</공포번호>
+          <제개정구분명>제정</제개정구분명>
+          <소관부처코드>1</소관부처코드>
+          <소관부처명>부</소관부처명>
+          <법령구분명>법률</법령구분명>
+          <시행일자>20200201</시행일자>
+          <본문상세링크>/s</본문상세링크>
+        </law>
+      </LsStmdSearch>
+    `);
+    const r = await searchLawSystem(OC, { query: "체계" });
+    expect(r.items[0].lawName).toBe("체계도법");
+  });
+});
+
+describe("getLawSystemDetail", () => {
+  it("getLawSystemDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <법령체계도>
+        <기본정보>
+          <법령ID>L1</법령ID>
+          <법령일련번호>120001</법령일련번호>
+          <공포일자>20200101</공포일자>
+          <공포번호>10</공포번호>
+          <법종구분>법률</법종구분>
+          <법령명>체계상세</법령명>
+          <시행일자>20200201</시행일자>
+          <제개정구분>제정</제개정구분>
+        </기본정보>
+        <상하위법></상하위법>
+      </법령체계도>
+    `);
+    const r = await getLawSystemDetail(OC, 120001);
+    expect(r.basicInfo.lawName).toBe("체계상세");
+    expect(r.basicInfo.lawId).toBe("L1");
+  });
+});
+
+describe("searchThreeWayComp", () => {
+  it("searchThreeWayComp_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <thdCmpLawSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <thdCmp>
+          <삼단비교일련번호>130001</삼단비교일련번호>
+          <법령명한글>삼단법</법령명한글>
+          <법령ID>T1</법령ID>
+          <공포일자>20200101</공포일자>
+          <공포번호>1</공포번호>
+          <제개정구분명>제정</제개정구분명>
+          <소관부처코드>1</소관부처코드>
+          <소관부처명>부</소관부처명>
+          <법령구분명>법률</법령구분명>
+          <시행일자>20200201</시행일자>
+          <인용조문_삼단비교상세링크>/c1</인용조문_삼단비교상세링크>
+          <위임조문_삼단비교상세링크>/c2</위임조문_삼단비교상세링크>
+        </thdCmp>
+      </thdCmpLawSearch>
+    `);
+    const r = await searchThreeWayComp(OC, { query: "삼단" });
+    expect(r.items[0].lawName).toBe("삼단법");
+    expect(r.items[0].citationLink).toBe("/c1");
+  });
+});
+
+describe("getThreeWayCompDetail", () => {
+  it("getThreeWayCompDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <ThdCmpLawXService>
+        <기본정보>
+          <법령ID>A</법령ID>
+          <시행령ID>B</시행령ID>
+          <시행규칙ID>C</시행규칙ID>
+          <법령명>법</법령명>
+          <시행령명>령</시행령명>
+          <시행규칙명>칙</시행규칙명>
+          <삼단비교존재여부>Y</삼단비교존재여부>
+        </기본정보>
+        <인용조문삼단비교>
+          <법률조문>
+            <조번호>1</조번호>
+            <조제목>제목</조제목>
+            <조내용>본문</조내용>
+          </법률조문>
+        </인용조문삼단비교>
+      </ThdCmpLawXService>
+    `);
+    const r = await getThreeWayCompDetail(OC, 130001, 1);
+    expect(r.basicInfo.lawName).toBe("법");
+    expect(r.content).toContain("제1조");
+    expect(r.content).toContain("본문");
+  });
+});
+
+describe("searchAttachedForms", () => {
+  it("searchAttachedForms_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <licBylSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <licbyl>
+          <별표일련번호>140001</별표일련번호>
+          <관련법령일련번호>140000</관련법령일련번호>
+          <별표명>별표1</별표명>
+          <관련법령명>관련법</관련법령명>
+          <별표번호>1</별표번호>
+          <별표종류>별표</별표종류>
+          <소관부처명>부</소관부처명>
+          <공포일자>20200101</공포일자>
+          <제개정구분명>제정</제개정구분명>
+          <법령종류>법률</법령종류>
+          <별표서식파일링크>/f</별표서식파일링크>
+          <별표법령상세링크>/d</별표법령상세링크>
+        </licbyl>
+      </licBylSearch>
+    `);
+    const r = await searchAttachedForms(OC, { query: "별표" });
+    expect(r.items[0].formName).toBe("별표1");
+  });
+});
+
+describe("searchLawAbbreviations", () => {
+  it("searchLawAbbreviations_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <LawSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <law>
+          <법령일련번호>150001</법령일련번호>
+          <현행연혁코드>현행</현행연혁코드>
+          <법령명한글>상법</법령명한글>
+          <법령약칭명>상</법령약칭명>
+          <법령ID>COM</법령ID>
+          <공포일자>20200101</공포일자>
+          <공포번호>1</공포번호>
+          <제개정구분명>제정</제개정구분명>
+          <등록일>20200102</등록일>
+          <소관부처코드>1</소관부처코드>
+          <소관부처명>부</소관부처명>
+          <법령구분명>법률</법령구분명>
+          <시행일자>20200201</시행일자>
+          <자법타법여부>자법</자법타법여부>
+          <법령상세링크>/l</법령상세링크>
+        </law>
+      </LawSearch>
+    `);
+    const r = await searchLawAbbreviations(OC, { query: "상법" });
+    expect(r.items[0].abbreviation).toBe("상");
+  });
+});
+
+describe("searchLawChangeHistory", () => {
+  it("searchLawChangeHistory_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <LawSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <law>
+          <법령일련번호>160001</법령일련번호>
+          <현행연혁코드>현행</현행연혁코드>
+          <법령명한글>변경법</법령명한글>
+          <법령ID>H1</법령ID>
+          <공포일자>20200101</공포일자>
+          <공포번호>1</공포번호>
+          <제개정구분명>개정</제개정구분명>
+          <소관부처코드>1</소관부처코드>
+          <소관부처명>부</소관부처명>
+          <법령구분명>법률</법령구분명>
+          <시행일자>20200201</시행일자>
+          <자법타법여부>자법</자법타법여부>
+          <법령상세링크>/h</법령상세링크>
+        </law>
+      </LawSearch>
+    `);
+    const r = await searchLawChangeHistory(OC, { regDt: "20260101" });
+    expect(r.items[0].lawName).toBe("변경법");
+  });
+});
+
+describe("getLawArticleSub", () => {
+  it("getLawArticleSub_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <법령>
+        <법령키>k1</법령키>
+        <법령ID>LAW_SUB</법령ID>
+        <공포일자>20200101</공포일자>
+        <공포번호>1</공포번호>
+        <언어>한글</언어>
+        <법령명_한글>테스트법</법령명_한글>
+        <법령명_한자>測試法</법령명_한자>
+        <법종구분코드>1</법종구분코드>
+        <법종구분명>법률</법종구분명>
+        <소관부처>법무부</소관부처>
+        <시행일자>20200201</시행일자>
+        <조문번호>000100</조문번호>
+        <조문내용>조문</조문내용>
+        <항번호>000100</항번호>
+        <항내용>항</항내용>
+        <호번호>000100</호번호>
+        <호내용>호</호내용>
+        <목번호>가</목번호>
+        <목내용>목</목내용>
+      </법령>
+    `);
+    const r = await getLawArticleSub(OC, { lawId: 1, jo: "000100" });
+    expect(r.lawNameKo).toBe("테스트법");
+    expect(r.articleContent).toBe("조문");
+  });
+});
+
+describe("searchAILegalTerms", () => {
+  it("searchAILegalTerms_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <lstrmAISearch>
+        <검색결과개수>1</검색결과개수>
+        <page>1</page>
+        <법령용어>
+          <법령용어명>AI용어</법령용어명>
+          <동음이의어존재여부>N</동음이의어존재여부>
+          <비고>비고</비고>
+          <용어간관계링크>/t</용어간관계링크>
+          <조문간관계링크>/a</조문간관계링크>
+        </법령용어>
+      </lstrmAISearch>
+    `);
+    const r = await searchAILegalTerms(OC, { query: "AI" });
+    expect(r.totalCount).toBe(1);
+    expect(r.items[0].termName).toBe("AI용어");
+  });
+});
+
+describe("searchLinkedOrdinances", () => {
+  it("searchLinkedOrdinances_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <OrdinSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <law>
+          <자치법규일련번호>170001</자치법규일련번호>
+          <자치법규명>연계조례</자치법규명>
+          <자치법규ID>LK1</자치법규ID>
+          <공포일자>20200101</공포일자>
+          <공포번호>1</공포번호>
+          <제개정구분명>제정</제개정구분명>
+          <자치법규종류>조례</자치법규종류>
+          <시행일자>20200201</시행일자>
+        </law>
+      </OrdinSearch>
+    `);
+    const r = await searchLinkedOrdinances(OC, { query: "연계" });
+    expect(r.items[0].ordinanceName).toBe("연계조례");
+  });
+});
+
+describe("searchAdminRuleOldNew", () => {
+  it("searchAdminRuleOldNew_정상XML_목록반환", async () => {
+    mockFetchXml(`
+      <OldAndNewLawSearch>
+        <totalCnt>1</totalCnt>
+        <page>1</page>
+        <oldAndNew>
+          <신구법일련번호>180001</신구법일련번호>
+          <현행연혁코드>현행</현행연혁코드>
+          <신구법명>구규칙</신구법명>
+          <신구법ID>AR1</신구법ID>
+          <발령일자>20200101</발령일자>
+          <발령번호>1</발령번호>
+          <제개정구분명>개정</제개정구분명>
+          <소관부처코드>1</소관부처코드>
+          <소관부처명>부</소관부처명>
+          <법령구분명>훈령</법령구분명>
+          <시행일자>20200201</시행일자>
+          <신구법상세링크>/ar</신구법상세링크>
+        </oldAndNew>
+      </OldAndNewLawSearch>
+    `);
+    const r = await searchAdminRuleOldNew(OC, { query: "규칙" });
+    expect(r.items[0].ruleName).toBe("구규칙");
+    expect(r.items[0].ruleId).toBe("AR1");
+  });
+});
+
+describe("getAdminRuleOldNewDetail", () => {
+  it("getAdminRuleOldNewDetail_정상XML_파싱", async () => {
+    mockFetchXml(`
+      <OldAndNewService>
+        <구조문_기본정보>
+          <행정규칙ID>OLD_R</행정규칙ID>
+          <행정규칙일련번호>1</행정규칙일련번호>
+          <시행일자>20200101</시행일자>
+          <발령일자>20190101</발령일자>
+          <발령번호>1</발령번호>
+          <현행여부>Y</현행여부>
+          <행정규칙명>구규칙</행정규칙명>
+        </구조문_기본정보>
+        <신조문_기본정보>
+          <행정규칙ID>NEW_R</행정규칙ID>
+          <행정규칙일련번호>2</행정규칙일련번호>
+          <시행일자>20210101</시행일자>
+          <발령일자>20200101</발령일자>
+          <발령번호>2</발령번호>
+          <현행여부>Y</현행여부>
+          <행정규칙명>신규칙</행정규칙명>
+        </신조문_기본정보>
+        <구조문목록><조문>구</조문></구조문목록>
+        <신조문목록><조문>신</조문></신조문목록>
+      </OldAndNewService>
+    `);
+    const r = await getAdminRuleOldNewDetail(OC, 180001);
+    expect(r.oldBasicInfo.ruleName).toBe("구규칙");
+    expect(r.newBasicInfo.ruleName).toBe("신규칙");
+    expect(r.oldArticles).toContain("구");
+  });
+});
+
+describe("빈 XML root 분기 테스트", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    fakeNow += 2000;
+    vi.spyOn(Date, "now").mockImplementation(() => {
+      fakeNow += 2000;
+      return fakeNow;
+    });
+  });
+
+  it("searchLaws_빈root_빈결과반환", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchLaws(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+    expect(r.items).toEqual([]);
+  });
+
+  it("searchLaws_search파라미터_사용", async () => {
+    mockFetchXml(`<LawSearch><totalCnt>0</totalCnt></LawSearch>`);
+    const r = await searchLaws(OC, { query: "x", search: 2, org: "법무부" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getLawDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getLawDetail(OC, 1)).rejects.toThrow();
+  });
+
+  it("searchCases_빈root_빈결과반환", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchCases(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getCaseDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getCaseDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchConstitutional_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchConstitutional(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getConstitutionalDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getConstitutionalDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchInterpretations_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchInterpretations(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getInterpretationDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getInterpretationDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchAdminRules_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchAdminRules(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getAdminRuleDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getAdminRuleDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchOrdinances_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchOrdinances(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getOrdinanceDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getOrdinanceDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchTreaties_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchTreaties(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getTreatyDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getTreatyDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchLegalTerms_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchLegalTerms(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getLegalTermDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getLegalTermDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchEnglishLaws_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchEnglishLaws(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getEnglishLawDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getEnglishLawDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchCommitteeDecisions_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchCommitteeDecisions(OC, "ftc", { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getCommitteeDecisionDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getCommitteeDecisionDetail(OC, "ftc", "1")).rejects.toThrow();
+  });
+
+  it("searchAdminAppeals_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchAdminAppeals(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getAdminAppealDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getAdminAppealDetail(OC, "1")).rejects.toThrow();
+  });
+
+  it("searchOldNewLaw_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchOldNewLaw(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getOldNewLawDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getOldNewLawDetail(OC, 1)).rejects.toThrow();
+  });
+
+  it("searchLawSystem_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchLawSystem(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getLawSystemDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getLawSystemDetail(OC, 1)).rejects.toThrow();
+  });
+
+  it("searchThreeWayComp_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchThreeWayComp(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getThreeWayCompDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getThreeWayCompDetail(OC, 1, "법률")).rejects.toThrow();
+  });
+
+  it("searchAttachedForms_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchAttachedForms(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("searchLawAbbreviations_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchLawAbbreviations(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("searchLawChangeHistory_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchLawChangeHistory(OC, { lawId: 1 });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getLawArticleSub_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getLawArticleSub(OC, { lawId: 1, article: "1" })).rejects.toThrow();
+  });
+
+  it("searchAILegalTerms_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchAILegalTerms(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("searchLinkedOrdinances_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchLinkedOrdinances(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("searchAdminRuleOldNew_빈root_빈결과", async () => {
+    mockFetchXml("<empty/>");
+    const r = await searchAdminRuleOldNew(OC, { query: "x" });
+    expect(r.totalCount).toBe(0);
+  });
+
+  it("getAdminRuleOldNewDetail_빈root_throws", async () => {
+    mockFetchXml("<empty/>");
+    await expect(getAdminRuleOldNewDetail(OC, 1)).rejects.toThrow();
   });
 });

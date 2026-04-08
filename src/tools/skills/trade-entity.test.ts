@@ -172,6 +172,85 @@ describe("trade_entity 스킬", () => {
     expect(getShipCompanyDetail).toHaveBeenCalledWith(MOCK_KEYS, "MSK");
   });
 
+  it("search_company_빈배열_결과없음", async () => {
+    vi.mocked(searchCompany).mockResolvedValue([] as any);
+    const r = await handler({ action: "search_company", query: "없는업체" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_broker_빈배열_결과없음", async () => {
+    vi.mocked(searchBroker).mockResolvedValue([] as any);
+    const r = await handler({ action: "search_broker", query: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_animal_plant_company_빈배열_결과없음", async () => {
+    vi.mocked(searchAnimalPlantCompany).mockResolvedValue([] as any);
+    const r = await handler({ action: "search_animal_plant_company", company_name: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("forwarder_list_빈배열_결과없음", async () => {
+    vi.mocked(getForwarderList).mockResolvedValue([] as any);
+    const r = await handler({ action: "forwarder_list", name: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("forwarder_detail_null_결과없음", async () => {
+    vi.mocked(getForwarderDetail).mockResolvedValue(null as any);
+    const r = await handler({ action: "forwarder_detail", forwarder_code: "X" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("airline_list_빈배열_결과없음", async () => {
+    vi.mocked(getAirlineList).mockResolvedValue([] as any);
+    const r = await handler({ action: "airline_list", name: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("airline_detail_null_결과없음", async () => {
+    vi.mocked(getAirlineDetail).mockResolvedValue(null as any);
+    const r = await handler({ action: "airline_detail", airline_code: "XX" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("broker_detail_null_결과없음", async () => {
+    vi.mocked(getBrokerDetail).mockResolvedValue(null as any);
+    const r = await handler({ action: "broker_detail", lca_code: "X" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("ship_company_list_빈배열_결과없음", async () => {
+    vi.mocked(getShipCompanyList).mockResolvedValue([] as any);
+    const r = await handler({ action: "ship_company_list", name: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("ship_company_detail_null_결과없음", async () => {
+    vi.mocked(getShipCompanyDetail).mockResolvedValue(null as any);
+    const r = await handler({ action: "ship_company_detail", ship_company_code: "X" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("overseas_supplier_유효한결과_포맷팅반환", async () => {
+    vi.mocked(getOverseasSupplier).mockResolvedValue([
+      { ovrsSplrSgn: "S1", splrConm: "US Corp", englCntyNm: "United States" },
+    ] as any);
+    const r = await handler({ action: "overseas_supplier", country_code: "US", company_name: "Corp" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("해외공급자");
+  });
+
   it("API예외_errorResponse반환", async () => {
     vi.mocked(searchCompany).mockRejectedValue(new Error("Network timeout"));
 

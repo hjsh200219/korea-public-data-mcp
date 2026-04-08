@@ -95,6 +95,7 @@ async function getJson<T>(url: string, label: string): Promise<T> {
   } catch (e) {
     throw new Error(
       `${label} API 연결 실패: ${e instanceof Error ? e.message : "네트워크 오류"}`,
+      { cause: e },
     );
   }
 

@@ -183,6 +183,71 @@ describe("public_data 스킬", () => {
     expect(result.content[0].text).toContain("b_no");
   });
 
+  const emptyItems = { items: [], totalCount: 0, pageNo: 1, numOfRows: 10 };
+
+  it("search_pharmacy_빈결과_결과없음", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_pharmacy", Q0: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_hospital_빈결과_결과없음", async () => {
+    vi.mocked(searchHospital).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_hospital", yadmNm: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_animal_hospital_빈결과_결과없음", async () => {
+    vi.mocked(searchHospital).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_animal_hospital", yadmNm: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_rare_medicine_빈결과_결과없음", async () => {
+    vi.mocked(searchRareMedicine).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_rare_medicine", item_name: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_health_food_빈결과_결과없음", async () => {
+    vi.mocked(searchHealthFood).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_health_food", prdlst_nm: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_bio_equivalence_빈결과_결과없음", async () => {
+    vi.mocked(searchBioEquivalence).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_bio_equivalence", item_name: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_medicine_patent_빈결과_결과없음", async () => {
+    vi.mocked(searchMedicinePatent).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_medicine_patent", item_name: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("verify_business_빈배열_결과없음", async () => {
+    vi.mocked(verifyBusiness).mockResolvedValue([] as any);
+    const r = await handler({ action: "verify_business", b_no: "1", start_dt: "20200101", p_nm: "a" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("결과");
+  });
+
+  it("check_business_status_빈배열_결과없음", async () => {
+    vi.mocked(checkBusinessStatus).mockResolvedValue([] as any);
+    const r = await handler({ action: "check_business_status", b_no: "1234567890" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("결과");
+  });
+
   it("API예외_errorResponse반환", async () => {
     vi.mocked(searchPharmacy).mockRejectedValue(new Error("Network timeout"));
 

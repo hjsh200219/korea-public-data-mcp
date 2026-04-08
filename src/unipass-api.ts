@@ -115,8 +115,7 @@ async function fetchUnipassXml(url: string): Promise<string | null> {
     if (!response.ok) return null;
     return response.text();
   } catch (e) {
-    console.error("UNI-PASS fetch error:", e);
-    return null;
+    throw new Error(`UNI-PASS 요청 실패: ${url}`, { cause: e });
   }
 }
 
@@ -196,8 +195,7 @@ export async function getCargoTracking(
       csclPrgsDate: str(item.csclPrgsDate),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 화물통관진행정보 조회 실패", { cause: e });
   }
 }
 
@@ -223,8 +221,7 @@ export async function getContainerInfo(
       sealNo: str(item.sealNo),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 컨테이너내역 조회 실패", { cause: e });
   }
 }
 
@@ -261,8 +258,7 @@ export async function verifyImportDeclaration(
       gcnt: str(item.gcnt),
     };
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return null;
+    throw new Error("UNI-PASS 수입신고 검증 실패", { cause: e });
   }
 }
 
@@ -292,8 +288,7 @@ export async function searchHsCode(
       wghtUt: str(item.wghtUt),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS HS코드 검색 실패", { cause: e });
   }
 }
 
@@ -323,8 +318,7 @@ export async function getTariffRate(
       aplyEndDt: str(item.aplyEndDt),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 관세율 조회 실패", { cause: e });
   }
 }
 
@@ -434,8 +428,7 @@ export async function searchCompany(
       useYn: str(item.useYn),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 업체 조회 실패", { cause: e });
   }
 }
 
@@ -462,8 +455,7 @@ export async function searchBroker(
       cstmNm: str(item.cstmNm),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 관세사부호 조회 실패", { cause: e });
   }
 }
 
@@ -489,8 +481,7 @@ export async function getInspectionInfo(
       inqrDt: str(item.inqrDt),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 검사검역내역 조회 실패", { cause: e });
   }
 }
 
@@ -517,8 +508,7 @@ export async function getArrivalReport(
       msrm: str(item.msrm),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 입항보고내역 조회 실패", { cause: e });
   }
 }
 
@@ -544,8 +534,7 @@ export async function searchAnimalPlantCompany(
       bsntAddr: str(item.bsntAddr),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 농림축산검역 업체코드 조회 실패", { cause: e });
   }
 }
 
@@ -572,8 +561,7 @@ export async function getBondedAreaStorage(
       bndAreaNm: str(item.bndAreaNm),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 보세구역 장치기간 조회 실패", { cause: e });
   }
 }
 
@@ -600,8 +588,7 @@ export async function getTaxPaymentInfo(
       txpymAmt: str(item.txpymAmt),
     }));
   } catch (e) {
-    console.error("UNI-PASS API error:", e);
-    return [];
+    throw new Error("UNI-PASS 제세납부 조회 실패", { cause: e });
   }
 }
 
@@ -632,7 +619,7 @@ export async function getExportPerformance(
       csclPckUt: str(item.csclPckUt), csclPckGcnt: str(item.csclPckGcnt),
       ldpInscTrgtYn: str(item.ldpInscTrgtYn),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 수출이행내역 조회 실패", { cause: e }); }
 }
 
 // --- API003: 요건확인내역 ---
@@ -659,7 +646,7 @@ export async function getImportRequirement(
       valtPrid: str(item.valtPrid), relaLwor: str(item.relaLwor),
       dlcn: str(item.dlcn), reqApreNo: str(item.reqApreNo),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 요건확인내역 조회 실패", { cause: e }); }
 }
 
 // --- API005: 보관장치장 정보 ---
@@ -685,7 +672,7 @@ export async function getShedInfo(
       adtxColtPridYn: str(item.adtxColtPridYn),
       ldunPlcSnarYn: str(item.ldunPlcSnarYn),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 보관장치장 조회 실패", { cause: e }); }
 }
 
 // --- API006: 포워더 목록 ---
@@ -705,7 +692,7 @@ export async function getForwarderList(
       frwrSgn: str(item.frwrSgn), frwrKoreNm: str(item.frwrKoreNm),
       frwrEnglNm: str(item.frwrEnglNm), rppnNm: str(item.rppnNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 포워더 목록 조회 실패", { cause: e }); }
 }
 
 // --- API007: 포워더 상세 ---
@@ -730,7 +717,7 @@ export async function getForwarderDetail(
       rgsrValtPridXpirDt: str(item.rgsrValtPridXpirDt),
       hdofAddr: str(item.hdofAddr),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 포워더 상세 조회 실패", { cause: e }); }
 }
 
 // --- API008: 항공사 목록 ---
@@ -750,7 +737,7 @@ export async function getAirlineList(
       flcoEnglNm: str(item.flcoEnglNm), flcoKoreNm: str(item.flcoKoreNm),
       flcoSgn: str(item.flcoSgn), rppnNm: str(item.rppnNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 항공사 목록 조회 실패", { cause: e }); }
 }
 
 // --- API009: 항공사 상세 ---
@@ -774,7 +761,7 @@ export async function getAirlineDetail(
       flcoEnglConm: str(item.flcoEnglConm),
       flcoNumSgn: str(item.flcoNumSgn), hdofAddr: str(item.hdofAddr),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 항공사 상세 조회 실패", { cause: e }); }
 }
 
 // --- API011: 해외거래처부호 ---
@@ -799,7 +786,7 @@ export async function getOverseasSupplier(
       useStopStts: str(item.useStopStts), splrConm: str(item.splrConm),
       splrCntyAbrt: str(item.splrCntyAbrt),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 해외거래처 조회 실패", { cause: e }); }
 }
 
 // --- API014: 관세사 상세 ---
@@ -820,7 +807,7 @@ export async function getBrokerDetail(
       lcaSgn: str(item.lcaSgn), lcaConm: str(item.lcaConm),
       telNo: str(item.telNo), addr: str(item.addr), rppnNm: str(item.rppnNm),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 관세사 상세 조회 실패", { cause: e }); }
 }
 
 // --- API015: 간이환급율 ---
@@ -843,7 +830,7 @@ export async function getSimpleDrawbackRate(
       drwbAmtBaseTpcd: str(item.drwbAmtBaseTpcd), aplyDd: str(item.aplyDd),
       ceseDt: str(item.ceseDt), hs10: str(item.hs10),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 간이환급율 조회 실패", { cause: e }); }
 }
 
 // --- API016: 간이정액 적용/비적용 업체 ---
@@ -870,7 +857,7 @@ export async function getSimpleDrawbackCompany(
       simlFxamtNnaplyApntRsn: str(item.simlFxamtNnaplyApntRsn),
       rgsrCstmNm: str(item.rgsrCstmNm),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 간이정액 업체 조회 실패", { cause: e }); }
 }
 
 // --- API017: 수출이행기간 단축대상 품목 ---
@@ -893,7 +880,7 @@ export async function getExportPeriodShortTarget(
       trgtImpEndDt: str(item.trgtImpEndDt), prnm: str(item.prnm),
       stszNm: str(item.stszNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 수출이행기간 단축대상 조회 실패", { cause: e }); }
 }
 
 // --- API019: 통계부호 ---
@@ -916,7 +903,7 @@ export async function getStatisticsCode(
       koreAbrt: str(item.koreAbrt), koreBrkd: str(item.koreBrkd),
       itxRt: str(item.itxRt),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 통계부호 조회 실패", { cause: e }); }
 }
 
 // --- API023: 보세운송 차량 ---
@@ -944,7 +931,7 @@ export async function getBondedTransportVehicle(
       bnbnTrnpEqipTpcdNm: str(item.bnbnTrnpEqipTpcdNm),
       useYn: str(item.useYn),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 보세운송 차량 조회 실패", { cause: e }); }
 }
 
 // --- API024: 입출항 보고 ---
@@ -975,7 +962,7 @@ export async function getPortEntryExit(
       dptrPortAirptNm: str(item.dptrPortAirptNm),
       arvlCntyPortAirptNm: str(item.arvlCntyPortAirptNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 입출항 보고 조회 실패", { cause: e }); }
 }
 
 // --- API025: 단일창구 진행현황 ---
@@ -996,7 +983,7 @@ export async function getSingleWindowHistory(
       reqRqstPrcsSttsNm: str(item.reqRqstPrcsSttsNm),
       trsnTpNm: str(item.trsnTpNm), rcpnDttm: str(item.rcpnDttm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 단일창구 진행현황 조회 실패", { cause: e }); }
 }
 
 // --- API026: 선사 목록 ---
@@ -1016,7 +1003,7 @@ export async function getShipCompanyList(
       shipCoEnglNm: str(item.shipCoEnglNm), shipCoKoreNm: str(item.shipCoKoreNm),
       shipCoSgn: str(item.shipCoSgn), rppnNm: str(item.rppnNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 선사 목록 조회 실패", { cause: e }); }
 }
 
 // --- API027: 선사 상세 ---
@@ -1039,7 +1026,7 @@ export async function getShipCompanyDetail(
       agncAddr: str(item.agncAddr), telno: str(item.telno),
       faxNo: str(item.faxNo), rgsrNo: str(item.rgsrNo), rgsrDt: str(item.rgsrDt),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 선사 상세 조회 실패", { cause: e }); }
 }
 
 // --- API029: 세관검사 확인사항 ---
@@ -1064,7 +1051,7 @@ export async function getCustomsCheckItems(
       aplyStrtDt: str(item.aplyStrtDt), aplyEndDt: str(item.aplyEndDt),
       reqCfrmIstmNm: str(item.reqCfrmIstmNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 세관검사 확인사항 조회 실패", { cause: e }); }
 }
 
 // --- API031: 우편세관 관할 ---
@@ -1084,7 +1071,7 @@ export async function getPostalCustoms(
       jrsdCstmSgn: str(item.jrsdCstmSgn),
       jrsdCstmSgnNm: str(item.jrsdCstmSgnNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 우편세관 관할 조회 실패", { cause: e }); }
 }
 
 // --- API032: 첨부서류 제출현황 ---
@@ -1110,7 +1097,7 @@ export async function getAttachmentSubmitStatus(
       elctDocNm: str(item.elctDocNm), dcshSbmtNo: str(item.dcshSbmtNo),
       sbmtDttm: str(item.sbmtDttm), attchSbmtYn: str(item.attchSbmtYn),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 첨부서류 제출현황 조회 실패", { cause: e }); }
 }
 
 // --- API034: 재수입수출 잔량 ---
@@ -1135,7 +1122,7 @@ export async function getReimportExportBalance(
       useAqty: str(item.useAqty), useAqtyUt: str(item.useAqtyUt),
       rsqty: str(item.rsqty), rsqtyUt: str(item.rsqtyUt), drwbYn: str(item.drwbYn),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 재수입수출 잔량 조회 실패", { cause: e }); }
 }
 
 // --- API035: 수출신고확인서 검증 ---
@@ -1159,7 +1146,7 @@ export async function verifyExportDeclaration(
     const root = parsed.expDclrCrfnVrfcQryRsltVo as Record<string, unknown> | undefined;
     if (!root) return null;
     return { tCnt: str(root.tCnt), vrfcRsltCn: str(root.vrfcRsltCn) };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 수출신고확인서 검증 실패", { cause: e }); }
 }
 
 // --- API036: 차량번호별 수출이행 ---
@@ -1181,7 +1168,7 @@ export async function getExportByVehicle(
       dclrDttm: str(item.dclrDttm), cbno: str(item.cbno),
       vhclPrgsStts: str(item.vhclPrgsStts), expDclrNo: str(item.expDclrNo),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 차량별 수출이행 조회 실패", { cause: e }); }
 }
 
 // --- API037: 우편물 통관진행 ---
@@ -1207,7 +1194,7 @@ export async function getPostalClearance(
       sendCntyCdNm: str(item.sendCntyCdNm), ttwg: str(item.ttwg),
       aprvDt: str(item.aprvDt), psmtPrcsStcd: str(item.psmtPrcsStcd),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 우편물 통관진행 조회 실패", { cause: e }); }
 }
 
 // --- API038: 하선신고내역 ---
@@ -1228,7 +1215,7 @@ export async function getUnloadingDeclarations(
       mrn: str(item.mrn), shipNm: str(item.shipNm),
       ulvsUnairPrcsNm: str(item.ulvsUnairPrcsNm),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 하선신고내역 조회 실패", { cause: e }); }
 }
 
 // --- API039: 해상 출항허가 ---
@@ -1254,7 +1241,7 @@ export async function getSeaDeparturePermit(
       loadWght: str(root.loadWght), alCrmbPecnt: str(root.alCrmbPecnt),
       alPsngPecnt: str(root.alPsngPecnt), aprePermDttm: str(root.aprePermDttm),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 해상 출항허가 조회 실패", { cause: e }); }
 }
 
 // --- API040: 항공 출항허가 ---
@@ -1282,7 +1269,7 @@ export async function getAirDeparturePermit(
       kornCrmbPecnt: str(root.kornCrmbPecnt),
       kornPsngPecnt: str(root.kornPsngPecnt), prcsDttm: str(root.prcsDttm),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 항공 출항허가 조회 실패", { cause: e }); }
 }
 
 // --- API042: 재수출 면세이행잔량 ---
@@ -1308,7 +1295,7 @@ export async function getReexportDutyFreeBalance(
       qtyRsqty: str(item.qtyRsqty), wghtRsqty: str(item.wghtRsqty),
       reexpFfmnLastEnfrDt: str(item.reexpFfmnLastEnfrDt),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 재수출 면세이행잔량 조회 실패", { cause: e }); }
 }
 
 // --- API043: HS코드 네비게이션 ---
@@ -1328,7 +1315,7 @@ export async function getHsCodeNavigation(
       hs10Sgn: str(item.hs10Sgn), acrsTcntRnk: str(item.acrsTcntRnk),
       prlstNm: str(item.prlstNm), prlstLnCnt: str(item.prlstLnCnt),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS HS코드 네비게이션 조회 실패", { cause: e }); }
 }
 
 // --- API044: 항공 입항보고 ---
@@ -1356,7 +1343,7 @@ export async function getAirArrivalReport(
       cstmSgn: str(item.cstmSgn), aprePermDttm: str(item.aprePermDttm),
       arvlCntyPortAirptCd: str(item.arvlCntyPortAirptCd),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 항공 입항보고 조회 실패", { cause: e }); }
 }
 
 // --- API045: 재수출 기한 ---
@@ -1378,7 +1365,7 @@ export async function getReexportDeadline(
     );
     if (!item) return null;
     return { xtnsDt: str(item.xtnsDt) };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 재수출 기한 조회 실패", { cause: e }); }
 }
 
 // --- API046: 재수출 이행완료 ---
@@ -1406,7 +1393,7 @@ export async function getReexportCompletion(
       reexpFfmnLastEnfrDt: str(item.reexpFfmnLastEnfrDt),
       lastReexpFfmnDtyConcRcd: str(item.lastReexpFfmnDtyConcRcd),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 재수출 이행완료 조회 실패", { cause: e }); }
 }
 
 // --- API048: 보세구역 반출 ---
@@ -1427,7 +1414,7 @@ export async function getBondedRelease(
     );
     if (!item) return null;
     return { rlbrDt: str(item.rlbrDt), rlbrYn: str(item.rlbrYn) };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 보세구역 반출 조회 실패", { cause: e }); }
 }
 
 // --- API050: 담보해제 ---
@@ -1449,7 +1436,7 @@ export async function getCollateralRelease(
       mgPrcsStcdNm: str(item.mgPrcsStcdNm),
       mgAprvDt: str(item.mgAprvDt), mgRqstDt: str(item.mgRqstDt),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 담보해제 조회 실패", { cause: e }); }
 }
 
 // --- API051: 전자상거래 수출 적재정보 ---
@@ -1468,7 +1455,7 @@ export async function getEcommerceExportLoad(
     );
     if (!item) return null;
     return { loadCmplYn: str(item.loadCmplYn) };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 전자상거래 수출 적재정보 조회 실패", { cause: e }); }
 }
 
 // --- API052: 정정처리상태 ---
@@ -1500,7 +1487,7 @@ export async function getDeclarationCorrection(
       mdfyRqstPrcsStcd: str(item.mdfyRqstPrcsStcd),
       mdfyRqstPrcsStcdNm: str(item.mdfyRqstPrcsStcdNm),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 정정처리상태 조회 실패", { cause: e }); }
 }
 
 // --- API053: 적재지검사 ---
@@ -1522,7 +1509,7 @@ export async function getLoadingInspection(
       expInscTrgtYn: str(item.expInscTrgtYn),
       expInscCmplYn: str(item.expInscCmplYn),
     };
-  } catch (e) { console.error("UNI-PASS API error:", e); return null; }
+  } catch (e) { throw new Error("UNI-PASS 적재지검사 조회 실패", { cause: e }); }
 }
 
 // --- API054: 보세운송 배차정보 ---
@@ -1556,5 +1543,5 @@ export async function getBondedTransportInfo(
       arlcSnarSgnNm: str(item.arlcSnarSgnNm),
       bntpMethNo: str(item.bntpMethNo), cntrNo: str(item.cntrNo),
     }));
-  } catch (e) { console.error("UNI-PASS API error:", e); return []; }
+  } catch (e) { throw new Error("UNI-PASS 보세운송 배차정보 조회 실패", { cause: e }); }
 }

@@ -344,7 +344,7 @@ async function getCorpCodeMap(apiKey: string): Promise<Map<string, CorpCodeEntry
     try {
       corpCodeMap = await loadCorpCodes(apiKey);
       corpCodeCacheTime = Date.now();
-      console.log(`DART 기업코드 캐시 갱신 완료: ${corpCodeMap.size}개 기업`);
+      console.warn(`DART 기업코드 캐시 갱신 완료: ${corpCodeMap.size}개 기업`);
       return corpCodeMap;
     } finally {
       corpCodeLoadPromise = null;

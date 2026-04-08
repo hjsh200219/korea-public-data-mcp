@@ -47,15 +47,6 @@ type CorporateDisclosureParams = {
   numOfRows?: number;
 };
 
-const DART_ACTIONS = new Set([
-  "resolve_corp_code",
-  "search_disclosures",
-  "get_company_info",
-  "get_financial_statements",
-  "get_document",
-  "get_key_accounts",
-]);
-
 function dartKeyGuard(dartApiKey?: string): SkillResult | null {
   if (!dartApiKey) {
     return {

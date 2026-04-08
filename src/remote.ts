@@ -10,10 +10,13 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createServer } from "./server.js";
 import { createApiRouter } from "./api-routes.js";
 import { generateOpenApiSpec } from "./openapi.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, SERVER_VERSION } from "./config.js";
+import { createLogger } from "./logger.js";
 
+const log = createLogger("remote");
 const serverConfig = loadConfig();
 const PORT = parseInt(process.env.PORT || "3000", 10);
+const startedAt = new Date();
 
 const app = express();
 // Claude 모바일/웹 connector는 브라우저 컨텍스트에서 동작하므로 CORS 필요.
@@ -60,25 +63,45 @@ app.use((req, res, next) => {
   const accept = req.headers.accept || "-";
   const ct = req.headers["content-type"] || "-";
   const sid = req.headers["mcp-session-id"] || "-";
-  console.log(`→ ${req.method} ${req.path} ua="${ua}" accept="${accept}" ct="${ct}" sid="${sid}"`);
+  log.info(`→ ${req.method} ${req.path}`, { ua, accept, ct, sid: String(sid) });
   if (req.method === "POST" && req.body && Object.keys(req.body).length > 0) {
-    console.log(`  body: ${JSON.stringify(req.body).slice(0, 600)}`);
+    log.info(`  body: ${JSON.stringify(req.body).slice(0, 600)}`);
   }
   res.on("finish", () => {
-    console.log(`← ${req.method} ${req.path} ${res.statusCode}`);
+    log.info(`← ${req.method} ${req.path} ${res.statusCode}`);
   });
   next();
 });
 
-// 세션별 transport 관리
+// 세션별 transport 관리 (TTL: 30분 미사용 시 자동 정리)
+const SESSION_TTL_MS = 30 * 60 * 1000;
 const sessions = new Map<string, StreamableHTTPServerTransport>();
+const sessionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function touchSession(id: string): void {
+  const prev = sessionTimers.get(id);
+  if (prev) clearTimeout(prev);
+  sessionTimers.set(id, setTimeout(() => {
+    const transport = sessions.get(id);
+    if (transport) transport.close().catch(() => {});
+    sessions.delete(id);
+    sessionTimers.delete(id);
+  }, SESSION_TTL_MS));
+}
+
+function removeSession(id: string): void {
+  const timer = sessionTimers.get(id);
+  if (timer) clearTimeout(timer);
+  sessionTimers.delete(id);
+  sessions.delete(id);
+}
 
 // Railway 재배포 시 기존 세션 정리 후 종료
 function gracefulShutdown(signal: string) {
-  console.log(`${signal} received — closing ${sessions.size} session(s)`);
+  log.warn(`${signal} received — closing ${sessions.size} session(s)`);
   for (const [id, transport] of sessions) {
     transport.close().catch(() => {});
-    sessions.delete(id);
+    removeSession(id);
   }
   process.exit(0);
 }
@@ -87,7 +110,16 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // Health check
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", server: "public-data", version: "6.0.0" });
+  const uptimeSec = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+  res.json({
+    status: "ok",
+    server: "public-data",
+    version: SERVER_VERSION,
+    uptime: uptimeSec,
+    sessions: sessions.size,
+    startedAt: startedAt.toISOString(),
+    memoryMB: Math.round(process.memoryUsage.rss() / 1024 / 1024),
+  });
 });
 
 // REST API (GPT Actions 등 일반 HTTP 클라이언트용)
@@ -111,9 +143,9 @@ app.get("/openapi.json", (req, res) => {
 async function handleMcpPost(req: express.Request, res: express.Response): Promise<void> {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
-  // 기존 세션 재사용
   if (sessionId && sessions.has(sessionId)) {
     const transport = sessions.get(sessionId)!;
+    touchSession(sessionId);
     await transport.handleRequest(req, res, req.body);
     return;
   }
@@ -137,7 +169,7 @@ async function handleMcpPost(req: express.Request, res: express.Response): Promi
 
   transport.onclose = () => {
     if (transport.sessionId) {
-      sessions.delete(transport.sessionId);
+      removeSession(transport.sessionId);
     }
   };
 
@@ -148,6 +180,7 @@ async function handleMcpPost(req: express.Request, res: express.Response): Promi
 
   if (transport.sessionId) {
     sessions.set(transport.sessionId, transport);
+    touchSession(transport.sessionId);
   }
 }
 
@@ -160,6 +193,7 @@ async function handleMcpGet(req: express.Request, res: express.Response): Promis
     return;
   }
 
+  touchSession(sessionId);
   const transport = sessions.get(sessionId)!;
   await transport.handleRequest(req, res);
 }
@@ -171,7 +205,7 @@ async function handleMcpDelete(req: express.Request, res: express.Response): Pro
   if (sessionId && sessions.has(sessionId)) {
     const transport = sessions.get(sessionId)!;
     await transport.close();
-    sessions.delete(sessionId);
+    removeSession(sessionId);
   }
 
   res.status(200).json({ message: "Session closed" });
@@ -188,8 +222,8 @@ app.get("/", handleMcpGet);
 app.delete("/", handleMcpDelete);
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`public-data remote server running on port ${PORT}`);
-  console.log(`MCP endpoint: http://0.0.0.0:${PORT}/mcp`);
-  console.log(`REST API: http://0.0.0.0:${PORT}/api`);
-  console.log(`OpenAPI spec: http://0.0.0.0:${PORT}/openapi.json`);
+  log.info(`public-data remote server running on port ${PORT}`);
+  log.info(`MCP endpoint: http://0.0.0.0:${PORT}/mcp`);
+  log.info(`REST API: http://0.0.0.0:${PORT}/api`);
+  log.info(`OpenAPI spec: http://0.0.0.0:${PORT}/openapi.json`);
 });

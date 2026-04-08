@@ -3,6 +3,8 @@
  * index.ts / remote.ts 진입점에서 공통 사용
  */
 
+export const SERVER_VERSION = "6.0.0";
+
 export interface ServerConfig {
   lawApiOc: string;
   dartApiKey?: string;

@@ -5,6 +5,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServerConfig } from "./config.js";
+import { SERVER_VERSION } from "./config.js";
 import { registerSkillTools } from "./tools/skills/index.js";
 
 export type { ServerConfig } from "./config.js";
@@ -12,7 +13,7 @@ export type { ServerConfig } from "./config.js";
 export function createServer(config: ServerConfig): McpServer {
   const server = new McpServer({
     name: "public-data",
-    version: "6.0.0",
+    version: SERVER_VERSION,
   });
 
   registerSkillTools(server, config);

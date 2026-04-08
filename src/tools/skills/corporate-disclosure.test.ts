@@ -50,6 +50,13 @@ describe("corporate_disclosure 스킬", () => {
     expect(resolveCorpCode).toHaveBeenCalledWith("dart-key", "삼성전자");
   });
 
+  it("resolve_corp_code_빈배열_결과없음", async () => {
+    vi.mocked(resolveCorpCode).mockResolvedValue([]);
+    const r = await handler({ action: "resolve_corp_code", corp_name: "없는회사" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("검색 결과가 없습니다");
+  });
+
   it("resolve_corp_code_corp_name누락_에러", async () => {
     const result = await handler({ action: "resolve_corp_code" } as any);
     expect(result.isError).toBe(true);
@@ -82,6 +89,13 @@ describe("corporate_disclosure 스킬", () => {
     expect(result.content[0].text).toContain("공시보고서 검색결과");
     expect(result.content[0].text).toContain("삼성전자");
     expect(searchDisclosures).toHaveBeenCalledWith("dart-key", expect.objectContaining({ corp_code: "00126380" }));
+  });
+
+  it("search_disclosures_빈list_결과없음", async () => {
+    vi.mocked(searchDisclosures).mockResolvedValue({ status: "000", list: [], total_count: 0, page_no: 1, total_page: 0 } as any);
+    const r = await handler({ action: "search_disclosures", corp_code: "00126380" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("공시보고서가 없습니다");
   });
 
   it("get_company_info_유효한결과_포맷팅반환", async () => {
@@ -139,6 +153,18 @@ describe("corporate_disclosure 스킬", () => {
     }));
   });
 
+  it("get_financial_statements_빈list_결과없음", async () => {
+    vi.mocked(getFinancialStatements).mockResolvedValue({ status: "000", list: [] } as any);
+    const r = await handler({
+      action: "get_financial_statements",
+      corp_code: "00126380",
+      bsns_year: "2023",
+      reprt_code: "11011",
+    });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("재무제표 데이터가 없습니다");
+  });
+
   it("get_document_유효한결과_포맷팅반환", async () => {
     vi.mocked(getDisclosureDocument).mockResolvedValue({
       rcept_no: "20240315000001",
@@ -181,6 +207,18 @@ describe("corporate_disclosure 스킬", () => {
     }));
   });
 
+  it("get_key_accounts_빈list_결과없음", async () => {
+    vi.mocked(getKeyAccounts).mockResolvedValue({ status: "000", list: [] } as any);
+    const r = await handler({
+      action: "get_key_accounts",
+      corp_code: "00126380",
+      bsns_year: "2023",
+      reprt_code: "11011",
+    });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("주요계정 데이터가 없습니다");
+  });
+
   it("search_stock_dividend_유효한결과_포맷팅반환", async () => {
     vi.mocked(searchStockDividend).mockResolvedValue({
       totalCount: 1,
@@ -202,6 +240,13 @@ describe("corporate_disclosure 스킬", () => {
     expect(result.content[0].text).toContain("주식배당정보");
     expect(result.content[0].text).toContain("삼성전자");
     expect(searchStockDividend).toHaveBeenCalledWith("data20-key", expect.objectContaining({ stckIssuCmpyNm: "삼성전자" }));
+  });
+
+  it("search_stock_dividend_빈items_결과없음", async () => {
+    vi.mocked(searchStockDividend).mockResolvedValue({ totalCount: 0, pageNo: 1, numOfRows: 10, items: [] } as any);
+    const r = await handler({ action: "search_stock_dividend", stckIssuCmpyNm: "없음" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("검색 결과가 없습니다");
   });
 
   it("DART_action_dartApiKey없음_에러", async () => {
