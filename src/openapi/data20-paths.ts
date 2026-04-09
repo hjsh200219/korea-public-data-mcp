@@ -122,6 +122,18 @@ export function getData20Paths(): OpenApiPaths {
       responses: jsonResponse("의약품 특허정보 검색 결과"),
     }),
     ...apiPath({
+      path: "/api/data20/onbid-pbanc-cltr-detail",
+      operationId: "data20SearchOnbidPbancCltrDetail",
+      summary: "온비드 공고물건상세 조회",
+      description:
+        "한국자산관리공사 차세대 온비드 공고관리번호(pbancMngNo) 기준 공매 물건 상세 목록을 조회합니다. (apis.data.go.kr B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2)",
+      parameters: [
+        param("pbancMngNo", "공고관리번호 (예: 202406-21411-00)", { required: true }),
+        ...paginationParams,
+      ],
+      responses: jsonResponse("온비드 공고물건 상세 목록"),
+    }),
+    ...apiPath({
       path: "/api/data20/business-verify",
       method: "post",
       operationId: "data20VerifyBusiness",

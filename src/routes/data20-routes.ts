@@ -14,6 +14,7 @@ import {
   searchMedicinePatent,
   verifyBusiness,
   checkBusinessStatus,
+  searchOnbidPbancCltrDetail,
 } from "../data20-api.js";
 
 export function registerData20Routes(router: Router, d20: string): void {
@@ -87,6 +88,19 @@ export function registerData20Routes(router: Router, d20: string): void {
       item_eng_name: q.item_eng_name as string | undefined,
       ingr_name: q.ingr_name as string | undefined,
       ingr_eng_name: q.ingr_eng_name as string | undefined,
+      pageNo: Number(q.pageNo) || 1,
+      numOfRows: Number(q.numOfRows) || 10,
+    });
+  }));
+
+  router.get("/data20/onbid-pbanc-cltr-detail", handle(async (req) => {
+    const q = req.query as Record<string, unknown>;
+    const pbancMngNo = (q.pbancMngNo as string | undefined)?.trim();
+    if (!pbancMngNo) {
+      throw new Error("pbancMngNo(공고관리번호)는 필수입니다.");
+    }
+    return searchOnbidPbancCltrDetail(d20, {
+      pbancMngNo,
       pageNo: Number(q.pageNo) || 1,
       numOfRows: Number(q.numOfRows) || 10,
     });

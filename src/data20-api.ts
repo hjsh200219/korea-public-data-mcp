@@ -17,6 +17,7 @@ import type {
   BusinessValidateRequest,
   BusinessValidateResult,
   BusinessStatusResult,
+  OnbidPbancCltrItem,
 } from "./data20-types.js";
 
 const REQUEST_TIMEOUT_MS = 15000;
@@ -267,6 +268,34 @@ export async function searchBioEquivalence(
 
 // --- 의약품 특허정보 검색 ---
 
+function strField(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v);
+}
+
+/** API가 DOMESTIC_*·INGR_NAME·SHAPE 등으로 내려줄 때 기존 필드명으로 맞춤 */
+function normalizeMedicinePatentItem(row: unknown): MedicinePatentItem {
+  const r = row as Record<string, unknown>;
+  const pms = strField(r.PMS_END_DATE);
+  const pmsUsable = pms !== "" && pms !== "-";
+  return {
+    ITEM_SEQ: strField(r.ITEM_SEQ),
+    ITEM_NAME: strField(r.ITEM_NAME),
+    ITEM_ENG_NAME: strField(r.ITEM_ENG_NAME),
+    ENTP_NAME: strField(r.ENTP_NAME),
+    INGR_KOR_NAME: strField(r.INGR_KOR_NAME || r.INGR_NAME),
+    INGR_ENG_NAME: strField(r.INGR_ENG_NAME),
+    PATENT_NO: strField(r.PATENT_NO || r.DOMESTIC_PATENT_NO),
+    PATENT_DATE: strField(
+      r.PATENT_DATE || r.DOMESTIC_RGST_DATE || r.DOMESTIC_START_DATE || r.REG_DATE || r.RGST_DATE,
+    ),
+    PATENT_EXPIRY_DATE: strField(
+      r.PATENT_EXPIRY_DATE || r.DOMESTIC_END_DATE || (pmsUsable ? pms : ""),
+    ),
+    DOSAGE_FORM: strField(r.DOSAGE_FORM || r.SHAPE),
+  };
+}
+
 export async function searchMedicinePatent(
   serviceKey: string,
   params: {
@@ -275,7 +304,7 @@ export async function searchMedicinePatent(
     pageNo?: number; numOfRows?: number;
   },
 ): Promise<DataGoKrResult<MedicinePatentItem>> {
-  return fetchJson<MedicinePatentItem>(
+  const raw = await fetchJson<Record<string, unknown>>(
     "https://apis.data.go.kr/1471000/MdcinPatentInfoService2/getMdcinPatentInfoList2",
     serviceKey,
     {
@@ -284,6 +313,32 @@ export async function searchMedicinePatent(
       item_eng_name: params.item_eng_name || "",
       ingr_name: params.ingr_name || "",
       ingr_eng_name: params.ingr_eng_name || "",
+      pageNo: String(params.pageNo || 1),
+      numOfRows: String(params.numOfRows || 10),
+    },
+  );
+  return {
+    ...raw,
+    items: raw.items.map(normalizeMedicinePatentItem),
+  };
+}
+
+// --- 온비드 차세대 공고물건상세 (공고관리번호별 물건 목록) ---
+
+export async function searchOnbidPbancCltrDetail(
+  serviceKey: string,
+  params: {
+    pbancMngNo: string;
+    pageNo?: number;
+    numOfRows?: number;
+  },
+): Promise<DataGoKrResult<OnbidPbancCltrItem>> {
+  return fetchJson<OnbidPbancCltrItem>(
+    "https://apis.data.go.kr/B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2",
+    serviceKey,
+    {
+      resultType: "json",
+      pbancMngNo: params.pbancMngNo,
       pageNo: String(params.pageNo || 1),
       numOfRows: String(params.numOfRows || 10),
     },

@@ -21,6 +21,7 @@ import {
   searchMedicinePatent,
   verifyBusiness,
   checkBusinessStatus,
+  searchOnbidPbancCltrDetail,
 } from "./data20-api.js";
 
 const SERVICE_KEY = "test-service-key-123";
@@ -347,6 +348,42 @@ describe("searchMedicinePatent", () => {
     expect(result.items[0].INGR_ENG_NAME).toBe("Valsartan");
   });
 
+  it("DOMESTIC_필드만있을때_PATENT필드로정규화", async () => {
+    fetchWithRetry.mockResolvedValueOnce(
+      jsonResponse({
+        response: {
+          header: { resultCode: "00" },
+          body: {
+            items: {
+              item: [{
+                ITEM_SEQ: "201602112",
+                ITEM_NAME: "엔트레스토필름코팅정",
+                ITEM_ENG_NAME: "Entresto film-coated tablets",
+                ENTP_NAME: "한국노바티스(주)",
+                INGR_NAME: "사쿠비트릴·발사르탄나트륨염수화물",
+                INGR_ENG_NAME: "sacubitril/valsartan",
+                DOMESTIC_PATENT_NO: "10-0984939",
+                DOMESTIC_END_DATE: "2024-04-04",
+                PMS_END_DATE: "-",
+                SHAPE: "필름코팅정",
+              }],
+            },
+            totalCount: 1,
+            pageNo: 1,
+            numOfRows: 10,
+          },
+        },
+      }),
+    );
+
+    const result = await searchMedicinePatent(SERVICE_KEY, { item_name: "발사르탄" });
+
+    expect(result.items[0].PATENT_NO).toBe("10-0984939");
+    expect(result.items[0].PATENT_EXPIRY_DATE).toBe("2024-04-04");
+    expect(result.items[0].INGR_KOR_NAME).toBe("사쿠비트릴·발사르탄나트륨염수화물");
+    expect(result.items[0].DOSAGE_FORM).toBe("필름코팅정");
+  });
+
   it("여러검색조건_URL파라미터포함", async () => {
     fetchWithRetry.mockResolvedValueOnce(
       jsonResponse({
@@ -391,6 +428,35 @@ describe("searchMedicinePatent", () => {
     );
 
     await expect(searchMedicinePatent(SERVICE_KEY, {})).rejects.toThrow("일일 요청 한도 초과");
+  });
+});
+
+// --- 온비드 공고물건상세 (B010003 JSON) ---
+
+describe("searchOnbidPbancCltrDetail", () => {
+  it("정상응답_목록반환_URL에getPbancCltrInf2", async () => {
+    const row = { CLTR_NO: "123", CLTR_NM: "테스트물건", APSL_ASES_AVG_AMT: "100000000" };
+    fetchWithRetry.mockResolvedValueOnce(
+      jsonResponse({
+        response: {
+          header: { resultCode: "00", resultMsg: "OK" },
+          body: {
+            items: { item: [row] },
+            totalCount: 1,
+            pageNo: 1,
+            numOfRows: 10,
+          },
+        },
+      }),
+    );
+
+    const result = await searchOnbidPbancCltrDetail(SERVICE_KEY, { pbancMngNo: "202406-21411-00" });
+
+    expect(result.items).toEqual([row]);
+    const url = fetchWithRetry.mock.calls[0][0] as string;
+    expect(url).toContain("B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2");
+    expect(url).toContain("pbancMngNo=202406-21411-00");
+    expect(url).toContain("resultType=json");
   });
 });
 

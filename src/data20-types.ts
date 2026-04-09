@@ -99,6 +99,7 @@ export interface BioEquivalenceItem {
 }
 
 // --- 의약품 특허정보 ---
+// 식약처 MdcinPatentInfoService2 JSON은 구스키마(PATENT_*)와 신규(DOMESTIC_*, INGR_NAME, SHAPE 등)가 혼재 — data20-api에서 정규화
 
 export interface MedicinePatentItem {
   ITEM_SEQ: string;
@@ -141,3 +142,7 @@ export interface BusinessStatusResult {
   tax_type_change_dt: string;
   invoice_apply_dt: string;
 }
+
+// --- 온비드 차세대 공고물건상세 (B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2) — 응답 필드는 물건 유형에 따라 가변 ---
+
+export type OnbidPbancCltrItem = Record<string, unknown>;

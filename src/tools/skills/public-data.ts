@@ -4,7 +4,7 @@
  *   data20_search_animal_hospital, data20_search_rare_medicine,
  *   data20_search_health_food, data20_search_bio_equivalence,
  *   data20_search_medicine_patent, data20_verify_business,
- *   data20_check_business_status
+ *   data20_check_business_status, search_onbid_pbanc_cltr_detail
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -14,6 +14,7 @@ import {
   searchRareMedicine, searchHealthFood,
   searchBioEquivalence, searchMedicinePatent,
   verifyBusiness, checkBusinessStatus,
+  searchOnbidPbancCltrDetail,
 } from "../../data20-api.js";
 import { errorResponse, truncate } from "../../shared.js";
 import { createDispatcher, requireParam, type SkillResult } from "./_shared.js";
@@ -28,6 +29,7 @@ const ACTIONS = [
   "search_medicine_patent",
   "verify_business",
   "check_business_status",
+  "search_onbid_pbanc_cltr_detail",
 ] as const;
 
 type PublicDataParams = {
@@ -52,6 +54,8 @@ type PublicDataParams = {
   b_nm?: string;
   pageNo?: number;
   numOfRows?: number;
+  /** 온비드 공고관리번호 (search_onbid_pbanc_cltr_detail) */
+  pbancMngNo?: string;
 };
 
 function s(val: unknown): string {
@@ -214,6 +218,31 @@ function handleVerifyBusiness(serviceKey: string) {
   };
 }
 
+function handleSearchOnbidPbancCltrDetail(serviceKey: string) {
+  return async (p: PublicDataParams): Promise<SkillResult> => {
+    const err = requireParam(p as Record<string, unknown>, "pbancMngNo", "search_onbid_pbanc_cltr_detail");
+    if (err) return err;
+    try {
+      const result = await searchOnbidPbancCltrDetail(serviceKey, {
+        pbancMngNo: p.pbancMngNo!.trim(),
+        pageNo: p.pageNo,
+        numOfRows: p.numOfRows,
+      });
+      if (result.items.length === 0) {
+        return { content: [{ type: "text", text: "검색 결과가 없습니다." }] };
+      }
+      const header = `온비드 공고물건 상세 — 공고 ${p.pbancMngNo} / 총 ${result.totalCount}건 (${result.pageNo}페이지)\n`;
+      const lines = result.items.map((row, idx) => {
+        const snippet = truncate(JSON.stringify(row), 1200);
+        return `• [${idx + 1}] ${snippet}`;
+      });
+      return { content: [{ type: "text", text: truncate(header + "\n" + lines.join("\n\n")) }] };
+    } catch (error) {
+      return errorResponse("온비드 공고물건상세 조회", error);
+    }
+  };
+}
+
 function handleCheckBusinessStatus(serviceKey: string) {
   return async (p: PublicDataParams): Promise<SkillResult> => {
     const err = requireParam(p as Record<string, unknown>, "b_no", "check_business_status");
@@ -247,6 +276,7 @@ export function createPublicDataHandler(serviceKey: string) {
     search_medicine_patent: handleSearchMedicinePatent(serviceKey),
     verify_business: handleVerifyBusiness(serviceKey),
     check_business_status: handleCheckBusinessStatus(serviceKey),
+    search_onbid_pbanc_cltr_detail: handleSearchOnbidPbancCltrDetail(serviceKey),
   });
 }
 
@@ -258,10 +288,10 @@ export function registerPublicData(
 
   server.tool(
     "public_data",
-    "공공데이터 — 약국, 병원, 동물병원, 희귀의약품, 건강식품, 생동성인정품목, 의약품 특허, 사업자등록 진위확인/상태조회 통합 도구",
+    "공공데이터 — 약국, 병원, 동물병원, 희귀의약품, 건강식품, 생동성인정품목, 의약품 특허, 온비드 공고물건상세, 사업자등록 진위확인/상태조회 통합 도구",
     {
       action: z.enum(ACTIONS).describe(
-        "search_pharmacy=약국검색(Q0=시도명) | search_hospital=병원검색(yadmNm=병원명) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
+        "search_pharmacy=약국검색(Q0=시도명) | search_hospital=병원검색(yadmNm=병원명) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
       ),
       Q0: z.string().optional().describe("시도명 (search_pharmacy)"),
       Q1: z.string().optional().describe("시군구명 (search_pharmacy)"),
@@ -281,6 +311,7 @@ export function registerPublicData(
       start_dt: z.string().optional().describe("개업일자 (verify_business)"),
       p_nm: z.string().optional().describe("대표자명 (verify_business)"),
       b_nm: z.string().optional().describe("상호명 (verify_business)"),
+      pbancMngNo: z.string().optional().describe("온비드 공고관리번호 (search_onbid_pbanc_cltr_detail, 예: 202406-21411-00)"),
       pageNo: z.number().optional(),
       numOfRows: z.number().optional(),
     },
