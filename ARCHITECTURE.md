@@ -2,7 +2,7 @@
 
 ## System Overview
 
-public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시, 금융위원회 보험상품 공시. **12개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 119개 API 액션을 제공 (v6.0.0).
+public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시, 금융위원회 보험상품 공시. **12개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 124개 API 액션을 제공 (v6.0.0).
 
 ## High-Level Diagram
 
@@ -44,9 +44,9 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
        │  │  tariff-lookup     (9 actions)           │
        │  │  trade-entity      (11 actions)          │
        │  │  corporate-disclosure(7 actions)         │
-       │  │  public-data       (9 actions)           │
+       │  │  public-data       (10 actions)          │
        │  │  financial-product (7 actions)           │
-       │  │  insurance         (5 actions)           │
+       │  │  insurance         (9 actions)           │
        │  └───────────┬────────────────────────────┘
        │              │
        └──────┬───────┘
@@ -55,12 +55,12 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  Data Access Layer                           │
 │  law-api.ts    — 법제처 XML API (21 fn)      │
 │  dart-api.ts   — DART JSON API (5 fn)       │
-│  data20-api.ts — 공공데이터 XML/JSON (8 fn)  │
+│  data20-api.ts — 공공데이터 XML/JSON (11 fn)  │
 │  unipass-api.ts — 관세청 UNI-PASS XML (42+)  │
 │  exim-api.ts   — 수출입은행 JSON (1 fn)      │
 │  mafra-api.ts  — 농림축산식품부 XML (2 fn)    │
 │  finlife-api.ts — 금감원 금융상품 JSON (7 fn)│
-│  insurance-api.ts — 금감원 보험상품 JSON (5)  │
+│  insurance-api.ts — 금감원 보험상품 JSON (9 fn)  │
 │  shared.ts     — truncate, errorResponse    │
 └─────────────────┬───────────────────────────┘
                   │
@@ -92,10 +92,10 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 
 | Layer | File(s) | Lines | Responsibility |
 |-------|---------|-------|---------------|
-| **Entrypoint** | `index.ts`, `remote.ts`, `config.ts` | 23 + 115 + 67 | Process bootstrap, transport init, env validation |
+| **Entrypoint** | `index.ts`, `remote.ts`, `config.ts` | 23 + 229 + 76 | Process bootstrap, transport init, env validation |
 | **Protocol** | `server.ts`, `tools/skills/` (12 skills + prompts) | 21 + 4,724 (구현만) | MCP 스킬 도구 등록, action 디스패치, zod validation |
-| **HTTP Adapter** | `api-routes.ts` + `routes/` (9 files), `openapi.ts` + `openapi/` (9 files) | 40+1086, 42+1503 | REST routes, OpenAPI 3.1 spec |
-| **Data Access** | `law-api.ts`, `dart-api.ts`, `data20-api.ts`, `unipass-api.ts`, `exim-api.ts`, `mafra-api.ts`, `finlife-api.ts`, `insurance-api.ts` | 1546 + 375 + 355 + 1501 + 82 + 103 + 232 + 249 | API clients: fetch, parse, rate-limit, retry |
+| **HTTP Adapter** | `api-routes.ts` + `routes/` (8 domain route files + helpers), `openapi.ts` + `openapi/` (8 path modules + shared) | 40+1086, 42+1503 | REST routes, OpenAPI 3.1 spec |
+| **Data Access** | `law-api.ts`, `dart-api.ts`, `data20-api.ts`, `unipass-api.ts`, `exim-api.ts`, `mafra-api.ts`, `finlife-api.ts`, `insurance-api.ts` | 1546 + 375 + 396 + 1501 + 82 + 103 + 232 + 249 | API clients: fetch, parse, rate-limit, retry |
 | **Shared** | `shared.ts`, `http-client.ts` | 18 + 125 | Cross-cutting utilities, shared HTTP client |
 | **Types** | `law-types.ts`, `dart-types.ts`, `data20-types.ts`, `unipass-types.ts`, `exim-types.ts`, `mafra-types.ts`, `finlife-types.ts`, `insurance-types.ts` | 598 + 153 + 143 + 568 + 27 + 38 + 318 + 160 | TypeScript interfaces per domain |
 
@@ -131,15 +131,15 @@ Dev dependencies: `typescript`, `tsx`, `@types/node`, `@types/express`, `vitest`
 
 | Test File | Tests | Coverage |
 |-----------|-------|---------|
-| `law-api.test.ts` | 41 | 법제처 핵심 10개 API |
+| `law-api.test.ts` | 106 | 법제처 API |
 | `unipass-api.test.ts` | 65 | UNI-PASS API 전수 |
-| `data20-api.test.ts` | 9 | 공공데이터 API |
-| `exim-api.test.ts` | 7 | 수출입은행 전수 |
+| `data20-api.test.ts` | 23 | 공공데이터 API |
+| `exim-api.test.ts` | 10 | 수출입은행 전수 |
 | `mafra-api.test.ts` | 8 | 농림축산식품부 전수 |
 | `http-client.test.ts` | 12 | HTTP client 전수 |
 | `tools/skills/_shared.test.ts` | 9 | 디스패처/파라미터 검증 |
-| `tools/skills/*.test.ts` (11개) | 149 | 10개 스킬 + _shared 도구 action별 테스트 |
-| **합계** | **291** | — |
+| `tools/skills/*.test.ts` (스킬·기타) 및 E2E·소형 단위 | ~369 | 스킬 action, REST/MCP E2E, config·logger 등 |
+| **합계** | **602** | `npm test` (vitest run, 2026-04-09 GC 스냅샷) |
 
 ## Key Patterns
 

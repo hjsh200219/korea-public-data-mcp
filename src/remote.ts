@@ -139,6 +139,15 @@ app.get("/openapi.json", (req, res) => {
   }));
 });
 
+/** Express async 라우트에서 거부된 Promise를 next(err)로 넘겨 전역 에러 미들웨어가 로깅·응답하도록 함 */
+function asyncRoute(
+  fn: (req: express.Request, res: express.Response) => Promise<void>,
+) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    Promise.resolve(fn(req, res)).catch(next);
+  };
+}
+
 // MCP endpoint — POST (클라이언트 → 서버 메시지)
 async function handleMcpPost(req: express.Request, res: express.Response): Promise<void> {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
@@ -214,12 +223,25 @@ async function handleMcpDelete(req: express.Request, res: express.Response): Pro
 // /mcp 와 / 양쪽 모두 등록
 // Claude 모바일 connector는 등록된 URL의 루트(`/`)로 직접 MCP 메시지를 보내는 케이스가 있어
 // 양쪽을 모두 받아야 "Failed to generate authorization URL" 같은 디스커버리 실패를 피할 수 있다.
-app.post("/mcp", handleMcpPost);
-app.get("/mcp", handleMcpGet);
-app.delete("/mcp", handleMcpDelete);
-app.post("/", handleMcpPost);
-app.get("/", handleMcpGet);
-app.delete("/", handleMcpDelete);
+app.post("/mcp", asyncRoute(handleMcpPost));
+app.get("/mcp", asyncRoute(handleMcpGet));
+app.delete("/mcp", asyncRoute(handleMcpDelete));
+app.post("/", asyncRoute(handleMcpPost));
+app.get("/", asyncRoute(handleMcpGet));
+app.delete("/", asyncRoute(handleMcpDelete));
+
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  log.error("unhandled HTTP error", {
+    path: req.path,
+    method: req.method,
+    message: err instanceof Error ? err.message : String(err),
+  });
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  res.status(500).json({ error: "Internal server error" });
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   log.info(`public-data remote server running on port ${PORT}`);

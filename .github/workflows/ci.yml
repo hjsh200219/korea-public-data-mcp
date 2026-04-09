@@ -25,6 +25,15 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Verify docs
+        run: npm run verify-docs
+
+      - name: Dead code (Knip)
+        run: npm run dead-code
+
+      - name: Harness meta (L5)
+        run: npm run verify-harness-meta
+
       - name: Test + Coverage
         run: npm run test:coverage
         env:

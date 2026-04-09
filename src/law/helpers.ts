@@ -160,6 +160,8 @@ export async function fetchXml(url: string): Promise<Record<string, unknown>> {
 /**
  * XML 파싱 결과에서 지정된 루트 요소를 안전하게 추출.
  * upstream이 XML 구조를 변경하면 null을 반환하여 무음 실패 대신 빈 결과 처리.
+ *
+ * @internal 점진적 XML 안전 파싱 롤아웃용(TD-014).
  */
 export function safeRoot(data: Record<string, unknown>, key: string): Record<string, unknown> | null {
   const root = data[key];

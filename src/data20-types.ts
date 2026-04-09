@@ -146,3 +146,7 @@ export interface BusinessStatusResult {
 // --- 온비드 차세대 공고물건상세 (B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2) — 응답 필드는 물건 유형에 따라 가변 ---
 
 export type OnbidPbancCltrItem = Record<string, unknown>;
+
+// --- 온비드 차세대 공고목록 (B010003/OnbidPbancListSrvc2/getPbancList2) — 응답 필드는 공고 유형에 따라 가변 ---
+
+export type OnbidPbancListItem = Record<string, unknown>;

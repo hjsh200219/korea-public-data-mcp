@@ -22,6 +22,7 @@ import {
   verifyBusiness,
   checkBusinessStatus,
   searchOnbidPbancCltrDetail,
+  searchOnbidPbancList,
 } from "./data20-api.js";
 
 const SERVICE_KEY = "test-service-key-123";
@@ -456,6 +457,39 @@ describe("searchOnbidPbancCltrDetail", () => {
     const url = fetchWithRetry.mock.calls[0][0] as string;
     expect(url).toContain("B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2");
     expect(url).toContain("pbancMngNo=202406-21411-00");
+    expect(url).toContain("resultType=json");
+  });
+});
+
+describe("searchOnbidPbancList", () => {
+  it("정상응답_추가query병합_URL에getPbancList2", async () => {
+    const row = { PBANC_MNG_NO: "202406-21411-00", PBANC_NM: "테스트공고" };
+    fetchWithRetry.mockResolvedValueOnce(
+      jsonResponse({
+        response: {
+          header: { resultCode: "00", resultMsg: "OK" },
+          body: {
+            items: { item: [row] },
+            totalCount: 1,
+            pageNo: 1,
+            numOfRows: 10,
+          },
+        },
+      }),
+    );
+
+    const result = await searchOnbidPbancList(SERVICE_KEY, {
+      pageNo: 2,
+      numOfRows: 5,
+      query: { foo: "bar" },
+    });
+
+    expect(result.items).toEqual([row]);
+    const url = fetchWithRetry.mock.calls[0][0] as string;
+    expect(url).toContain("B010003/OnbidPbancListSrvc2/getPbancList2");
+    expect(url).toContain("pageNo=2");
+    expect(url).toContain("numOfRows=5");
+    expect(url).toContain("foo=bar");
     expect(url).toContain("resultType=json");
   });
 });

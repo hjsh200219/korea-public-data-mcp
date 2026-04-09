@@ -10,6 +10,7 @@ vi.mock("../../data20-api.js", () => ({
   verifyBusiness: vi.fn(),
   checkBusinessStatus: vi.fn(),
   searchOnbidPbancCltrDetail: vi.fn(),
+  searchOnbidPbancList: vi.fn(),
 }));
 
 import {
@@ -22,6 +23,7 @@ import {
   verifyBusiness,
   checkBusinessStatus,
   searchOnbidPbancCltrDetail,
+  searchOnbidPbancList,
 } from "../../data20-api.js";
 import { createPublicDataHandler } from "./public-data.js";
 
@@ -159,6 +161,36 @@ describe("public_data 스킬", () => {
     expect(result.content[0].text).toContain("pbancMngNo");
   });
 
+  it("search_onbid_pbanc_list_유효한결과_포맷팅반환", async () => {
+    vi.mocked(searchOnbidPbancList).mockResolvedValue({
+      items: [{ PBANC_NM: "공고A" }],
+      totalCount: 1,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+
+    const result = await handler({
+      action: "search_onbid_pbanc_list",
+      pageNo: 1,
+      onbid_list_filters_json: JSON.stringify({ foo: "bar" }),
+    });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("온비드 공고목록");
+    expect(searchOnbidPbancList).toHaveBeenCalledWith(
+      MOCK_KEY,
+      expect.objectContaining({ query: { foo: "bar" } }),
+    );
+  });
+
+  it("search_onbid_pbanc_list_filters_JSON아님_isError", async () => {
+    const result = await handler({
+      action: "search_onbid_pbanc_list",
+      onbid_list_filters_json: "[1,2]",
+    } as any);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/JSON|객체/);
+  });
+
   it("search_medicine_patent_유효한결과_포맷팅반환", async () => {
     vi.mocked(searchMedicinePatent).mockResolvedValue({
       items: [{ ITEM_NAME: "특허약품A", ITEM_ENG_NAME: "PatentDrugA", ENTP_NAME: "제약사C", INGR_KOR_NAME: "성분B", INGR_ENG_NAME: "IngrB", PATENT_NO: "KR1234567", PATENT_DATE: "20200101", PATENT_EXPIRY_DATE: "20400101", DOSAGE_FORM: "캡슐" }],
@@ -266,6 +298,13 @@ describe("public_data 스킬", () => {
   it("search_onbid_pbanc_cltr_detail_빈결과_결과없음", async () => {
     vi.mocked(searchOnbidPbancCltrDetail).mockResolvedValue(emptyItems as any);
     const r = await handler({ action: "search_onbid_pbanc_cltr_detail", pbancMngNo: "202406-00000-00" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("없");
+  });
+
+  it("search_onbid_pbanc_list_빈결과_결과없음", async () => {
+    vi.mocked(searchOnbidPbancList).mockResolvedValue(emptyItems as any);
+    const r = await handler({ action: "search_onbid_pbanc_list" });
     expect(r.isError).toBeUndefined();
     expect(r.content[0].text).toContain("없");
   });

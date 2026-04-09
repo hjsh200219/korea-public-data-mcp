@@ -18,6 +18,7 @@ import type {
   BusinessValidateResult,
   BusinessStatusResult,
   OnbidPbancCltrItem,
+  OnbidPbancListItem,
 } from "./data20-types.js";
 
 const REQUEST_TIMEOUT_MS = 15000;
@@ -342,6 +343,34 @@ export async function searchOnbidPbancCltrDetail(
       pageNo: String(params.pageNo || 1),
       numOfRows: String(params.numOfRows || 10),
     },
+  );
+}
+
+// --- 온비드 차세대 공고목록 (물건유형·재산유형·공고기간 등은 공공데이터포털 명세의 영문 파라미터를 query로 전달) ---
+
+export async function searchOnbidPbancList(
+  serviceKey: string,
+  params: {
+    pageNo?: number;
+    numOfRows?: number;
+    /** 명세상 추가 검색 파라미터(키·값 문자열) */
+    query?: Record<string, string>;
+  },
+): Promise<DataGoKrResult<OnbidPbancListItem>> {
+  const flat: Record<string, string> = {
+    resultType: "json",
+    pageNo: String(params.pageNo ?? 1),
+    numOfRows: String(params.numOfRows ?? 10),
+  };
+  if (params.query) {
+    for (const [k, v] of Object.entries(params.query)) {
+      if (v) flat[k] = v;
+    }
+  }
+  return fetchJson<OnbidPbancListItem>(
+    "https://apis.data.go.kr/B010003/OnbidPbancListSrvc2/getPbancList2",
+    serviceKey,
+    flat,
   );
 }
 

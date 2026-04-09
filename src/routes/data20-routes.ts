@@ -15,6 +15,7 @@ import {
   verifyBusiness,
   checkBusinessStatus,
   searchOnbidPbancCltrDetail,
+  searchOnbidPbancList,
 } from "../data20-api.js";
 
 export function registerData20Routes(router: Router, d20: string): void {
@@ -104,6 +105,20 @@ export function registerData20Routes(router: Router, d20: string): void {
       pageNo: Number(q.pageNo) || 1,
       numOfRows: Number(q.numOfRows) || 10,
     });
+  }));
+
+  router.get("/data20/onbid-pbanc-list", handle(async (req) => {
+    const q = req.query as Record<string, unknown>;
+    const pageNo = Number(q.pageNo) || 1;
+    const numOfRows = Number(q.numOfRows) || 10;
+    const query: Record<string, string> = {};
+    for (const [key, val] of Object.entries(q)) {
+      if (key === "pageNo" || key === "numOfRows") continue;
+      if (val === undefined || val === null) continue;
+      const s = String(val).trim();
+      if (s) query[key] = s;
+    }
+    return searchOnbidPbancList(d20, { pageNo, numOfRows, query });
   }));
 
   router.post("/data20/business-verify", handle(async (req) => {

@@ -30,7 +30,7 @@
 | `tools/skills/shipping-logistics.ts` | 280 | **A-** | 9 actions, 테스트 18개, branches 100% |
 | `tools/skills/trade-entity.ts` | 324 | **B+** | 11 actions, 테스트 25개, lines 88% |
 | `tools/skills/corporate-disclosure.ts` | 363 | **B+** | 7 actions, 테스트 17개, lines 93% |
-| `tools/skills/public-data.ts` | 289 | **A-** | 9 actions, 테스트 22개, lines 90% |
+| `tools/skills/public-data.ts` | ~376 | **A-** | 11 actions, 테스트 28개, lines 90% |
 | `tools/skills/financial-product.ts` | 438 | **A-** | 7 actions, 테스트 16개, lines 94% |
 | `tools/skills/insurance.ts` | 689 | **B+** | 9 actions, 테스트 20개, lines 90% |
 
@@ -42,7 +42,7 @@
 | `exim-api.ts` | 82 | **A-** | 302 리다이렉트 처리, 테스트 있음 |
 | `law/` (5 modules) | ~375×5 | **B+** | 1546줄 모놀리스 → 5개 도메인 모듈 분리, 테스트 106개 |
 | `unipass-api.ts` | 1560 | **B** | 52개 catch → throw 변환, 에러 체이닝 완료 |
-| `data20-api.ts` | 355 | **B** | 일부 API만 테스트 |
+| `data20-api.ts` | ~396 | **B** | 일부 API만 테스트 |
 | `dart-api.ts` | 375 | **B** | 캐시/quota, 테스트 8개, lines 87% |
 | `finlife-api.ts` | 232 | **A-** | 테스트 11개, lines 98% |
 | `insurance-api.ts` | 367 | **A-** | 테스트 12개, lines 91% |
@@ -54,7 +54,7 @@
 | `law-types.ts` | 598 | **A** | 법제처 인터페이스. `any` 제로 |
 | `unipass-types.ts` | 568 | **A** | 42개 인터페이스. `any` 제로 |
 | `dart-types.ts` | 153 | **A** | DART interfaces |
-| `data20-types.ts` | 143 | **A** | 공공데이터포털 interfaces |
+| `data20-types.ts` | ~148 | **A** | 공공데이터포털 interfaces |
 | `finlife-types.ts` | 318 | **A** | 금융상품 비교공시 interfaces |
 | `insurance-types.ts` | 275 | **A** | 보험상품 공시 interfaces |
 | `mafra-types.ts` | 38 | **A** | 깔끔한 타입 정의 |
@@ -100,7 +100,8 @@
 - **v6 스킬 구조** — 107개 도구 → 12개 의도 기반 스킬로 토큰 소비 ~90% 감소
 - **테스트 인프라** — 26개 테스트 파일, 576개 테스트, 커버리지: stmts 83%, branches 70%, funcs 94%, lines 89%
 - **품질 게이트** — ESLint + TypeScript strict + Vitest coverage thresholds + `npm run gc` 통합 스크립트
-- **CI/CD** — GitHub Actions (typecheck + lint + coverage + build)
+- **하네스 L5** — `docs/harness/maturity.md` 루브릭, CI=로컬(`verify-docs`·Knip·`verify-harness-meta`)
+- **CI/CD** — GitHub Actions (typecheck + lint + 문서·데드코드·메타 검증 + coverage + build)
 - **Pre-commit hooks** — husky + lint-staged (eslint --fix + vitest related)
 - **에러 체이닝** — unipass 52개 catch → `throw new Error(..., { cause })` 변환
 - **law-api 모듈 분리** — 1546줄 → 5개 도메인 모듈 (search/detail/case/amendment/helpers)

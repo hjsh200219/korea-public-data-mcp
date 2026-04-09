@@ -1,3 +1,6 @@
+# Claude 컨텍스트 크기·노이즈 조절: package-lock.json·대용량 바이너리(svg 등) 제외는 의도적.
+# (검증·재현은 저장소·CI의 package-lock.json 및 에셋을 기준으로 한다.)
+
 # Dependencies
 node_modules/
 .pnp/

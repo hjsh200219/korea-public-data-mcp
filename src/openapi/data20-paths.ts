@@ -134,6 +134,15 @@ export function getData20Paths(): OpenApiPaths {
       responses: jsonResponse("온비드 공고물건 상세 목록"),
     }),
     ...apiPath({
+      path: "/api/data20/onbid-pbanc-list",
+      operationId: "data20SearchOnbidPbancList",
+      summary: "온비드 공고목록 조회",
+      description:
+        "차세대 온비드 공매 공고 목록을 조회합니다. 물건유형·재산유형·공고기간 등 추가 조건은 공공데이터포털 명세의 요청변수명을 쿼리스트링으로 넣으면 그대로 전달됩니다. (apis.data.go.kr B010003/OnbidPbancListSrvc2/getPbancList2)",
+      parameters: [...paginationParams],
+      responses: jsonResponse("온비드 공고 목록"),
+    }),
+    ...apiPath({
       path: "/api/data20/business-verify",
       method: "post",
       operationId: "data20VerifyBusiness",

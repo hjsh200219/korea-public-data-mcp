@@ -43,7 +43,7 @@ src/
   law-types.ts        # 법제처 TypeScript interfaces (598 lines)
   dart-api.ts         # DART 전자공시 API client (375 lines)
   dart-types.ts       # DART TypeScript interfaces (153 lines)
-  data20-api.ts       # 공공데이터포털 API client (341 lines)
+  data20-api.ts       # 공공데이터포털 API client (~396 lines)
   data20-types.ts     # 공공데이터포털 TypeScript interfaces (143 lines)
   unipass-api.ts      # 관세청 UNI-PASS API client (1560 lines)
   unipass-types.ts    # 관세청 UNI-PASS TypeScript interfaces (574 lines)
@@ -55,8 +55,8 @@ src/
   finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces (318 lines)
   insurance-api.ts    # 금융위원회 보험상품 공시 API client (367 lines)
   insurance-types.ts  # 금융위원회 보험상품 공시 TypeScript interfaces (275 lines)
-  routes/             # 도메인별 REST 라우트 (9 files, ~1172 lines)
-  openapi/            # 도메인별 OpenAPI path 생성기 (9 files, ~1589 lines)
+  routes/             # 도메인별 REST 라우트 (8 domain + helpers, ~1172 lines)
+  openapi/            # 도메인별 OpenAPI path 생성기 (8 path modules + shared, ~1589 lines)
   tools/
     skills/           # ★ 12개 의도 기반 스킬 도구 + MCP Prompts (v6)
       index.ts        # 스킬 오케스트레이터 — 전체 등록 (49 lines)
@@ -71,7 +71,7 @@ src/
       tariff-lookup.ts       # 관세/HS코드/환율 (9 actions, 281 lines, EXIM 포함)
       trade-entity.ts        # 무역업체 (11 actions, 324 lines)
       corporate-disclosure.ts # 기업공시 (7 actions, 363 lines, DART + 배당)
-      public-data.ts         # 공공데이터포털 (9 actions, 289 lines)
+      public-data.ts         # 공공데이터포털 (11 actions, ~376 lines)
       financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, 금융감독원)
       insurance.ts           # 보험상품 공시 (9 actions, 689 lines, 금융위원회)
 ```
@@ -118,6 +118,8 @@ Protocol (server.ts → tools/skills/index.ts)
 | [docs/QUALITY.md](docs/QUALITY.md) | Quality assessment, per-file grades |
 | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md) | Users, value prop, API targets |
 | [docs/exec-plans/tech-debt-tracker.md](docs/exec-plans/tech-debt-tracker.md) | Tech debt inventory |
+| [docs/harness/maturity.md](docs/harness/maturity.md) | 하네스 성숙도 L1–L5 루브릭 |
+| [docs/harness/gc-history.md](docs/harness/gc-history.md) | GC 실행 히스토리 |
 
 ## Environment
 
