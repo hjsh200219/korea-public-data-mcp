@@ -86,6 +86,22 @@ describe("getMarketExchangeRates", () => {
     expect(result.isFallback).toBe(false);
   });
 
+  it("getMarketExchangeRates_날짜필터_searchdate가첫요청URL에포함", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([USD_RAW]),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getMarketExchangeRates("myauthkey", "20250115");
+
+    const firstUrl = fetchMock.mock.calls[0][0] as string;
+    expect(firstUrl).toContain("authkey=myauthkey");
+    expect(firstUrl).toContain("searchdate=20250115");
+    expect(firstUrl).toContain("data=AP01");
+  });
+
   it("getMarketExchangeRates_주말요청_평일자동폴백", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve([USD_RAW]) });

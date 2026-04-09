@@ -237,15 +237,21 @@ export async function searchHealthFood(
   serviceKey: string,
   params: { prdlst_nm?: string; pageNo?: number; numOfRows?: number },
 ): Promise<DataGoKrResult<HealthFoodItem>> {
+  const nm = params.prdlst_nm?.trim() ?? "";
+  const query: Record<string, string> = {
+    type: "json",
+    pageNo: String(params.pageNo || 1),
+    numOfRows: String(params.numOfRows || 10),
+  };
+  // 게이트웨이/명세 대소문자 혼재 대비 — 값이 있을 때만 전송(buildUrl은 빈 값 제외)
+  if (nm) {
+    query.prdlst_nm = nm;
+    query.PRDLST_NM = nm;
+  }
   return fetchJson<HealthFoodItem>(
     "https://apis.data.go.kr/1471000/HtfsInfoService03/getHtfsItem01",
     serviceKey,
-    {
-      type: "json",
-      prdlst_nm: params.prdlst_nm || "",
-      pageNo: String(params.pageNo || 1),
-      numOfRows: String(params.numOfRows || 10),
-    },
+    query,
   );
 }
 

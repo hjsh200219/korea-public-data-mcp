@@ -119,6 +119,40 @@ describe("public_data 스킬", () => {
     expect(searchHealthFood).toHaveBeenCalledWith(MOCK_KEY, expect.objectContaining({ prdlst_nm: "비타민" }));
   });
 
+  it("search_health_food_원격필터무시_제품명재필터_안내문", async () => {
+    vi.mocked(searchHealthFood).mockResolvedValue({
+      items: [
+        { PRDUCT: "오메가3", ENTRPS: "A", MAIN_FNCTN: "x", DISTB_PD: "", SRV_USE: "" },
+        { PRDUCT: "프로바이오틱스", ENTRPS: "B", MAIN_FNCTN: "y", DISTB_PD: "", SRV_USE: "" },
+      ],
+      totalCount: 9999,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+
+    const result = await handler({ action: "search_health_food", prdlst_nm: "비타민" });
+    expect(result.content[0].text).toContain("포함된 항목이 없습니다");
+    expect(result.content[0].text).toContain("HtfsInfoService03");
+  });
+
+  it("search_health_food_원격필터무시_일부일치만표시", async () => {
+    vi.mocked(searchHealthFood).mockResolvedValue({
+      items: [
+        { PRDUCT: "오메가3", ENTRPS: "A", MAIN_FNCTN: "x", DISTB_PD: "", SRV_USE: "" },
+        { PRDUCT: "비타민C 1000", ENTRPS: "B", MAIN_FNCTN: "y", DISTB_PD: "", SRV_USE: "" },
+      ],
+      totalCount: 9999,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+
+    const result = await handler({ action: "search_health_food", prdlst_nm: "비타민" });
+    expect(result.content[0].text).toContain("원격 API가 제품명");
+    expect(result.content[0].text).toContain("비타민C 1000");
+    expect(result.content[0].text).not.toContain("오메가3");
+    expect(result.content[0].text).toContain("총 1건");
+  });
+
   it("search_bio_equivalence_유효한결과_포맷팅반환", async () => {
     vi.mocked(searchBioEquivalence).mockResolvedValue({
       items: [{ ITEM_NAME: "제네릭약A", ENTP_NAME: "제약사B", INGR_KOR_NAME: "성분A", INGR_QTY: "100mg", SHAPE_CODE_NAME: "정제", BIOEQ_PRODT_NOTICE_DATE: "20230601" }],

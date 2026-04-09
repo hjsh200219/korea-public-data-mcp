@@ -214,7 +214,10 @@ describe("searchHealthFood", () => {
 
     const result = await searchHealthFood(SERVICE_KEY, { prdlst_nm: "비타민" });
     expect(result.items[0].PRDUCT).toBe("비타민");
-    expect(fetchWithRetry.mock.calls[0][0] as string).toContain("HtfsInfoService03");
+    const calledUrl = fetchWithRetry.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("HtfsInfoService03");
+    expect(calledUrl).toContain("prdlst_nm=");
+    expect(calledUrl).toContain("PRDLST_NM=");
   });
 });
 

@@ -150,8 +150,35 @@ function handleSearchHealthFood(serviceKey: string) {
       if (result.items.length === 0) {
         return { content: [{ type: "text", text: "검색 결과가 없습니다." }] };
       }
-      const header = `건강기능식품 검색결과 — 총 ${result.totalCount}건 (${result.pageNo}페이지)\n`;
-      const lines = result.items.map((f) =>
+
+      const q = p.prdlst_nm?.trim();
+      let items = result.items;
+      let headerNote = "";
+      let displayTotal = result.totalCount;
+
+      if (q) {
+        const filtered = result.items.filter((f) => String(f.PRDUCT ?? "").includes(q));
+        if (filtered.length === 0) {
+          return {
+            content: [{
+              type: "text",
+              text:
+                `제품명에「${q}」이(가) 포함된 항목이 없습니다. 원격 API는 ${result.items.length}건을 반환했으나 제품명(PRDUCT)에 검색어가 없습니다. ` +
+                `HtfsInfoService03/getHtfsItem01이 prdlst_nm을 무시하는 경우가 있어, 공공데이터포털 명세·데이터 개선요청을 참고하세요.`,
+            }],
+          };
+        }
+        if (filtered.length < result.items.length) {
+          headerNote =
+            "※ 원격 API가 제품명(prdlst_nm) 필터를 반영하지 않은 응답으로 보여, 제품명에 검색어가 포함된 항목만 표시합니다.\n\n";
+          displayTotal = filtered.length;
+        }
+        items = filtered;
+      }
+
+      const header =
+        `${headerNote}건강기능식품 검색결과 — 총 ${displayTotal}건 (${result.pageNo}페이지)\n`;
+      const lines = items.map((f) =>
         `• ${s(f.PRDUCT)}\n  업체: ${s(f.ENTRPS)}\n  기능성: ${truncate(s(f.MAIN_FNCTN), 200)}\n  유통기한: ${s(f.DISTB_PD)}\n  섭취방법: ${truncate(s(f.SRV_USE), 150)}`,
       );
       return { content: [{ type: "text", text: truncate(header + "\n" + lines.join("\n\n")) }] };
@@ -359,7 +386,9 @@ export function registerPublicData(
       entp_name: z.string().optional().describe("업체명"),
       ingr_name: z.string().optional().describe("성분명 한글"),
       ingr_eng_name: z.string().optional().describe("성분명 영문"),
-      prdlst_nm: z.string().optional().describe("제품명 (search_health_food)"),
+      prdlst_nm: z.string().optional().describe(
+        "제품명 부분일치 (search_health_food 권장 — 미입력 시 전체 목록에 가깝게 나올 수 있음)",
+      ),
       b_no: z.string().optional().describe("사업자등록번호 (verify_business, check_business_status)"),
       start_dt: z.string().optional().describe("개업일자 (verify_business)"),
       p_nm: z.string().optional().describe("대표자명 (verify_business)"),
