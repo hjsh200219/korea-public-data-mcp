@@ -32,3 +32,17 @@ GC 실행 메타데이터만 기록합니다. 상세 감사 로그는 `_workspac
 - Knip: `vitest: true`로 테스트 진입점 반영, `treatConfigHintsAsErrors: true`
 - 메타: `scripts/verify-harness-meta.ts` — `gc`·`ci.yml`·`knip.json` 정합성
 - ADR: [0002-harness-l5.md](../adr/0002-harness-l5.md)
+
+## 2026-04-09 (Run #4, harness-gc full)
+
+- 모드: full (오케스트레이터: Phase 1.5 사실 추출 + 문서/아키/품질 리포트 + synthesizer)
+- 문서 신선도: ~92% (추정); symlink·핵심 docs 링크 양호 — 템플릿 경로 `harness-principles.md` / `harness-setup.md` 미도입(선택)
+- 아키텍처: ESLint 레이어 0 위반; `npm run gc` 통과
+- 품질 등급 (정성): A-
+- 하네스 성숙도: **L5 유지** (~82점 루브릭, [maturity.md](./maturity.md) 참고)
+- 약점 원칙: P1(8), P2(8), P8(8)
+- Knip: `dead-code` → `knip --no-config-hints`; **`npx knip --strict` exit 0** (이중 production entry + `ignoreDependencies`로 strict 오탐 흡수)
+- 발견 이슈: strict 모드 의존성 그래프 한계 2건 → **즉시 수정**: `knip.json`/`package.json` 조정 (삭제 아님)
+- 반복 드리프트: 없음
+- 예방 스크립트: 기존 verify-docs / verify-harness-meta 유지
+- 하네스 메타: GC 3회+ — SIMPLIFY 후보 없음

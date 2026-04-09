@@ -2,9 +2,10 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "treatConfigHintsAsErrors": true,
   "vitest": true,
+  "entry": ["src/index.ts!", "src/remote.ts!"],
   "project": ["src/**/*.ts"],
   "tags": ["-internal"],
-  "ignoreDependencies": ["@types/jszip"],
+  "ignoreDependencies": ["@types/jszip", "fast-xml-parser", "jszip"],
   "ignoreIssues": {
     "src/openapi/_helpers.ts": ["types"],
     "src/openapi/shared.ts": ["types"],
