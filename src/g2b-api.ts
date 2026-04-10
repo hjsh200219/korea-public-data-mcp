@@ -73,8 +73,8 @@ export async function getBidPublicList(
   bidType: BidType,
   params: {
     inqryDiv: string;
-    inqryBgnDt: string;
-    inqryEndDt: string;
+    inqryBgnDt?: string;
+    inqryEndDt?: string;
     bidNtceNm?: string;
     ntceInsttCd?: string;
     dminsttCd?: string;
@@ -83,16 +83,17 @@ export async function getBidPublicList(
   },
 ): Promise<G2bResponse<BidPublicItem>> {
   const endpoint = BID_ENDPOINTS[bidType];
-  const url = buildUrl(BID_BASE, endpoint, serviceKey, {
+  const queryParams: Record<string, string> = {
     inqryDiv: params.inqryDiv,
-    inqryBgnDt: params.inqryBgnDt,
-    inqryEndDt: params.inqryEndDt,
-    bidNtceNm: params.bidNtceNm ?? "",
-    ntceInsttCd: params.ntceInsttCd ?? "",
-    dminsttCd: params.dminsttCd ?? "",
     numOfRows: params.numOfRows ?? "10",
     pageNo: params.pageNo ?? "1",
-  });
+  };
+  if (params.inqryBgnDt) queryParams.inqryBgnDt = params.inqryBgnDt;
+  if (params.inqryEndDt) queryParams.inqryEndDt = params.inqryEndDt;
+  if (params.bidNtceNm) queryParams.bidNtceNm = params.bidNtceNm;
+  if (params.ntceInsttCd) queryParams.ntceInsttCd = params.ntceInsttCd;
+  if (params.dminsttCd) queryParams.dminsttCd = params.dminsttCd;
+  const url = buildUrl(BID_BASE, endpoint, serviceKey, queryParams);
   return fetchG2b<BidPublicItem>(url);
 }
 
@@ -102,21 +103,20 @@ export async function getScsbidList(
   bidType: BidType,
   params: {
     inqryDiv: string;
-    inqryBgnDt: string;
-    inqryEndDt: string;
-    bidNtceNm?: string;
+    inqryBgnDt?: string;
+    inqryEndDt?: string;
     numOfRows?: string;
     pageNo?: string;
   },
 ): Promise<G2bResponse<ScsbidItem>> {
   const endpoint = SCSBID_ENDPOINTS[bidType];
-  const url = buildUrl(SCSBID_BASE, endpoint, serviceKey, {
+  const queryParams: Record<string, string> = {
     inqryDiv: params.inqryDiv,
-    inqryBgnDt: params.inqryBgnDt,
-    inqryEndDt: params.inqryEndDt,
-    bidNtceNm: params.bidNtceNm ?? "",
     numOfRows: params.numOfRows ?? "10",
     pageNo: params.pageNo ?? "1",
-  });
+  };
+  if (params.inqryBgnDt) queryParams.inqryBgnDt = params.inqryBgnDt;
+  if (params.inqryEndDt) queryParams.inqryEndDt = params.inqryEndDt;
+  const url = buildUrl(SCSBID_BASE, endpoint, serviceKey, queryParams);
   return fetchG2b<ScsbidItem>(url);
 }

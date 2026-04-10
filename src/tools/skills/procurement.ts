@@ -18,8 +18,8 @@ const ACTIONS = [
 type ProcurementParams = {
   action: string;
   bid_type?: string;
-  begin_date: string;
-  end_date: string;
+  begin_date?: string;
+  end_date?: string;
   keyword?: string;
   num_of_rows?: string;
   page_no?: string;
@@ -68,9 +68,11 @@ function resolveBidType(value?: string): BidType {
 function handleBidList(serviceKey: string) {
   return async (p: ProcurementParams): Promise<SkillResult> => {
     const bidType = resolveBidType(p.bid_type);
+    // keyword 있으면 inqryDiv=3 (공고명 기준), 없으면 inqryDiv=1 (날짜 기준)
+    const useKeywordSearch = !!p.keyword;
     try {
       const result = await getBidPublicList(serviceKey, bidType, {
-        inqryDiv: "1",
+        inqryDiv: useKeywordSearch ? "3" : "1",
         inqryBgnDt: p.begin_date,
         inqryEndDt: p.end_date,
         bidNtceNm: p.keyword,
@@ -94,20 +96,24 @@ function handleBidList(serviceKey: string) {
 function handleAwardList(serviceKey: string) {
   return async (p: ProcurementParams): Promise<SkillResult> => {
     const bidType = resolveBidType(p.bid_type);
+    // 낙찰정보 API는 inqryDiv=3(공고명)이 날짜 없이 불가 → 항상 inqryDiv=1, 키워드는 클라이언트 필터링
     try {
       const result = await getScsbidList(serviceKey, bidType, {
         inqryDiv: "1",
         inqryBgnDt: p.begin_date,
         inqryEndDt: p.end_date,
-        bidNtceNm: p.keyword,
-        numOfRows: p.num_of_rows ?? "10",
-        pageNo: p.page_no ?? "1",
+        numOfRows: p.keyword ? "100" : (p.num_of_rows ?? "10"),
+        pageNo: p.keyword ? "1" : (p.page_no ?? "1"),
       });
-      const items = result.response.body.items;
+      let items = result.response.body.items;
+      if (p.keyword && items) {
+        const kw = p.keyword.toLowerCase();
+        items = items.filter((i) => i.bidNtceNm.toLowerCase().includes(kw));
+      }
       if (!items || items.length === 0) {
         return emptyResultMessage("낙찰정보", { bid_type: BID_TYPE_LABELS[bidType], begin_date: p.begin_date, end_date: p.end_date, keyword: p.keyword });
       }
-      const total = result.response.body.totalCount;
+      const total = p.keyword ? items.length : result.response.body.totalCount;
       const header = `## 낙찰정보 [${BID_TYPE_LABELS[bidType]}] (총 ${total}건, ${items.length}건 표시)\n`;
       const body = items.map(formatAwardItem).join("\n\n");
       return { content: [{ type: "text", text: truncate(header + body) }] };
@@ -135,12 +141,12 @@ export function registerProcurement(
     "나라장터 입찰공고·낙찰정보 조회 — 조달청 G2B 물품/용역/공사/외자 입찰공고 검색 및 낙찰결과를 조회합니다.",
     {
       action: z.enum(ACTIONS).describe(
-        "bid_list=입찰공고목록(기간필수) | award_list=낙찰정보목록(기간필수)",
+        "bid_list=입찰공고목록(기간 또는 키워드 필수) | award_list=낙찰정보목록(기간필수)",
       ),
       bid_type: z.string().optional().describe("입찰유형: thng(물품,기본값) | servc(용역) | cnstwk(공사) | frgcpt(외자)"),
-      begin_date: z.string().describe("조회시작일시 (YYYYMMDDHHmm, 예: 202604080000)"),
-      end_date: z.string().describe("조회종료일시 (YYYYMMDDHHmm, 예: 202604100000)"),
-      keyword: z.string().optional().describe("공고명 키워드 검색"),
+      begin_date: z.string().optional().describe("조회시작일시 (YYYYMMDDHHmm, 예: 202604080000). bid_list에서 keyword 사용 시 선택"),
+      end_date: z.string().optional().describe("조회종료일시 (YYYYMMDDHHmm, 예: 202604100000). bid_list에서 keyword 사용 시 선택"),
+      keyword: z.string().optional().describe("공고명 키워드 검색 (bid_list: 서버 필터링, award_list: 클라이언트 필터링)"),
       num_of_rows: z.string().optional().describe("한 페이지 결과 수 (기본 10)"),
       page_no: z.string().optional().describe("페이지 번호 (기본 1)"),
     },
