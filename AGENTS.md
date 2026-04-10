@@ -4,6 +4,8 @@ globs:
 alwaysApply: true
 ---
 
+> Be concise. No filler. Straight to the point. Use fewer words.
+
 # public-data-mcp
 
 K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시).
