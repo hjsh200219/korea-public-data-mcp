@@ -16,6 +16,7 @@ import { registerCorporateDisclosure } from "./corporate-disclosure.js";
 import { registerPublicData } from "./public-data.js";
 import { registerFinancialProduct } from "./financial-product.js";
 import { registerInsurance } from "./insurance.js";
+import { registerProcurement } from "./procurement.js";
 import { registerSkillPrompts } from "./prompts.js";
 
 export function registerSkillTools(
@@ -43,6 +44,10 @@ export function registerSkillTools(
 
   if (config.finlifeApiKey) {
     registerFinancialProduct(server, config.finlifeApiKey);
+  }
+
+  if (config.data20ServiceKey) {
+    registerProcurement(server, config.data20ServiceKey);
   }
 
   registerSkillPrompts(server);
