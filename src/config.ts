@@ -13,6 +13,7 @@ export interface ServerConfig {
   eximApiKey?: string;
   mafraApiKey?: string;
   finlifeApiKey?: string;
+  youtubeApiKey?: string;
 }
 
 function collectUnipassKeys(): Record<string, string> {
@@ -31,6 +32,7 @@ export function loadConfig(): ServerConfig {
   const exchangeRateApiKey = process.env.EXCHANGE_RATE_API_KEY || "";
   const mafraApiKey = process.env.MAFRA_API_KEY || "";
   const finlifeApiKey = process.env.FINLIFE_API_KEY || "";
+  const youtubeApiKey = process.env.YOUTUBE_API_KEY || "";
   const unipassKeys = collectUnipassKeys();
 
   if (!lawApiOc) {
@@ -64,6 +66,10 @@ export function loadConfig(): ServerConfig {
     console.warn("FINLIFE_API_KEY 미설정 — 금융상품 비교공시 도구 비활성화");
   }
 
+  if (!youtubeApiKey) {
+    console.warn("YOUTUBE_API_KEY 미설정 — YouTube 메타데이터/검색/댓글 도구 비활성화 (자막 추출은 사용 가능)");
+  }
+
   return {
     lawApiOc,
     dartApiKey: dartApiKey || undefined,
@@ -72,5 +78,6 @@ export function loadConfig(): ServerConfig {
     eximApiKey: exchangeRateApiKey || undefined,
     mafraApiKey: mafraApiKey || undefined,
     finlifeApiKey: finlifeApiKey || undefined,
+    youtubeApiKey: youtubeApiKey || undefined,
   };
 }

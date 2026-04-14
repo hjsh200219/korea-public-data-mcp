@@ -47,7 +47,7 @@ describe("MCP 서버 E2E", () => {
     vi.restoreAllMocks();
   });
 
-  it("풀_설정_12개스킬+5개프롬프트_등록확인", async () => {
+  it("풀_설정_14개스킬+5개프롬프트_등록확인", async () => {
     const { client } = await createConnectedClient(FULL_CONFIG);
     const { tools } = await client.listTools();
     const toolNames = tools.map((t) => t.name).sort();
@@ -64,13 +64,15 @@ describe("MCP 서버 E2E", () => {
     expect(toolNames).toContain("public_data");
     expect(toolNames).toContain("financial_product");
     expect(toolNames).toContain("insurance");
-    expect(toolNames).toHaveLength(12);
+    expect(toolNames).toContain("procurement");
+    expect(toolNames).toContain("youtube");
+    expect(toolNames).toHaveLength(14);
 
     const { prompts } = await client.listPrompts();
     expect(prompts.length).toBe(5);
   });
 
-  it("최소_설정_법제처3개+기업공시1개만_등록", async () => {
+  it("최소_설정_법제처3개+기업공시1개+YouTube1개_등록", async () => {
     const { client } = await createConnectedClient(MINIMAL_CONFIG);
     const { tools } = await client.listTools();
     const toolNames = tools.map((t) => t.name).sort();
@@ -79,7 +81,8 @@ describe("MCP 서버 E2E", () => {
     expect(toolNames).toContain("case_research");
     expect(toolNames).toContain("law_amendment");
     expect(toolNames).toContain("corporate_disclosure");
-    expect(toolNames).toHaveLength(4);
+    expect(toolNames).toContain("youtube");
+    expect(toolNames).toHaveLength(5);
   });
 
   it("legal_research_search_laws_실제디스패치", async () => {

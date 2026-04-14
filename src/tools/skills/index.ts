@@ -17,6 +17,7 @@ import { registerPublicData } from "./public-data.js";
 import { registerFinancialProduct } from "./financial-product.js";
 import { registerInsurance } from "./insurance.js";
 import { registerProcurement } from "./procurement.js";
+import { registerYoutube } from "./youtube.js";
 import { registerSkillPrompts } from "./prompts.js";
 
 export function registerSkillTools(
@@ -49,6 +50,8 @@ export function registerSkillTools(
   if (config.data20ServiceKey) {
     registerProcurement(server, config.data20ServiceKey);
   }
+
+  registerYoutube(server, config.youtubeApiKey);
 
   registerSkillPrompts(server);
 }
