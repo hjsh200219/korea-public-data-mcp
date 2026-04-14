@@ -4,7 +4,9 @@
  * - YouTube Data API v3: 메타데이터, 검색, 댓글 (API 키 필요)
  */
 
-import { YoutubeTranscript } from "youtube-transcript";
+// youtube-transcript의 main이 CJS를 가리켜 Node.js ESM에서 named export 불가.
+// ESM 빌드를 직접 import하여 해결.
+import { YoutubeTranscript } from "youtube-transcript/dist/youtube-transcript.esm.js";
 import type {
   TranscriptResult, TranscriptSegment,
   VideoMetadata, SearchResult, SearchResultItem,
