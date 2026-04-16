@@ -21,7 +21,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 COPY --from=builder /app/dist/ ./dist/
 
 EXPOSE 3000
