@@ -10,9 +10,9 @@ RUN npm run build
 # --- Runtime stage ---
 FROM node:22-slim
 
-# yt-dlp standalone binary 설치
+# yt-dlp 설치 (Python3 필요)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
+    apt-get install -y --no-install-recommends curl ca-certificates python3 && \
     curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     apt-get purge -y curl && \
