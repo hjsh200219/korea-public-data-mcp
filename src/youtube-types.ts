@@ -2,7 +2,7 @@
  * YouTube 자막 + Data API v3 타입 정의
  */
 
-/** youtube-transcript 패키지 반환 세그먼트 */
+/** yt-dlp json3 자막 세그먼트 */
 export interface TranscriptSegment {
   text: string;
   offset: number;

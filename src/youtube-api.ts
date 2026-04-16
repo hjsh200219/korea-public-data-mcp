@@ -1,17 +1,21 @@
 /**
  * YouTube 자막 추출 + Data API v3 클라이언트
- * - youtube-transcript: 자막 텍스트 추출 (API 키 불필요)
+ * - yt-dlp subprocess: 자막 텍스트 추출 (API 키 불필요, 자동자막 지원)
  * - YouTube Data API v3: 메타데이터, 검색, 댓글 (API 키 필요)
  */
 
-// youtube-transcript의 main이 CJS를 가리켜 Node.js ESM에서 named export 불가.
-// ESM 빌드를 직접 import하여 해결.
-import { YoutubeTranscript } from "youtube-transcript/dist/youtube-transcript.esm.js";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import type {
   TranscriptResult, TranscriptSegment,
   VideoMetadata, SearchResult, SearchResultItem,
   CommentsResult, CommentItem,
 } from "./youtube-types.js";
+
+const execFileAsync = promisify(execFile);
 
 const YT_API_BASE = "https://www.googleapis.com/youtube/v3";
 const TIMEOUT_MS = 15000;
@@ -49,39 +53,99 @@ function formatTimestamp(ms: number): string {
   return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
+/** json3 자막 파일 이벤트 */
+interface Json3Event {
+  tStartMs: number;
+  dDurationMs: number;
+  segs?: { utf8: string; tOffsetMs?: number }[];
+}
+
 /**
- * YouTube 영상 자막 추출
+ * yt-dlp json3 자막 파일 파싱 (순수 함수)
+ */
+export function parseJson3Subtitles(json3: string, lang: string): TranscriptSegment[] {
+  const data = JSON.parse(json3) as { events?: Json3Event[] };
+  const events = data.events ?? [];
+
+  return events
+    .filter((e) => Array.isArray(e.segs) && e.segs.length > 0)
+    .map((e) => ({
+      text: e.segs!.map((s) => s.utf8).join("").trim(),
+      offset: e.tStartMs,
+      duration: e.dDurationMs,
+      lang,
+    }))
+    .filter((s) => s.text.length > 0);
+}
+
+/**
+ * YouTube 영상 자막 추출 (yt-dlp subprocess)
  */
 export async function getTranscript(
   urlOrId: string,
   lang?: string,
 ): Promise<TranscriptResult> {
   const videoId = extractVideoId(urlOrId);
+  const subLang = lang ?? "ko";
+  const tmpDir = await mkdtemp(join(tmpdir(), "yt-sub-"));
 
-  const raw = await YoutubeTranscript.fetchTranscript(videoId, {
-    lang: lang ?? "ko",
-  });
+  try {
+    await execFileAsync("yt-dlp", [
+      "--skip-download",
+      "--write-sub",
+      "--write-auto-sub",
+      "--sub-lang", subLang,
+      "--sub-format", "json3",
+      "-o", join(tmpDir, "%(id)s"),
+      "--", videoId,
+    ], { timeout: 30_000 });
 
-  if (!raw || raw.length === 0) {
-    throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
+    // json3 파일 읽기 (수동 자막 우선, 없으면 자동 자막)
+    const subFile = join(tmpDir, `${videoId}.${subLang}.json3`);
+    let json3: string;
+    try {
+      json3 = await readFile(subFile, "utf-8");
+    } catch {
+      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
+    }
+
+    const segments = parseJson3Subtitles(json3, subLang);
+    if (segments.length === 0) {
+      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
+    }
+
+    const fullText = segments.map((s) => s.text).join(" ");
+
+    return {
+      videoId,
+      segments,
+      fullText,
+      language: subLang,
+      segmentCount: segments.length,
+    };
+  } catch (e) {
+    if (!(e instanceof Error)) throw e;
+    const msg = e.message;
+
+    // yt-dlp 미설치
+    if ((e as NodeJS.ErrnoException).code === "ENOENT" && msg.includes("yt-dlp")) {
+      throw new Error("yt-dlp가 설치되어 있지 않습니다. 'pip install yt-dlp' 또는 'brew install yt-dlp'로 설치해주세요.", { cause: e });
+    }
+    // 429 레이트 리밋
+    if (msg.includes("429")) {
+      throw new Error("YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", { cause: e });
+    }
+    // 자막 없는 영상에서 yt-dlp가 에러로 종료
+    if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
+      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: e });
+    }
+    // 이미 한국어 메시지로 변환된 에러는 그대로
+    if (msg.startsWith("자막을") || msg.startsWith("유효한")) throw e;
+    // 기타 yt-dlp 에러 → 핵심만 추출
+    throw new Error(`YouTube 자막 추출 실패: ${msg.slice(0, 200)}`, { cause: e });
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
-
-  const segments: TranscriptSegment[] = raw.map((item) => ({
-    text: item.text,
-    offset: item.offset,
-    duration: item.duration,
-    lang: lang ?? "ko",
-  }));
-
-  const fullText = segments.map((s) => s.text).join(" ");
-
-  return {
-    videoId,
-    segments,
-    fullText,
-    language: lang ?? "ko",
-    segmentCount: segments.length,
-  };
 }
 
 /**
