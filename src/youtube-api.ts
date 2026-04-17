@@ -159,6 +159,30 @@ export function formatTranscriptWithTimestamps(
     .join("\n");
 }
 
+/**
+ * 자막 텍스트 정리 (자동자막 필러/중복/비음성 태그 제거)
+ */
+export function cleanTranscriptText(text: string): string {
+  let cleaned = text;
+
+  // [Music], [Applause], [박수] 등 비음성 태그 제거
+  cleaned = cleaned.replace(/\[[\w가-힣]+\]/g, "");
+
+  // 영어 필러 제거 (단어 경계 기준)
+  cleaned = cleaned.replace(/\b(um|uh|ah|er|hmm|huh)\b/gi, "");
+
+  // 한국어 필러 제거 (공백으로 구분된 단독 필러)
+  cleaned = cleaned.replace(/(?<=\s)(어|음|그|저|뭐)(?=\s)/g, "");
+
+  // 연속 중복 문장 제거 (마침표 기준)
+  cleaned = cleaned.replace(/([^.]+\.)\s*\1/g, "$1");
+
+  // 다중 공백 → 단일 공백
+  cleaned = cleaned.replace(/\s{2,}/g, " ");
+
+  return cleaned.trim();
+}
+
 // ─── YouTube Data API v3 ───
 
 /** Data API 응답 공통 구조 */

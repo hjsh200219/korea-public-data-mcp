@@ -7,7 +7,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
-  getTranscript, formatTranscriptWithTimestamps,
+  getTranscript, formatTranscriptWithTimestamps, cleanTranscriptText,
   getVideoMetadata, searchVideos, getVideoComments,
 } from "../../youtube-api.js";
 import { errorResponse, truncate } from "../../shared.js";
@@ -63,19 +63,21 @@ function handleSummarize() {
 
     try {
       const result = await getTranscript(p.url!, p.lang);
+      const cleaned = cleanTranscriptText(result.fullText);
       const output = [
         `영상 ID: ${result.videoId}`,
         `언어: ${result.language}`,
         `세그먼트 수: ${result.segmentCount}`,
+        `원문 길이: ${result.fullText.length}자 → 정리 후: ${cleaned.length}자`,
         "",
-        "--- 전체 자막 텍스트 ---",
-        result.fullText,
+        "--- 전체 자막 텍스트 (필러/중복 제거) ---",
+        cleaned,
         "",
         "---",
         "위 자막 내용을 바탕으로 핵심 내용을 요약해주세요.",
       ].join("\n");
 
-      return { content: [{ type: "text", text: truncate(output, 16000) }] };
+      return { content: [{ type: "text", text: output }] };
     } catch (e) {
       return errorResponse("YouTube 자막 요약", e);
     }

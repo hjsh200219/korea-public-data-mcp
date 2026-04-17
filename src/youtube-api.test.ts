@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps } from "./youtube-api.js";
+import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps, cleanTranscriptText } from "./youtube-api.js";
 
 // ── extractVideoId (기존 로직, 변경 없음) ──
 
@@ -25,7 +25,7 @@ describe("extractVideoId", () => {
   });
 });
 
-// ── parseJson3Subtitles (새 순수 함수) ──
+// ── parseJson3Subtitles (순수 함수) ──
 
 describe("parseJson3Subtitles", () => {
   const sampleJson3 = {
@@ -91,6 +91,56 @@ describe("parseJson3Subtitles", () => {
 
   it("유효하지 않은 JSON → 에러", () => {
     expect(() => parseJson3Subtitles("not json", "en")).toThrow();
+  });
+});
+
+// ── cleanTranscriptText ──
+
+describe("cleanTranscriptText", () => {
+  it("연속 중복 문장 제거", () => {
+    const result = cleanTranscriptText("Hello world. Hello world. Next sentence.");
+    expect(result).toBe("Hello world. Next sentence.");
+  });
+
+  it("다중 공백을 단일 공백으로", () => {
+    const result = cleanTranscriptText("Hello   world.   How  are   you?");
+    expect(result).toBe("Hello world. How are you?");
+  });
+
+  it("자동자막 필러 제거 (영어)", () => {
+    const result = cleanTranscriptText("So um the thing is uh that we need to uh do this");
+    expect(result).not.toContain(" um ");
+    expect(result).not.toContain(" uh ");
+    expect(result).toContain("the thing is");
+    expect(result).toContain("do this");
+  });
+
+  it("한국어 필러 제거", () => {
+    const result = cleanTranscriptText("그래서 어 그게 음 뭐냐면 어 이렇게 하는 거예요");
+    expect(result).not.toMatch(/\s어\s/);
+    expect(result).not.toMatch(/\s음\s/);
+    expect(result).toContain("그래서");
+    expect(result).toContain("이렇게 하는 거예요");
+  });
+
+  it("앞뒤 공백 제거", () => {
+    const result = cleanTranscriptText("  Hello world  ");
+    expect(result).toBe("Hello world");
+  });
+
+  it("빈 문자열 처리", () => {
+    expect(cleanTranscriptText("")).toBe("");
+    expect(cleanTranscriptText("   ")).toBe("");
+  });
+
+  it("[음악], [박수] 등 비음성 태그 제거", () => {
+    const result = cleanTranscriptText("Hello [Music] world [Applause] end");
+    expect(result).toBe("Hello world end");
+  });
+
+  it("의미있는 내용은 보존", () => {
+    const input = "Today we will discuss the architecture of modern systems and how they scale.";
+    expect(cleanTranscriptText(input)).toBe(input);
   });
 });
 
