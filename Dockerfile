@@ -10,12 +10,13 @@ RUN npm run build
 # --- Runtime stage ---
 FROM node:22-slim
 
-# yt-dlp 설치 (Python3 필요)
+# yt-dlp + deno 설치 (deno: YouTube JS 챌린지 해결용)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates python3 && \
+    apt-get install -y --no-install-recommends curl ca-certificates python3 unzip && \
     curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
-    apt-get purge -y curl && \
+    curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
+    apt-get purge -y curl unzip && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
