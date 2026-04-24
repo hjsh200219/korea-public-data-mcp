@@ -243,11 +243,44 @@ describe("getTranscript (yt-dlp)", () => {
       (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
       return {} as ReturnType<typeof execFile>;
     });
-    // readFile가 ENOENT → 파일 없음 → 자막 없음
+    // readFile가 ENOENT → 파일 없음 → 모든 폴백 언어도 없음 → 에러
     vi.mocked(readFile).mockRejectedValue(
       Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
     );
 
     await expect(getTranscript("gc297hx4F7o")).rejects.toThrow("자막을 찾을 수 없습니다");
+  });
+
+  it("한국어 자막 없을 때 영어 자막으로 폴백", async () => {
+    const mockEnJson3 = JSON.stringify({
+      events: [
+        { tStartMs: 0, dDurationMs: 100000, id: 1 },
+        {
+          tStartMs: 500,
+          dDurationMs: 3000,
+          wWinId: 1,
+          segs: [{ utf8: "English subtitle" }],
+        },
+      ],
+    });
+
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+
+    // ko는 없고 en만 있는 상황
+    vi.mocked(readFile).mockImplementation((path) => {
+      const p = String(path);
+      if (p.endsWith(".en.json3")) {
+        return Promise.resolve(mockEnJson3 as unknown as Buffer);
+      }
+      return Promise.reject(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+    });
+
+    const result = await getTranscript("gc297hx4F7o", "ko");
+    expect(result.language).toBe("en");
+    expect(result.segments[0].text).toBe("English subtitle");
   });
 });

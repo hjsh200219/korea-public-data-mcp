@@ -78,15 +78,21 @@ export function parseJson3Subtitles(json3: string, lang: string): TranscriptSegm
     .filter((s) => s.text.length > 0);
 }
 
+// 언어 폴백 순서: 요청 언어 → en → en-US → ja → zh-Hans → zh-Hant
+const FALLBACK_LANGS = ["en", "en-US", "en-GB", "ja", "zh-Hans", "zh-Hant", "zh-TW", "zh-CN"];
+
 /**
  * YouTube 영상 자막 추출 (yt-dlp subprocess)
+ * 요청 언어 자막이 없으면 FALLBACK_LANGS 순서로 시도
  */
 export async function getTranscript(
   urlOrId: string,
   lang?: string,
 ): Promise<TranscriptResult> {
   const videoId = extractVideoId(urlOrId);
-  const subLang = lang ?? "ko";
+  const primaryLang = lang ?? "ko";
+  const langsToTry = [primaryLang, ...FALLBACK_LANGS.filter((l) => l !== primaryLang)];
+  const subLangArg = langsToTry.join(",");
   const tmpDir = await mkdtemp(join(tmpdir(), "yt-sub-"));
 
   try {
@@ -94,22 +100,30 @@ export async function getTranscript(
       "--skip-download",
       "--write-sub",
       "--write-auto-sub",
-      "--sub-lang", subLang,
+      "--sub-lang", subLangArg,
       "--sub-format", "json3",
       "-o", join(tmpDir, "%(id)s"),
       "--", videoId,
     ], { timeout: 30_000 });
 
-    // json3 파일 읽기 (수동 자막 우선, 없으면 자동 자막)
-    const subFile = join(tmpDir, `${videoId}.${subLang}.json3`);
-    let json3: string;
-    try {
-      json3 = await readFile(subFile, "utf-8");
-    } catch {
+    // 요청 언어 우선, 없으면 폴백 언어 순서로 시도
+    let json3: string | null = null;
+    let actualLang = primaryLang;
+    for (const tryLang of langsToTry) {
+      try {
+        json3 = await readFile(join(tmpDir, `${videoId}.${tryLang}.json3`), "utf-8");
+        actualLang = tryLang;
+        break;
+      } catch {
+        continue;
+      }
+    }
+
+    if (json3 === null) {
       throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
     }
 
-    const segments = parseJson3Subtitles(json3, subLang);
+    const segments = parseJson3Subtitles(json3, actualLang);
     if (segments.length === 0) {
       throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
     }
@@ -120,7 +134,7 @@ export async function getTranscript(
       videoId,
       segments,
       fullText,
-      language: subLang,
+      language: actualLang,
       segmentCount: segments.length,
     };
   } catch (e) {
