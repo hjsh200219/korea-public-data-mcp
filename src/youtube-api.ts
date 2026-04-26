@@ -5,7 +5,7 @@
  */
 
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -185,17 +185,27 @@ export async function getTranscript(
   const subLangArg = langsToTry.join(",");
   const tmpDir = await mkdtemp(join(tmpdir(), "yt-sub-"));
 
+  // YOUTUBE_COOKIES 환경변수가 있으면 쿠키 파일로 인증 (봇 차단 우회)
+  let cookieFile: string | null = null;
+  const cookiesEnv = process.env.YOUTUBE_COOKIES;
+  if (cookiesEnv) {
+    cookieFile = join(tmpDir, "cookies.txt");
+    await writeFile(cookieFile, cookiesEnv, "utf-8");
+  }
+
   try {
-    await execFileAsync("yt-dlp", [
+    const ytdlpArgs = [
       "--skip-download",
       "--write-sub",
       "--write-auto-sub",
       "--sub-lang", subLangArg,
       "--sub-format", "json3",
       "--extractor-args", "youtube:player_client=android",
+      ...(cookieFile ? ["--cookies", cookieFile] : []),
       "-o", join(tmpDir, "%(id)s"),
       "--", videoId,
-    ], { timeout: 30_000 });
+    ];
+    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 30_000 });
 
     // 요청 언어 우선, 없으면 폴백 언어 순서로 시도
     let json3: string | null = null;
