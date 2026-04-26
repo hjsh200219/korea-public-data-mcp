@@ -102,6 +102,7 @@ export async function getTranscript(
       "--write-auto-sub",
       "--sub-lang", subLangArg,
       "--sub-format", "json3",
+      "--extractor-args", "youtube:player_client=android",
       "-o", join(tmpDir, "%(id)s"),
       "--", videoId,
     ], { timeout: 30_000 });
@@ -156,7 +157,7 @@ export async function getTranscript(
     // 이미 한국어 메시지로 변환된 에러는 그대로
     if (msg.startsWith("자막을") || msg.startsWith("유효한")) throw e;
     // 기타 yt-dlp 에러 → 핵심만 추출
-    throw new Error(`YouTube 자막 추출 실패: ${msg.slice(0, 200)}`, { cause: e });
+    throw new Error(`YouTube 자막 추출 실패: ${msg.slice(0, 500)}`, { cause: e });
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
