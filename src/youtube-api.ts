@@ -194,13 +194,15 @@ export async function getTranscript(
   }
 
   try {
+    // 쿠키 있으면 web 클라이언트 사용 (android는 쿠키 미지원), 없으면 android (PO Token 우회)
+    const playerClient = cookieFile ? "web" : "android";
     const ytdlpArgs = [
       "--skip-download",
       "--write-sub",
       "--write-auto-sub",
       "--sub-lang", subLangArg,
       "--sub-format", "json3",
-      "--extractor-args", "youtube:player_client=android",
+      "--extractor-args", `youtube:player_client=${playerClient}`,
       ...(cookieFile ? ["--cookies", cookieFile] : []),
       "-o", join(tmpDir, "%(id)s"),
       "--", videoId,
