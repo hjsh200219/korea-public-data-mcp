@@ -223,12 +223,13 @@ export async function getTranscript(
     }
 
     if (json3 === null) {
-      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
+      // yt-dlp가 성공했지만 자막 파일 없음 → fallback 시도 (조용한 봇 차단 가능성)
+      throw new Error("__YTDLP_NO_FILES__");
     }
 
     const segments = parseJson3Subtitles(json3, actualLang);
     if (segments.length === 0) {
-      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
+      throw new Error("__YTDLP_NO_FILES__");
     }
 
     const fullText = segments.map((s) => s.text).join(" ");
@@ -256,9 +257,17 @@ export async function getTranscript(
     if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
       throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: e });
     }
-    // 봇 감지 / 인증 요구 → youtube-transcript-api fallback
-    if (msg.includes("Sign in") || msg.includes("not a bot") || msg.includes("LOGIN_REQUIRED")) {
-      return getTranscriptFallback(videoId, primaryLang);
+    // 봇 감지 / 인증 요구 / 파일 없음 → youtube-transcript-api fallback
+    if (msg.includes("Sign in") || msg.includes("not a bot") || msg.includes("LOGIN_REQUIRED") || msg === "__YTDLP_NO_FILES__") {
+      try {
+        return await getTranscriptFallback(videoId, primaryLang);
+      } catch (fallbackErr) {
+        // fallback도 실패하면 원래 의미로 변환
+        if (msg === "__YTDLP_NO_FILES__") {
+          throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: fallbackErr });
+        }
+        throw fallbackErr;
+      }
     }
     // 이미 한국어 메시지로 변환된 에러는 그대로
     if (msg.startsWith("자막을") || msg.startsWith("유효한")) throw e;
