@@ -1,30 +1,27 @@
----
-created: 2026-04-26T15:50:00+09:00
-project: k-public-data-mcp
-summary: YouTube 자막 추출 안정화 (yt-dlp + fallback + 쿠키 + 리전) + 로컬 stdio MCP 등록
----
-
 ## Session Digest
 
-YouTube 자막 추출 안정성에 집중한 세션. yt-dlp 클라이언트 분기(쿠키 시 web, 없으면 android), `youtube-transcript-api` v1.0+ fallback, `YOUTUBE_COOKIES` 환경변수, Railway 리전 변경 (Singapore → US West → US East → Amsterdam) 4단계로 차단 우회 메커니즘 구축. Amsterdam에서 한국 영상 자막 추출 검증 완료. 로컬 stdio MCP를 Claude Desktop에 등록해 차단 안전망 확보.
+YouTube 자막 봇 차단 우회를 한 단계 강화한 세션. `YOUTUBE_COOKIES_FROM_BROWSER` 환경변수를 추가해 로컬 stdio(Claude Desktop)에서는 yt-dlp가 Chrome 등 브라우저 쿠키 저장소를 직접 읽도록 분기하고, Railway/클라우드용은 기존 `YOUTUBE_COOKIES` 텍스트 주입 경로를 유지. 클라우드 쪽은 macOS 호스트 cron(06:30 KST)이 Chrome 쿠키를 추출·필터링해 Railway env로 매일 푸시하는 자동화까지 함께 구축. 99850ff 커밋 푸시 + Railway 배포 SUCCESS, 테스트 671/671 통과.
 
 ## Progress
 
-- ✅ yt-dlp android 클라이언트로 PO Token 우회 (15bdf75)
-- ✅ youtube-transcript-api fallback 추가 (6b16707)
-- ✅ YOUTUBE_COOKIES 환경변수 지원 (135cb6a)
-- ✅ 쿠키 있을 때 web 클라이언트 분기 (036c336)
-- ✅ yt-dlp가 파일 못 만들 때도 fallback 시도 (850a4bf)
-- ✅ youtube-transcript-api v1.0+ API 적용 (685bb1b)
-- ✅ Railway 리전을 Amsterdam(europe-west4)으로 변경 → 한국 영상 추출 검증
-- ✅ 로컬 stdio MCP 등록 (`~/Library/Application Support/Claude/claude_desktop_config.json`의 `public-data-local`)
-- ✅ 디버그 메시지 정리 후 사용자 친화적 에러로 복원
+- [x] `YOUTUBE_COOKIES_FROM_BROWSER` 분기 + 우선순위 로직 추가 (src/youtube-api.ts)
+- [x] 신규 테스트 4건 추가 (src/youtube-api.test.ts) — vitest 671/671 GREEN
+- [x] AGENTS.md env 테이블에 3행 추가 (FROM_BROWSER 우선순위 명시)
+- [x] tsc / eslint / build clean
+- [x] 커밋 99850ff push 완료, Railway 배포 SUCCESS
+- [x] 외부 cron 스크립트 작성: `scripts/sync-youtube-cookies.sh` (Chrome 쿠키 추출 → 도메인 필터링 → `railway variables --set-from-stdin --skip-deploys`)
+- [x] crontab 등록: `30 6 * * * /Users/edb_development/workspace/scripts/sync-youtube-cookies.sh`
+- [x] 메모리 갱신: `reference_scheduled_triggers.md`에 신규 cron 반영
+- [ ] Claude Desktop MCP config에 `YOUTUBE_COOKIES_FROM_BROWSER=chrome` 적용 후 동작 검증
+- [ ] cron 첫 발화(내일 06:30 KST) 후 `/tmp/sync-youtube-cookies.log` 확인
+- [ ] AGENTS.md Source Map의 `youtube-api.ts` 라인 수 갱신 (PR 후 증가)
 
 ## Next Steps
 
-1. **Claude Desktop 재시작** (Cmd+Q → 다시 열기) → 로컬 stdio MCP 활성화
-2. (선택) 자동 리전 fallback 시스템 검토 — 비용 대비 효율은 낮음
-3. (선택) 거주용 프록시 통합 — Railway 차단 영구 회피용
+1. Claude Desktop의 `claude_desktop_config.json` `public-data-local` 항목에 `YOUTUBE_COOKIES_FROM_BROWSER=chrome` 추가 → Cmd+Q 재시작 → 한국 영상 자막 추출로 회귀 테스트
+2. 내일 06:30 KST 이후 `/tmp/sync-youtube-cookies.log` 확인하고 Railway env가 갱신됐는지 `railway variables` 로 확인
+3. AGENTS.md Source Map의 `src/youtube-api.ts` 라인 수 최신화 (PR로 라인 수 변동)
+4. (선택) 필터 도메인에 `consent.youtube.com` 등 추가 검토 — 현재 4개 도메인만 추출 중
 
 ## Blockers
 
@@ -32,16 +29,20 @@ YouTube 자막 추출 안정성에 집중한 세션. yt-dlp 클라이언트 분�
 
 ## Watch Out
 
-- Railway는 Pro라도 4개 리전만 지원 (Amsterdam/Singapore/US West/US East)
-- YouTube가 Amsterdam도 향후 차단할 수 있음 → 차단 시 다른 리전으로 즉시 전환
-- 로컬 stdio는 PC가 켜져 있을 때만 동작 (모바일/원격 사용 불가)
-- yt-dlp는 Python user bin에 설치되어 있어 PATH에 명시 필요
-- youtube-transcript-api는 v1.0+에서 API 변경됨 (`get_transcript` → `fetch()`)
+- Railway 쿠키 페이로드는 4개 도메인만 필터링 (`youtube.com`, `.youtube.com`, `google.com`, `.google.com`). 인증 흐름이 `consent.youtube.com` 등을 요구하면 필터 확장 필요
+- yt-dlp 쿠키는 약 2주 단위로 만료 → 일 1회 cron 갱신은 보수적이지만 필수
+- `YOUTUBE_COOKIES_FROM_BROWSER`는 컨테이너에서 동작 불가(브라우저 부재) → Railway에서는 자동으로 `YOUTUBE_COOKIES` 경로로 폴백
+- 두 변수 모두 설정될 경우 `YOUTUBE_COOKIES_FROM_BROWSER`가 우선, `YOUTUBE_COOKIES`는 무시됨
+- Mac이 06:30에 슬립 상태면 cron 미발화 → 캐치업이 필요할 수 있음 (caffeinate 또는 launchd 대안 검토 가능)
 
 ## Files Touched
 
-- `src/youtube-api.ts` — yt-dlp 클라이언트 분기, 쿠키 지원, fallback, v1.0+ API
-- `src/youtube-api.test.ts` — fallback/쿠키 테스트 추가 (총 29개 테스트)
-- `Dockerfile` — `pip3 install youtube-transcript-api` 추가
-- `~/Library/Application Support/Claude/claude_desktop_config.json` — public-data-local 등록 (61개 env, 절대경로 PATH)
-- Railway 환경변수 `YOUTUBE_COOKIES` 추가
+- `src/youtube-api.ts` — `YOUTUBE_COOKIES_FROM_BROWSER` 분기 및 우선순위 로직
+- `src/youtube-api.test.ts` — 신규 테스트 4건
+- `AGENTS.md` — env 테이블 3행 추가
+- 커밋: `99850ff feat(youtube): YOUTUBE_COOKIES_FROM_BROWSER로 봇 차단 우회 강화`
+
+외부(Git 미관리):
+- `/Users/edb_development/workspace/scripts/sync-youtube-cookies.sh` — 일 1회 Chrome 쿠키 → Railway env 동기화 스크립트
+- `crontab` — `30 6 * * * /Users/edb_development/workspace/scripts/sync-youtube-cookies.sh` 추가
+- `~/.claude/projects/-Users-edb-development-workspace/memory/reference_scheduled_triggers.md` — 신규 cron 등록 반영

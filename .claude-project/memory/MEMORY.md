@@ -1,6 +1,10 @@
 - [youtube-yt-dlp-client-selection](youtube-yt-dlp-client-selection.md) — 쿠키 있으면 web, 없으면 android 클라이언트
 - [youtube-transcript-api-v1-migration](youtube-transcript-api-v1-migration.md) — v1.0+ get_transcript → fetch() 인스턴스 메서드
+- [yt-dlp-cookies-from-browser-leakage](yt-dlp-cookies-from-browser-leakage.md) — 브라우저 전체 쿠키 추출, 도메인 필터 필수
+- [yt-dlp-cookies-file-quirks](yt-dlp-cookies-file-quirks.md) — 빈 파일 입력 실패 + youtube.com 홈 enumerate 함정
 - [railway-region-youtube-blocking](railway-region-youtube-blocking.md) — Amsterdam만 한국 콘텐츠 차단 안 됨, Pro도 4리전
 - [railway-cli-scale-syntax](railway-cli-scale-syntax.md) — railway scale --{region-id} 형식 (service 키워드 없이)
+- [railway-env-var-32kb-limit](railway-env-var-32kb-limit.md) — 환경변수당 하드 리밋 32,768바이트
 - [claude-desktop-stdio-mcp-path](claude-desktop-stdio-mcp-path.md) — stdio MCP는 절대경로 + 완전 PATH 필수
+- [claude-md-symlink-to-agents-md](claude-md-symlink-to-agents-md.md) — CLAUDE.md → AGENTS.md 심볼릭 링크 (SSOT는 AGENTS.md)
 - [dual-entrypoints-stdio-http](dual-entrypoints-stdio-http.md) — index.js (stdio) + remote.js (HTTP) 두 진입점이 도구 공유

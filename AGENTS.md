@@ -8,7 +8,7 @@ alwaysApply: true
 
 # public-data-mcp
 
-K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시).
+K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시 + 조달청 나라장터 + YouTube 자막/메타데이터).
 
 ## Quick Start
 
@@ -57,10 +57,14 @@ src/
   finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces (318 lines)
   insurance-api.ts    # 금융위원회 보험상품 공시 API client (367 lines)
   insurance-types.ts  # 금융위원회 보험상품 공시 TypeScript interfaces (275 lines)
+  g2b-api.ts          # 조달청 나라장터 G2B API client (122 lines)
+  g2b-types.ts        # 조달청 G2B TypeScript interfaces (85 lines)
+  youtube-api.ts      # YouTube Data API v3 + yt-dlp 자막 추출 (495 lines)
+  youtube-types.ts    # YouTube TypeScript interfaces (69 lines)
   routes/             # 도메인별 REST 라우트 (8 domain + helpers, ~1172 lines)
   openapi/            # 도메인별 OpenAPI path 생성기 (8 path modules + shared, ~1589 lines)
   tools/
-    skills/           # ★ 12개 의도 기반 스킬 도구 + MCP Prompts (v6)
+    skills/           # ★ 14개 의도 기반 스킬 도구 + MCP Prompts (v6)
       index.ts        # 스킬 오케스트레이터 — 전체 등록 (49 lines)
       _shared.ts      # createDispatcher, requireParam 공통 유틸 (77 lines)
       prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts, 135 lines)
@@ -76,6 +80,8 @@ src/
       public-data.ts         # 공공데이터포털 (11 actions, ~376 lines)
       financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, 금융감독원)
       insurance.ts           # 보험상품 공시 (9 actions, 689 lines, 금융위원회)
+      procurement.ts         # 조달청 나라장터 입찰/낙찰 (2 actions, 157 lines)
+      youtube.ts             # YouTube 자막/메타데이터/검색/댓글 (5 actions, 223 lines)
 ```
 
 ## Layer Rules
@@ -91,12 +97,14 @@ Protocol (server.ts → tools/skills/index.ts)
                 |
     Data Access (law-api.ts, dart-api.ts, data20-api.ts,
                  unipass-api.ts, exim-api.ts, mafra-api.ts,
-                 finlife-api.ts, insurance-api.ts)
+                 finlife-api.ts, insurance-api.ts,
+                 g2b-api.ts, youtube-api.ts)
                 |
     Shared (shared.ts, tools/skills/_shared.ts)
     +  Types (law-types.ts, dart-types.ts, data20-types.ts,
              unipass-types.ts, exim-types.ts, mafra-types.ts,
-             finlife-types.ts, insurance-types.ts)
+             finlife-types.ts, insurance-types.ts,
+             g2b-types.ts, youtube-types.ts)
 ```
 
 - Dependencies flow downward only
@@ -142,7 +150,7 @@ Protocol (server.ts → tools/skills/index.ts)
 ## Conventions
 
 - Korean comments for domain-specific logic
-- MCP 스킬 도구: 12개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택
+- MCP 스킬 도구: 14개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택
 - MCP Prompts: 5개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관)
 - REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`)
 - Error responses: `isError: true` with Korean messages
