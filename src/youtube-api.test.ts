@@ -168,6 +168,7 @@ vi.mock("node:fs/promises", () => ({
   readFile: vi.fn(),
   rm: vi.fn(),
   mkdtemp: vi.fn(),
+  writeFile: vi.fn(),
 }));
 
 import { execFile } from "node:child_process";
@@ -322,6 +323,97 @@ describe("getTranscript (yt-dlp)", () => {
     expect(result.segments[0].offset).toBe(1500);
     expect(result.segments[0].duration).toBe(2000);
     expect(result.segmentCount).toBe(2);
+  });
+
+  // ── YOUTUBE_COOKIES_FROM_BROWSER 분기 ──
+
+  it("YOUTUBE_COOKIES_FROM_BROWSER 설정 시 --cookies-from-browser 사용 + web 클라이언트", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+
+    let capturedArgs: readonly string[] = [];
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockResolvedValue(mockJson3);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    const idx = capturedArgs.indexOf("--cookies-from-browser");
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(capturedArgs[idx + 1]).toBe("chrome");
+    // web 클라이언트 사용 (browser 쿠키는 web 세션 기반)
+    expect(capturedArgs).toContain("youtube:player_client=web");
+    // 파일 쿠키 옵션과 혼용 금지
+    expect(capturedArgs).not.toContain("--cookies");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("브라우저 + 프로파일 형식(chrome:Default) 그대로 전달", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome:Default");
+
+    let capturedArgs: readonly string[] = [];
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockResolvedValue(mockJson3);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    const idx = capturedArgs.indexOf("--cookies-from-browser");
+    expect(capturedArgs[idx + 1]).toBe("chrome:Default");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("YOUTUBE_COOKIES_FROM_BROWSER가 YOUTUBE_COOKIES보다 우선", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "firefox");
+    vi.stubEnv("YOUTUBE_COOKIES", "# Netscape HTTP Cookie File\nfake");
+
+    let capturedArgs: readonly string[] = [];
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockResolvedValue(mockJson3);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    expect(capturedArgs).toContain("--cookies-from-browser");
+    expect(capturedArgs).not.toContain("--cookies");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("쿠키 환경변수 없을 때는 android 클라이언트 사용 (PO Token 우회)", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+
+    let capturedArgs: readonly string[] = [];
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockResolvedValue(mockJson3);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    expect(capturedArgs).toContain("youtube:player_client=android");
+    expect(capturedArgs).not.toContain("--cookies-from-browser");
+    expect(capturedArgs).not.toContain("--cookies");
+
+    vi.unstubAllEnvs();
   });
 });
 

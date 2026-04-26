@@ -184,6 +184,13 @@ export async function getTranscriptFallback(
 /**
  * YouTube 영상 자막 추출 (yt-dlp subprocess)
  * 요청 언어 자막이 없으면 FALLBACK_LANGS 순서로 시도
+ *
+ * 봇 차단 우회 (우선순위 순):
+ *   1. YOUTUBE_COOKIES_FROM_BROWSER=chrome|firefox|safari|brave|edge|chromium (선택적으로 ":프로파일")
+ *      → 로컬 브라우저 쿠키 DB 직접 사용 (로컬 개발 환경 권장)
+ *   2. YOUTUBE_COOKIES=<Netscape cookies.txt 내용>
+ *      → 환경변수에 텍스트로 주입 (Railway 등 서버 배포 권장)
+ *   3. (둘 다 없음) → android 클라이언트로 PO Token 우회 시도
  */
 export async function getTranscript(
   urlOrId: string,
@@ -195,17 +202,22 @@ export async function getTranscript(
   const subLangArg = langsToTry.join(",");
   const tmpDir = await mkdtemp(join(tmpdir(), "yt-sub-"));
 
-  // YOUTUBE_COOKIES 환경변수가 있으면 쿠키 파일로 인증 (봇 차단 우회)
+  // 인증 우선순위: YOUTUBE_COOKIES_FROM_BROWSER (브라우저 직접 추출) > YOUTUBE_COOKIES (Netscape 파일 내용)
+  // browser 모드는 yt-dlp가 로컬 브라우저 DB에서 쿠키를 읽으므로 파일 변환 불필요
+  const browserCookies = process.env.YOUTUBE_COOKIES_FROM_BROWSER?.trim();
   let cookieFile: string | null = null;
-  const cookiesEnv = process.env.YOUTUBE_COOKIES;
-  if (cookiesEnv) {
-    cookieFile = join(tmpDir, "cookies.txt");
-    await writeFile(cookieFile, cookiesEnv, "utf-8");
+  if (!browserCookies) {
+    const cookiesEnv = process.env.YOUTUBE_COOKIES;
+    if (cookiesEnv) {
+      cookieFile = join(tmpDir, "cookies.txt");
+      await writeFile(cookieFile, cookiesEnv, "utf-8");
+    }
   }
+  const hasCookies = Boolean(browserCookies) || Boolean(cookieFile);
 
   try {
     // 쿠키 있으면 web 클라이언트 사용 (android는 쿠키 미지원), 없으면 android (PO Token 우회)
-    const playerClient = cookieFile ? "web" : "android";
+    const playerClient = hasCookies ? "web" : "android";
     const ytdlpArgs = [
       "--skip-download",
       "--write-sub",
@@ -213,6 +225,7 @@ export async function getTranscript(
       "--sub-lang", subLangArg,
       "--sub-format", "json3",
       "--extractor-args", `youtube:player_client=${playerClient}`,
+      ...(browserCookies ? ["--cookies-from-browser", browserCookies] : []),
       ...(cookieFile ? ["--cookies", cookieFile] : []),
       "-o", join(tmpDir, "%(id)s"),
       "--", videoId,

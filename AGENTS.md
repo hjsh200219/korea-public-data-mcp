@@ -134,6 +134,9 @@ Protocol (server.ts → tools/skills/index.ts)
 | `MAFRA_API_KEY` | No | 농림축산식품부 API key (없으면 농림축산식품부 도구 비활성화) |
 | `EXCHANGE_RATE_API_KEY` | No | 수출입은행 환율 API key (없으면 환율 도구 비활성화) |
 | `FINLIFE_API_KEY` | No | 금융감독원 금융상품 비교공시 API key (없으면 금융상품 비교공시 도구 비활성화) |
+| `YOUTUBE_API_KEY` | No | YouTube Data API v3 key (메타데이터/검색/댓글, 없으면 자막만 사용 가능) |
+| `YOUTUBE_COOKIES_FROM_BROWSER` | No | 자막 봇 차단 우회 — 로컬 브라우저 직접 추출 (`chrome` / `firefox` / `safari` / `brave` / `edge` / `chromium`, 선택적 `:프로파일`). 로컬 stdio 권장 |
+| `YOUTUBE_COOKIES` | No | 자막 봇 차단 우회 — Netscape `cookies.txt` 내용 텍스트 (Railway 등 서버 배포용). `YOUTUBE_COOKIES_FROM_BROWSER`가 설정되면 무시 |
 | `PORT` | No | HTTP server port (default: 3000) |
 
 ## Conventions
