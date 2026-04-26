@@ -119,12 +119,22 @@ export async function getTranscriptFallback(
   const script = [
     "import json, sys",
     "from youtube_transcript_api import YouTubeTranscriptApi",
+    "vid = sys.argv[1]",
     "langs = sys.argv[2:]",
     "try:",
-    "    t = YouTubeTranscriptApi.get_transcript(sys.argv[1], languages=langs)",
-    "    print(json.dumps({'ok': True, 'data': t, 'lang': langs[0] if langs else 'unknown'}))",
+    "    # v1.0+ 새 API (instance method)",
+    "    if hasattr(YouTubeTranscriptApi, 'fetch'):",
+    "        api = YouTubeTranscriptApi()",
+    "        fetched = api.fetch(vid, languages=langs)",
+    "        data = [{'text': s.text, 'start': s.start, 'duration': s.duration} for s in fetched]",
+    "        lang = fetched.language_code if hasattr(fetched, 'language_code') else (langs[0] if langs else 'unknown')",
+    "    else:",
+    "        # v0.x 레거시 API (static method)",
+    "        data = YouTubeTranscriptApi.get_transcript(vid, languages=langs)",
+    "        lang = langs[0] if langs else 'unknown'",
+    "    print(json.dumps({'ok': True, 'data': data, 'lang': lang}))",
     "except Exception as e:",
-    "    print(json.dumps({'ok': False, 'error': str(e)}))",
+    "    print(json.dumps({'ok': False, 'error': f'{type(e).__name__}: {str(e)[:200]}'}))",
   ].join("\n");
 
   let stdout: string;
