@@ -256,7 +256,7 @@ describe("getTranscript (yt-dlp)", () => {
       Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
     );
 
-    await expect(getTranscript("gc297hx4F7o")).rejects.toThrow(/자막 추출 실패|자막을 찾을 수 없습니다/);
+    await expect(getTranscript("gc297hx4F7o")).rejects.toThrow("자막을 찾을 수 없습니다");
   });
 
   it("한국어 자막 없을 때 영어 자막으로 폴백", async () => {

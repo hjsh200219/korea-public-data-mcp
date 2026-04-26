@@ -272,8 +272,8 @@ export async function getTranscript(
       try {
         return await getTranscriptFallback(videoId, primaryLang);
       } catch (fallbackErr) {
-        const fbMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-        throw new Error(`자막 추출 실패. yt-dlp: ${msg.slice(0, 150)} | fallback: ${fbMsg.slice(0, 350)}`, { cause: fallbackErr });
+        // fallback도 실패하면 자막 없음 메시지로 통일
+        throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: fallbackErr });
       }
     }
     // 이미 한국어 메시지로 변환된 에러는 그대로
