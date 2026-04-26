@@ -237,18 +237,26 @@ describe("getTranscript (yt-dlp)", () => {
     await expect(getTranscript("gc297hx4F7o")).rejects.toThrow("YouTube 요청이 너무 많습니다");
   });
 
-  it("자막 없는 영상 에러", async () => {
+  it("자막 없는 영상 에러 (yt-dlp 파일 없음 + fallback도 실패)", async () => {
+    // yt-dlp는 성공이지만 파일 없음, python3 fallback은 ok:false 반환
     vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
       const cb = typeof _opts === "function" ? _opts : callback;
-      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      if (_cmd === "yt-dlp") {
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      } else {
+        // python3 fallback: 자막 없음
+        (cb as (err: Error | null, stdout: string) => void)(
+          null,
+          JSON.stringify({ ok: false, error: "No transcripts found" }),
+        );
+      }
       return {} as ReturnType<typeof execFile>;
     });
-    // readFile가 ENOENT → 파일 없음 → 모든 폴백 언어도 없음 → 에러
     vi.mocked(readFile).mockRejectedValue(
       Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
     );
 
-    await expect(getTranscript("gc297hx4F7o")).rejects.toThrow("자막을 찾을 수 없습니다");
+    await expect(getTranscript("gc297hx4F7o")).rejects.toThrow(/yt-dlp\/fallback 모두 실패|자막을 찾을 수 없습니다/);
   });
 
   it("한국어 자막 없을 때 영어 자막으로 폴백", async () => {
