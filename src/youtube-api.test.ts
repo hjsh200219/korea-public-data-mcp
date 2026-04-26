@@ -325,30 +325,69 @@ describe("getTranscript (yt-dlp)", () => {
     expect(result.segmentCount).toBe(2);
   });
 
-  // ── YOUTUBE_COOKIES_FROM_BROWSER 분기 ──
+  // ── 클라이언트 폴백 캐스케이드 + 쿠키 분기 ──
 
-  it("YOUTUBE_COOKIES_FROM_BROWSER 설정 시 --cookies-from-browser 사용 + web 클라이언트", async () => {
-    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
-    vi.stubEnv("YOUTUBE_COOKIES", "");
+  /**
+   * 캡처된 yt-dlp 호출 + readFile 시퀀스 헬퍼
+   * - allCalls: yt-dlp가 호출될 때마다 args 누적
+   * - readFileResolvers: yt-dlp 호출 N번째 시도에서 readFile이 어떻게 동작할지 결정
+   *   (true → mockJson3 반환, false → ENOENT)
+   */
+  function setupClientCascade(readFileSuccessOnAttempt: number | "all" | "never") {
+    const allCalls: string[][] = [];
+    let attempt = 0;
 
-    let capturedArgs: readonly string[] = [];
     vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
       const cb = typeof _opts === "function" ? _opts : callback;
-      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
+      if (_cmd === "yt-dlp") {
+        allCalls.push(args as string[]);
+        attempt += 1;
+      }
       (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
       return {} as ReturnType<typeof execFile>;
     });
-    vi.mocked(readFile).mockResolvedValue(mockJson3);
+
+    vi.mocked(readFile).mockImplementation(() => {
+      const succeed =
+        readFileSuccessOnAttempt === "all"
+          ? true
+          : readFileSuccessOnAttempt === "never"
+          ? false
+          : attempt === readFileSuccessOnAttempt;
+      return succeed
+        ? Promise.resolve(mockJson3 as unknown as Buffer)
+        : Promise.reject(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+    });
+
+    return { allCalls };
+  }
+
+  it("쿠키 있을 때 첫 시도는 tv 클라이언트", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+
+    const { allCalls } = setupClientCascade(1);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    const idx = capturedArgs.indexOf("--cookies-from-browser");
-    expect(idx).toBeGreaterThanOrEqual(0);
-    expect(capturedArgs[idx + 1]).toBe("chrome");
-    // web 클라이언트 사용 (browser 쿠키는 web 세션 기반)
-    expect(capturedArgs).toContain("youtube:player_client=web");
-    // 파일 쿠키 옵션과 혼용 금지
-    expect(capturedArgs).not.toContain("--cookies");
+    expect(allCalls[0]).toContain("youtube:player_client=tv");
+    expect(allCalls[0]).toContain("--cookies-from-browser");
+    expect(allCalls[0]).not.toContain("--cookies");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("쿠키 있고 tv 시도 실패 시 web 클라이언트로 fallback", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
+
+    const { allCalls } = setupClientCascade(2);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    expect(allCalls).toHaveLength(2);
+    expect(allCalls[0]).toContain("youtube:player_client=tv");
+    expect(allCalls[1]).toContain("youtube:player_client=web");
+    expect(allCalls[1]).toContain("--cookies-from-browser");
 
     vi.unstubAllEnvs();
   });
@@ -356,19 +395,30 @@ describe("getTranscript (yt-dlp)", () => {
   it("브라우저 + 프로파일 형식(chrome:Default) 그대로 전달", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome:Default");
 
-    let capturedArgs: readonly string[] = [];
-    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
-      const cb = typeof _opts === "function" ? _opts : callback;
-      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
-      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
-      return {} as ReturnType<typeof execFile>;
-    });
-    vi.mocked(readFile).mockResolvedValue(mockJson3);
+    const { allCalls } = setupClientCascade(1);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    const idx = capturedArgs.indexOf("--cookies-from-browser");
-    expect(capturedArgs[idx + 1]).toBe("chrome:Default");
+    const args = allCalls[0];
+    const idx = args.indexOf("--cookies-from-browser");
+    expect(args[idx + 1]).toBe("chrome:Default");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("YOUTUBE_COOKIES (파일 쿠키)도 tv → web 캐스케이드 사용", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", "# Netscape HTTP Cookie File\nfake");
+
+    const { allCalls } = setupClientCascade(2);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    expect(allCalls).toHaveLength(2);
+    expect(allCalls[0]).toContain("youtube:player_client=tv");
+    expect(allCalls[0]).toContain("--cookies");
+    expect(allCalls[0]).not.toContain("--cookies-from-browser");
+    expect(allCalls[1]).toContain("youtube:player_client=web");
 
     vi.unstubAllEnvs();
   });
@@ -377,41 +427,63 @@ describe("getTranscript (yt-dlp)", () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "firefox");
     vi.stubEnv("YOUTUBE_COOKIES", "# Netscape HTTP Cookie File\nfake");
 
-    let capturedArgs: readonly string[] = [];
-    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
-      const cb = typeof _opts === "function" ? _opts : callback;
-      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
-      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
-      return {} as ReturnType<typeof execFile>;
-    });
-    vi.mocked(readFile).mockResolvedValue(mockJson3);
+    const { allCalls } = setupClientCascade(1);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(capturedArgs).toContain("--cookies-from-browser");
-    expect(capturedArgs).not.toContain("--cookies");
+    expect(allCalls[0]).toContain("--cookies-from-browser");
+    expect(allCalls[0]).not.toContain("--cookies");
 
     vi.unstubAllEnvs();
   });
 
-  it("쿠키 환경변수 없을 때는 android 클라이언트 사용 (PO Token 우회)", async () => {
+  it("쿠키 환경변수 없을 때는 android 클라이언트 단독 시도 (PO Token 우회)", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
     vi.stubEnv("YOUTUBE_COOKIES", "");
 
-    let capturedArgs: readonly string[] = [];
-    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
-      const cb = typeof _opts === "function" ? _opts : callback;
-      if (_cmd === "yt-dlp") capturedArgs = args as readonly string[];
-      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
-      return {} as ReturnType<typeof execFile>;
-    });
-    vi.mocked(readFile).mockResolvedValue(mockJson3);
+    const { allCalls } = setupClientCascade(1);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(capturedArgs).toContain("youtube:player_client=android");
-    expect(capturedArgs).not.toContain("--cookies-from-browser");
-    expect(capturedArgs).not.toContain("--cookies");
+    expect(allCalls).toHaveLength(1);
+    expect(allCalls[0]).toContain("youtube:player_client=android");
+    expect(allCalls[0]).not.toContain("--cookies-from-browser");
+    expect(allCalls[0]).not.toContain("--cookies");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("모든 yt-dlp 클라이언트 실패 시 youtube-transcript-api fallback 호출", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
+
+    const allCalls: string[][] = [];
+    const mockFallbackJson = JSON.stringify({
+      ok: true,
+      lang: "ko",
+      data: [{ text: "py fallback", start: 1.0, duration: 2.0 }],
+    });
+
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        allCalls.push(args as string[]);
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      } else {
+        // python3 fallback
+        (cb as (err: Error | null, stdout: string) => void)(null, mockFallbackJson);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    // 모든 readFile은 ENOENT → 모든 yt-dlp 시도가 "파일 없음"으로 실패
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const result = await getTranscript("gc297hx4F7o", "ko");
+
+    expect(allCalls.length).toBeGreaterThanOrEqual(2); // tv + web
+    expect(allCalls[0]).toContain("youtube:player_client=tv");
+    expect(result.segments[0].text).toBe("py fallback");
 
     vi.unstubAllEnvs();
   });

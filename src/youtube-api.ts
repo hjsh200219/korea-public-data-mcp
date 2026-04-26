@@ -182,15 +182,88 @@ export async function getTranscriptFallback(
 }
 
 /**
+ * 단일 yt-dlp 시도. 성공 시 TranscriptResult, 실패(자막 파일 없음) 시 null.
+ * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 429 / 자막 비활성)는 throw.
+ */
+async function tryYtDlpClient(
+  videoId: string,
+  langsToTry: string[],
+  subLangArg: string,
+  playerClient: string,
+  browserCookies: string | undefined,
+  cookieFile: string | null,
+  tmpDir: string,
+): Promise<TranscriptResult | null> {
+  const ytdlpArgs = [
+    "--skip-download",
+    "--write-sub",
+    "--write-auto-sub",
+    "--sub-lang", subLangArg,
+    "--sub-format", "json3",
+    "--extractor-args", `youtube:player_client=${playerClient}`,
+    ...(browserCookies ? ["--cookies-from-browser", browserCookies] : []),
+    ...(cookieFile ? ["--cookies", cookieFile] : []),
+    "-o", join(tmpDir, "%(id)s"),
+    "--", videoId,
+  ];
+
+  try {
+    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 30_000 });
+  } catch (e) {
+    if (!(e instanceof Error)) throw e;
+    const msg = e.message;
+
+    // 종료 조건: yt-dlp 미설치, 429, 자막 비활성 → 캐스케이드 중단
+    if ((e as NodeJS.ErrnoException).code === "ENOENT" && msg.includes("yt-dlp")) {
+      throw new Error("yt-dlp가 설치되어 있지 않습니다. 'pip install yt-dlp' 또는 'brew install yt-dlp'로 설치해주세요.", { cause: e });
+    }
+    if (msg.includes("429")) {
+      throw new Error("YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", { cause: e });
+    }
+    if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
+      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: e });
+    }
+    // PO Token / DRM / 봇 감지 / 포맷 없음 → 다음 클라이언트로
+    return null;
+  }
+
+  // 요청 언어 우선, 없으면 폴백 언어 순서로 시도
+  for (const tryLang of langsToTry) {
+    try {
+      const json3 = await readFile(join(tmpDir, `${videoId}.${tryLang}.json3`), "utf-8");
+      const segments = parseJson3Subtitles(json3, tryLang);
+      if (segments.length === 0) continue;
+      return {
+        videoId,
+        segments,
+        fullText: segments.map((s) => s.text).join(" "),
+        language: tryLang,
+        segmentCount: segments.length,
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  // 자막 파일 0개 → 다음 클라이언트로 (조용한 PO Token 보호 등)
+  return null;
+}
+
+/**
  * YouTube 영상 자막 추출 (yt-dlp subprocess)
  * 요청 언어 자막이 없으면 FALLBACK_LANGS 순서로 시도
  *
  * 봇 차단 우회 (우선순위 순):
  *   1. YOUTUBE_COOKIES_FROM_BROWSER=chrome|firefox|safari|brave|edge|chromium (선택적으로 ":프로파일")
- *      → 로컬 브라우저 쿠키 DB 직접 사용 (로컬 개발 환경 권장)
+ *      → 로컬 브라우저 쿠키 DB 직접 사용 (로컬 stdio 권장)
  *   2. YOUTUBE_COOKIES=<Netscape cookies.txt 내용>
  *      → 환경변수에 텍스트로 주입 (Railway 등 서버 배포 권장)
- *   3. (둘 다 없음) → android 클라이언트로 PO Token 우회 시도
+ *
+ * 클라이언트 캐스케이드:
+ *   - 쿠키 있음: tv → web (자동자막 PO Token 우회는 tv가 가장 안정적,
+ *     단 tv는 일부 영상 DRM 표시로 실패할 수 있어 web fallback)
+ *   - 쿠키 없음: android (자동자막 PO Token 우회 가능성, 본질적으로 한계 있음)
+ *   - 모두 실패: youtube-transcript-api Python fallback
  */
 export async function getTranscript(
   urlOrId: string,
@@ -200,101 +273,39 @@ export async function getTranscript(
   const primaryLang = lang ?? "ko";
   const langsToTry = [primaryLang, ...FALLBACK_LANGS.filter((l) => l !== primaryLang)];
   const subLangArg = langsToTry.join(",");
-  const tmpDir = await mkdtemp(join(tmpdir(), "yt-sub-"));
+  const rootTmp = await mkdtemp(join(tmpdir(), "yt-sub-"));
 
-  // 인증 우선순위: YOUTUBE_COOKIES_FROM_BROWSER (브라우저 직접 추출) > YOUTUBE_COOKIES (Netscape 파일 내용)
-  // browser 모드는 yt-dlp가 로컬 브라우저 DB에서 쿠키를 읽으므로 파일 변환 불필요
-  const browserCookies = process.env.YOUTUBE_COOKIES_FROM_BROWSER?.trim();
+  const browserCookies = process.env.YOUTUBE_COOKIES_FROM_BROWSER?.trim() || undefined;
   let cookieFile: string | null = null;
   if (!browserCookies) {
     const cookiesEnv = process.env.YOUTUBE_COOKIES;
     if (cookiesEnv) {
-      cookieFile = join(tmpDir, "cookies.txt");
+      cookieFile = join(rootTmp, "cookies.txt");
       await writeFile(cookieFile, cookiesEnv, "utf-8");
     }
   }
   const hasCookies = Boolean(browserCookies) || Boolean(cookieFile);
+  const clients = hasCookies ? ["tv", "web"] : ["android"];
 
   try {
-    // 쿠키 있으면 web 클라이언트 사용 (android는 쿠키 미지원), 없으면 android (PO Token 우회)
-    const playerClient = hasCookies ? "web" : "android";
-    const ytdlpArgs = [
-      "--skip-download",
-      "--write-sub",
-      "--write-auto-sub",
-      "--sub-lang", subLangArg,
-      "--sub-format", "json3",
-      "--extractor-args", `youtube:player_client=${playerClient}`,
-      ...(browserCookies ? ["--cookies-from-browser", browserCookies] : []),
-      ...(cookieFile ? ["--cookies", cookieFile] : []),
-      "-o", join(tmpDir, "%(id)s"),
-      "--", videoId,
-    ];
-    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 30_000 });
-
-    // 요청 언어 우선, 없으면 폴백 언어 순서로 시도
-    let json3: string | null = null;
-    let actualLang = primaryLang;
-    for (const tryLang of langsToTry) {
-      try {
-        json3 = await readFile(join(tmpDir, `${videoId}.${tryLang}.json3`), "utf-8");
-        actualLang = tryLang;
-        break;
-      } catch {
-        continue;
-      }
+    for (const playerClient of clients) {
+      // 시도마다 별도 디렉터리: 이전 시도 잔여 파일이 다음 시도 결과를 오염시키지 않도록
+      const dir = await mkdtemp(join(rootTmp, "attempt-"));
+      const result = await tryYtDlpClient(
+        videoId, langsToTry, subLangArg,
+        playerClient, browserCookies, cookieFile, dir,
+      );
+      if (result) return result;
     }
 
-    if (json3 === null) {
-      // yt-dlp가 성공했지만 자막 파일 없음 → fallback 시도 (조용한 봇 차단 가능성)
-      throw new Error("__YTDLP_NO_FILES__");
+    // 모든 yt-dlp 시도 실패 → Python fallback
+    try {
+      return await getTranscriptFallback(videoId, primaryLang);
+    } catch (fallbackErr) {
+      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: fallbackErr });
     }
-
-    const segments = parseJson3Subtitles(json3, actualLang);
-    if (segments.length === 0) {
-      throw new Error("__YTDLP_NO_FILES__");
-    }
-
-    const fullText = segments.map((s) => s.text).join(" ");
-
-    return {
-      videoId,
-      segments,
-      fullText,
-      language: actualLang,
-      segmentCount: segments.length,
-    };
-  } catch (e) {
-    if (!(e instanceof Error)) throw e;
-    const msg = e.message;
-
-    // yt-dlp 미설치
-    if ((e as NodeJS.ErrnoException).code === "ENOENT" && msg.includes("yt-dlp")) {
-      throw new Error("yt-dlp가 설치되어 있지 않습니다. 'pip install yt-dlp' 또는 'brew install yt-dlp'로 설치해주세요.", { cause: e });
-    }
-    // 429 레이트 리밋
-    if (msg.includes("429")) {
-      throw new Error("YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", { cause: e });
-    }
-    // 자막 없는 영상에서 yt-dlp가 에러로 종료
-    if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
-      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: e });
-    }
-    // 봇 감지 / 인증 요구 / 파일 없음 → youtube-transcript-api fallback
-    if (msg.includes("Sign in") || msg.includes("not a bot") || msg.includes("LOGIN_REQUIRED") || msg === "__YTDLP_NO_FILES__") {
-      try {
-        return await getTranscriptFallback(videoId, primaryLang);
-      } catch (fallbackErr) {
-        // fallback도 실패하면 자막 없음 메시지로 통일
-        throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: fallbackErr });
-      }
-    }
-    // 이미 한국어 메시지로 변환된 에러는 그대로
-    if (msg.startsWith("자막을") || msg.startsWith("유효한")) throw e;
-    // 기타 yt-dlp 에러 → 핵심만 추출
-    throw new Error(`YouTube 자막 추출 실패: ${msg.slice(0, 500)}`, { cause: e });
   } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    await rm(rootTmp, { recursive: true, force: true }).catch(() => {});
   }
 }
 
