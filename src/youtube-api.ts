@@ -81,6 +81,96 @@ export function parseJson3Subtitles(json3: string, lang: string): TranscriptSegm
 // 언어 폴백 순서: 요청 언어 → en → en-US → ja → zh-Hans → zh-Hant
 const FALLBACK_LANGS = ["en", "en-US", "en-GB", "ja", "zh-Hans", "zh-Hant", "zh-TW", "zh-CN"];
 
+/** youtube-transcript-api가 반환하는 항목 형식 */
+interface YtTranscriptEntry {
+  text: string;
+  start: number;   // seconds
+  duration: number; // seconds
+}
+
+/**
+ * python3 subprocess 실행 후 stdout 반환
+ * execFile 콜백을 직접 사용해 테스트 mock과 호환
+ * @internal visible for testing
+ */
+export function _runPython3(script: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      "python3", ["-c", script, ...args],
+      { timeout: 30_000 },
+      (err, stdout) => {
+        if (err) { reject(err); return; }
+        resolve(typeof stdout === "string" ? stdout : (stdout as Buffer).toString());
+      },
+    );
+  });
+}
+
+/**
+ * youtube-transcript-api Python 패키지로 자막 추출 (yt-dlp 봇 차단 시 fallback)
+ * pip install youtube-transcript-api 필요
+ */
+export async function getTranscriptFallback(
+  videoId: string,
+  primaryLang: string,
+): Promise<TranscriptResult> {
+  const langsToTry = [primaryLang, ...FALLBACK_LANGS.filter((l) => l !== primaryLang)];
+
+  const script = [
+    "import json, sys",
+    "from youtube_transcript_api import YouTubeTranscriptApi",
+    "langs = sys.argv[2:]",
+    "try:",
+    "    t = YouTubeTranscriptApi.get_transcript(sys.argv[1], languages=langs)",
+    "    print(json.dumps({'ok': True, 'data': t, 'lang': langs[0] if langs else 'unknown'}))",
+    "except Exception as e:",
+    "    print(json.dumps({'ok': False, 'error': str(e)}))",
+  ].join("\n");
+
+  let stdout: string;
+  try {
+    stdout = await _runPython3(script, [videoId, ...langsToTry]);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error("youtube-transcript-api가 설치되어 있지 않습니다. 'pip install youtube-transcript-api'로 설치해주세요.", { cause: e });
+    }
+    throw new Error(`youtube-transcript-api 실행 실패: ${msg.slice(0, 300)}`, { cause: e });
+  }
+
+  let parsed: { ok: boolean; data?: YtTranscriptEntry[]; lang?: string; error?: string };
+  try {
+    parsed = JSON.parse(stdout.trim());
+  } catch {
+    throw new Error("youtube-transcript-api 응답 파싱 실패");
+  }
+
+  if (!parsed.ok || !parsed.data) {
+    throw new Error(`자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다. (${parsed.error ?? "unknown"})`);
+  }
+
+  const segments: TranscriptSegment[] = parsed.data
+    .map((e) => ({
+      text: e.text.trim(),
+      offset: Math.round(e.start * 1000),
+      duration: Math.round(e.duration * 1000),
+      lang: parsed.lang ?? primaryLang,
+    }))
+    .filter((s) => s.text.length > 0);
+
+  if (segments.length === 0) {
+    throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
+  }
+
+  return {
+    videoId,
+    segments,
+    fullText: segments.map((s) => s.text).join(" "),
+    language: parsed.lang ?? primaryLang,
+    segmentCount: segments.length,
+  };
+}
+
 /**
  * YouTube 영상 자막 추출 (yt-dlp subprocess)
  * 요청 언어 자막이 없으면 FALLBACK_LANGS 순서로 시도
@@ -153,6 +243,10 @@ export async function getTranscript(
     // 자막 없는 영상에서 yt-dlp가 에러로 종료
     if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
       throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: e });
+    }
+    // 봇 감지 / 인증 요구 → youtube-transcript-api fallback
+    if (msg.includes("Sign in") || msg.includes("not a bot") || msg.includes("LOGIN_REQUIRED")) {
+      return getTranscriptFallback(videoId, primaryLang);
     }
     // 이미 한국어 메시지로 변환된 에러는 그대로
     if (msg.startsWith("자막을") || msg.startsWith("유효한")) throw e;

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps, cleanTranscriptText } from "./youtube-api.js";
 
 // ── extractVideoId (기존 로직, 변경 없음) ──
@@ -282,5 +282,95 @@ describe("getTranscript (yt-dlp)", () => {
     const result = await getTranscript("gc297hx4F7o", "ko");
     expect(result.language).toBe("en");
     expect(result.segments[0].text).toBe("English subtitle");
+  });
+
+  it("봇 감지 에러 시 youtube-transcript-api fallback 호출", async () => {
+    const mockFallbackJson = JSON.stringify({
+      ok: true,
+      lang: "ko",
+      data: [
+        { text: "fallback 자막", start: 1.5, duration: 2.0 },
+        { text: "두 번째 자막", start: 3.5, duration: 1.5 },
+      ],
+    });
+
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        // yt-dlp: 봇 감지 에러
+        const err = Object.assign(new Error("Sign in to confirm you're not a bot"), { code: "1" });
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
+      } else {
+        // python3: fallback 성공
+        (cb as (err: Error | null, stdout: string) => void)(null, mockFallbackJson);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+
+    const result = await getTranscript("gc297hx4F7o", "ko");
+    expect(result.language).toBe("ko");
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0].text).toBe("fallback 자막");
+    expect(result.segments[0].offset).toBe(1500);
+    expect(result.segments[0].duration).toBe(2000);
+    expect(result.segmentCount).toBe(2);
+  });
+});
+
+// ── getTranscriptFallback 단독 테스트 ──
+
+import { getTranscriptFallback } from "./youtube-api.js";
+
+describe("getTranscriptFallback (youtube-transcript-api)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("python3 성공 시 TranscriptResult 반환", async () => {
+    const mockOut = JSON.stringify({
+      ok: true,
+      lang: "ko",
+      data: [
+        { text: "안녕하세요", start: 0.0, duration: 1.5 },
+        { text: "반갑습니다", start: 2.0, duration: 2.0 },
+      ],
+    });
+
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      (cb as (err: Error | null, stdout: string) => void)(null, mockOut);
+      return {} as ReturnType<typeof execFile>;
+    });
+
+    const result = await getTranscriptFallback("abc123", "ko");
+    expect(result.videoId).toBe("abc123");
+    expect(result.language).toBe("ko");
+    expect(result.segments[0].offset).toBe(0);
+    expect(result.segments[1].offset).toBe(2000);
+    expect(result.segments[1].duration).toBe(2000);
+    expect(result.fullText).toBe("안녕하세요 반갑습니다");
+  });
+
+  it("python3 ok:false 시 에러 throw", async () => {
+    const mockOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      (cb as (err: Error | null, stdout: string) => void)(null, mockOut);
+      return {} as ReturnType<typeof execFile>;
+    });
+
+    await expect(getTranscriptFallback("abc123", "ko")).rejects.toThrow("자막을 찾을 수 없습니다");
+  });
+
+  it("python3 미설치 시 안내 메시지 에러", async () => {
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      const err = Object.assign(new Error("ENOENT: python3 not found"), { code: "ENOENT" });
+      (cb as (err: Error | null, stdout: string) => void)(err, "");
+      return {} as ReturnType<typeof execFile>;
+    });
+
+    await expect(getTranscriptFallback("abc123", "ko")).rejects.toThrow("youtube-transcript-api가 설치되어 있지 않습니다");
   });
 });
