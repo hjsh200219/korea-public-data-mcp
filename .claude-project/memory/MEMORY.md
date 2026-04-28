@@ -12,6 +12,8 @@
 - [claude-md-symlink-to-agents-md](claude-md-symlink-to-agents-md.md) — CLAUDE.md → AGENTS.md 심볼릭 링크 (SSOT는 AGENTS.md)
 - [dual-entrypoints-stdio-http](dual-entrypoints-stdio-http.md) — index.js (stdio) + remote.js (HTTP) 두 진입점이 도구 공유
 - [courtlistener-rest-api-v4-auth](courtlistener-rest-api-v4-auth.md) — 검색은 익명 OK, /opinions/{id}/ 는 토큰 401
+- [courtlistener-normalized-domain-types](courtlistener-normalized-domain-types.md) — 정규화 도메인 타입(camelCase) + cursor + HTML fallback chain. raw 패스스루 아님
+- [fetch-with-retry-429-test-timeout](fetch-with-retry-429-test-timeout.md) — 429 모킹 테스트는 백오프 7s 때문에 vitest 타임아웃 늘려야 함
 - [openlegaldata-de-anonymous-mit](openlegaldata-de-anonymous-mit.md) — 검색·상세 익명 OK, MIT, 활성 유지보수
 - [fetch-mock-convention-vi-stubglobal](fetch-mock-convention-vi-stubglobal.md) — vitest stubGlobal 표준, nock 금지
 - [express-5-req-params-string-array](express-5-req-params-string-array.md) — req.params는 string|string[], String() 캐스트 필수

@@ -1,105 +1,72 @@
 ---
-created: 2026-04-28T13:58:00+09:00
+created: 2026-04-29T07:58:00+09:00
 project: k-public-data-mcp
-summary: 해외 판례 (CourtListener+OpenLegalData) 통합 구현·배포·Live 검증 완료
+summary: C-2 hybrid — local 정교한 CourtListener 클라이언트를 upstream 배포 구조로 통합·배포 완료
 ---
 
 ## Session Digest
 
-해외 판례 통합 (CourtListener + OpenLegalData) RALPLAN→TDD→배포 완주. Planner/Architect/Critic 2-라운드 합의 후 Red→Green→Refactor로 7 user stories 구현, Live e2e 5/5 통과. Architect 사후 검증 APPROVED, Deslop로 미사용 심볼 제거, 26f839c 푸시 후 Railway 환경변수 3건 세팅·redeploy SUCCESS, 배포 환경 4 endpoints 정상 확인. offset 페이지네이션(`truncateWindow`)도 추가하여 8000자 윈도우 단위 후속 조회 지원.
+`git pull` 시 stash pop으로 7개 파일 충돌 발생. local stash와 upstream(이미 master에 머지·배포된 26f839c)이 같은 "해외 판례" 기능을 다른 아키텍처로 구현해 두었음:
+- Local: 디렉토리 기반(`foreign-cases/courtlistener.ts`), 정교한 클라이언트(396줄, HTML fallback chain), `foreign_precedents` 스킬, `/api/foreign-cases/*` 라우트, cursor 페이지네이션, 정규화 도메인 타입
+- Upstream(배포됨): flat(`courtlistener-api.ts`+`openlegaldata-api.ts`), 단순 클라이언트(85줄), `foreign_case_research` 스킬, `/api/courtlistener/*`+`/api/openlegaldata/*` 라우트, raw API 패스스루, page 페이지네이션, 2개 소스(US+DE)
+
+옵션 3개 제시(A 단순 채택, B 손머지, C 하이브리드) 중 사용자가 **C-2 (전면 교체)** 선택. Upstream 파일명·구조·OpenLegalData는 유지하면서 CourtListener 내부를 local의 정교한 구현으로 교체. 라우트/OpenAPI/스킬·테스트 전체 재작성. `foreign_precedents` 흔적(prompts.ts 26줄 등) 정리. 빌드 깨끗 + 752/757 테스트 통과 후 master 푸시 → Railway autodeploy SUCCESS.
 
 ## Progress
 
 ### 완료
-- [x] RALPLAN 합의 (Planner→Architect→Critic, 2 iterations: ITERATE→APPROVED)
-- [x] CourtListener (미국) API 클라이언트 + types + routes + OpenAPI paths
-- [x] OpenLegalData (독일) API 클라이언트 + types + routes + OpenAPI paths
-- [x] 통합 스킬 도구 `foreign_case_research` (4 actions, case_research와 분리)
-- [x] TDD: Red→Green→Refactor 7 user stories
-- [x] Live e2e 5/5 통과 (`RUN_LIVE_TESTS=1`)
-- [x] offset 페이지네이션 (`truncateWindow` shared util)
-- [x] Architect 사후 검증 APPROVED
-- [x] Deslop pass — 미사용 `listUSCourts` / `USCourtListResult` / `USCourtSummary` 제거
-- [x] AGENTS.md 동기화
-- [x] 커밋 26f839c → master 푸시
-- [x] Railway 환경변수 3건 추가 (`COURTLISTENER_API_TOKEN`, `OPENLEGALDATA_API_TOKEN`, `FOREIGN_CASE_ENABLED=true`)
-- [x] Railway redeploy SUCCESS
-- [x] 배포 환경 4 endpoints 검증 정상
-
-### 미완료 (선택)
-- [ ] EU 사법재판소 / 영국 / 일본 판례 추가
-- [ ] 헌재요약(Leitsatz/headnote) 자동 추출
-- [ ] 응답 캐시 레이어
-- [ ] per-source throttle 격리 (v2)
-- [ ] 분기별 OpenLegalData 헬스체크 런북
-- [ ] `X-RateLimit-Remaining` 헤더 노출
-- [ ] MCP Prompt 워크플로 가이드 (해외 판례 시나리오)
-- [ ] 한국↔해외 판례 인용 상호참조
+- [x] 7개 충돌 파일 손머지 (CLAUDE/AGENTS, api-routes, openapi, config, config.test, shared.test, skills/index)
+- [x] `courtlistener-api.ts` 교체 (`createCourtListenerClient` + getCluster/listCourts/HTML fallback chain)
+- [x] `courtlistener-types.ts` 교체 (정규화 도메인 + cursor 페이지네이션)
+- [x] `routes/courtlistener-routes.ts` 재작성 (q= 컨벤션, /clusters, /courts 추가)
+- [x] `openapi/courtlistener-paths.ts` 재작성 (cursor + jurisdiction/precedential_status enum + 신규 엔드포인트)
+- [x] `tools/skills/foreign-case-research.ts` US 핸들러 새 client 재작성, DE 핸들러 보존
+- [x] 테스트 전체 재작성 (`courtlistener-api.test.ts` 21개, `foreign-case-research.test.ts`, `foreign-case-routes.e2e.test.ts`)
+- [x] `prompts.ts` 해외판례 워크플로 도구명 갱신 (foreign_precedents → foreign_case_research)
+- [x] 문서 동기화 (CLAUDE/AGENTS/ARCHITECTURE/README)
+- [x] 6개 untracked 파일 삭제 (foreign-cases/, foreign-cases-types.ts, foreign-cases-paths.ts, foreign-cases-routes.ts, foreign-precedents.ts(+test))
+- [x] 빌드 + 752 테스트 통과
+- [x] Stash drop
+- [x] master 푸시 (55ccdaa) → Railway 배포 SUCCESS
 
 ## Next Steps
 
-1. MCP Prompt 워크플로 가이드 추가 — 기존 5 prompts 패턴 따라 해외 판례 시나리오 1건 신설 (`src/tools/skills/prompts.ts`).
-2. 응답 캐시 레이어 — CourtListener/OpenLegalData 검색 응답 단기 메모리 캐시(쿼리+offset 키, TTL 5–10분)로 rate-limit 부담 완화.
-3. per-source throttle 격리 — 현재 공통 throttle을 source별 큐로 분리해 한쪽 장애가 다른쪽 지연 유발하지 않도록.
-4. `X-RateLimit-Remaining` 노출 — 클라이언트 백오프 의사결정 지원.
-5. 한국↔해외 판례 인용 상호참조 — case_research 결과에서 인용 패턴 추출 후 foreign_case_research로 연결.
-6. EU/UK/JP 판례 소스 추가 — 우선순위는 사용자 수요 확인 후 결정.
-7. 분기별 OpenLegalData 헬스체크 런북 작성.
-8. Leitsatz/headnote 자동 추출 (OpenLegalData 응답 후처리).
+1. **(우선순위 낮음) 외부 OpenAPI 소비자 파악** — REST 응답 shape이 `{count, results}` → `{items, totalCount, nextCursor}`로 breaking 변경. 사용자는 GPT Actions 미사용 의사 표명, MCP 클라이언트(Claude/Cursor)는 자동 재인식이라 영향 없음.
+2. **(고려)** `getCluster`/`listCourts` 메서드는 현재 REST + 클라이언트에만 노출. MCP 스킬에 액션 추가하려면 `foreign_case_research`에 `get_us_cluster_detail`/`list_us_courts` 추가 검토.
+3. **(고려)** SERVER_VERSION 6.0.0 → 6.1.0 (정규화 도메인 + 신규 엔드포인트 추가, 동시 breaking) 또는 7.0.0 (breaking semver) 버전 표기.
 
 ## Blockers
-없음.
+
+- 없음. 배포 완료 + 외부 영향 없음 확인.
 
 ## Watch Out
 
-- **Railway 환경변수**: `FOREIGN_CASE_ENABLED=true` 누락 시 도구가 비활성화되어 404 발생. 신규 deploy/롤백 시 변수 보존 확인 필수.
-- **Rate Limits**: CourtListener 인증 시 시간당 5,000건, OpenLegalData 비공식. 캐시 레이어 도입 전까지는 라이브 테스트 시 `RUN_LIVE_TESTS=1` 가드 유지.
-- **Live e2e 비결정성**: 외부 API 응답 변동성 — `foreign-case.live.e2e.test.ts`는 RUN_LIVE_TESTS 가드 안에서만 실행되도록 유지. CI 기본 파이프라인 추가 금지.
-- **truncateWindow 적용 범위**: 신규 응답 처리 시 8000자 truncation + offset 페이지네이션 일관성 유지. 다른 도메인 도입 시 동일 패턴 사용.
-- **Deslop 재발 방지**: foreign_case_research 분리 시 case_research에 leftover 심볼 없는지 다음 세션 시작 시 확인.
-- **TDD 필수**: 후속 작업(캐시/스로틀/프롬프트 가이드)도 Red→Green→Refactor 준수.
-- **마스터 직접 푸시 + Railway 자동 배포** 컨벤션 유지 (memory 참고).
+- **REST `/api/courtlistener/search` 응답 shape 변경됨**. 외부에서 직접 `body.count` / `body.results` 접근하는 스크립트는 깨짐. MCP 경유 호출은 영향 없음.
+- `fetchWithRetry`가 429를 재시도하므로 (1+2+4=7s) 429 검증 테스트는 vitest 기본 5s 타임아웃 초과 → `it("...", ..., 15000)`로 늘려야 함.
+- `CLAUDE.md`는 `AGENTS.md` 심볼릭 링크 — 충돌 해소 시 AGENTS.md만 수정하면 둘 다 반영됨.
+- pre-commit hook이 lint-staged + vitest를 자동 실행. 큰 변경 커밋 시 시간 소요.
 
 ## Files Touched
 
-이번 세션 주요 파일 (24개, `git diff --stat HEAD~2..HEAD` 기준):
-
-**신규 — 해외 판례 코어**
-- src/courtlistener-api.ts
-- src/courtlistener-api.test.ts
-- src/courtlistener-types.ts
-- src/openlegaldata-api.ts
-- src/openlegaldata-api.test.ts
-- src/openlegaldata-types.ts
-- src/routes/courtlistener-routes.ts
-- src/routes/openlegaldata-routes.ts
-- src/openapi/courtlistener-paths.ts
-- src/openapi/openlegaldata-paths.ts
-
-**신규 — 통합 스킬 + 테스트**
-- src/tools/skills/foreign-case-research.ts
-- src/tools/skills/foreign-case-research.test.ts
-- src/__tests__/foreign-case-routes.e2e.test.ts
-- src/__tests__/foreign-case.live.e2e.test.ts
-
-**수정 — 통합 지점**
-- src/api-routes.ts
-- src/openapi.ts
-- src/openapi.test.ts (신규)
-- src/remote.ts
-- src/config.ts
-- src/config.test.ts
-- src/shared.ts (truncateWindow 추가)
-- src/shared.test.ts
-- src/tools/skills/case-research.ts (cross-reference)
-- src/tools/skills/index.ts (env-gated registration)
-
-**문서/메모리**
-- AGENTS.md (CLAUDE.md → AGENTS.md 심볼릭)
-- .claude-project/HANDOFF.md (이 파일)
-- .claude-project/memory/MEMORY.md
-- .claude-project/memory/courtlistener-rest-api-v4-auth.md (신규)
-- .claude-project/memory/openlegaldata-de-anonymous-mit.md (신규)
-- .claude-project/memory/fetch-mock-convention-vi-stubglobal.md (신규)
-- .claude-project/memory/express-5-req-params-string-array.md (신규)
-- .claude-project/memory/railway-cli-variables-redeploy-flow.md (신규)
+```
+AGENTS.md
+ARCHITECTURE.md
+README.md
+src/__tests__/foreign-case-routes.e2e.test.ts
+src/__tests__/mcp-server.e2e.test.ts
+src/config.test.ts
+src/config.ts (충돌 해소)
+src/api-routes.ts (충돌 해소)
+src/openapi.ts (충돌 해소)
+src/shared.test.ts
+src/courtlistener-api.ts        ← 핵심 교체
+src/courtlistener-api.test.ts   ← 전체 재작성
+src/courtlistener-types.ts      ← 핵심 교체
+src/openapi/courtlistener-paths.ts ← 재작성
+src/routes/courtlistener-routes.ts ← 재작성
+src/tools/skills/foreign-case-research.ts     ← US 핸들러 재작성
+src/tools/skills/foreign-case-research.test.ts ← 재작성
+src/tools/skills/index.ts (충돌 해소)
+src/tools/skills/prompts.ts (도구명 갱신)
+삭제: src/foreign-cases/, foreign-cases-types.ts, foreign-cases-paths.ts, foreign-cases-routes.ts, foreign-precedents.ts(+test)
+```
