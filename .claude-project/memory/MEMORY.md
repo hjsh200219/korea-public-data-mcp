@@ -6,7 +6,12 @@
 - [railway-youtube-429-transient](railway-youtube-429-transient.md) — Railway IP 429는 일시적, 5–10분 대기가 1차 대응
 - [railway-cli-scale-syntax](railway-cli-scale-syntax.md) — railway scale --{region-id} 형식 (service 키워드 없이)
 - [railway-env-var-32kb-limit](railway-env-var-32kb-limit.md) — 환경변수당 하드 리밋 32,768바이트
+- [railway-cli-variables-redeploy-flow](railway-cli-variables-redeploy-flow.md) — --skip-deploys로 env set + 명시적 redeploy 분리
 - [master-direct-push-railway-autodeploy](master-direct-push-railway-autodeploy.md) — PR 없이 master 직접 push → Railway 자동 배포
 - [claude-desktop-stdio-mcp-path](claude-desktop-stdio-mcp-path.md) — stdio MCP는 절대경로 + 완전 PATH 필수
 - [claude-md-symlink-to-agents-md](claude-md-symlink-to-agents-md.md) — CLAUDE.md → AGENTS.md 심볼릭 링크 (SSOT는 AGENTS.md)
 - [dual-entrypoints-stdio-http](dual-entrypoints-stdio-http.md) — index.js (stdio) + remote.js (HTTP) 두 진입점이 도구 공유
+- [courtlistener-rest-api-v4-auth](courtlistener-rest-api-v4-auth.md) — 검색은 익명 OK, /opinions/{id}/ 는 토큰 401
+- [openlegaldata-de-anonymous-mit](openlegaldata-de-anonymous-mit.md) — 검색·상세 익명 OK, MIT, 활성 유지보수
+- [fetch-mock-convention-vi-stubglobal](fetch-mock-convention-vi-stubglobal.md) — vitest stubGlobal 표준, nock 금지
+- [express-5-req-params-string-array](express-5-req-params-string-array.md) — req.params는 string|string[], String() 캐스트 필수

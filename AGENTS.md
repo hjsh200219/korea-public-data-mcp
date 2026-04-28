@@ -31,7 +31,7 @@ src/
   api-routes.ts       # REST 라우트 오케스트레이터 (47 lines)
   openapi.ts          # OpenAPI 스펙 오케스트레이터 (47 lines)
   http-client.ts      # 공통 HTTP fetch/retry/throttle (128 lines)
-  shared.ts           # Shared utilities - truncate, errorResponse (18 lines)
+  shared.ts           # Shared utilities - truncate, truncateWindow (offset 페이지네이션), errorResponse
   kst-date.ts         # KST 날짜 유틸리티 (41 lines)
   logger.ts           # 구조화 로깅 모듈 (35 lines)
   law-api.ts          # 법제처 API re-export barrel (7 lines)
@@ -61,10 +61,10 @@ src/
   g2b-types.ts        # 조달청 G2B TypeScript interfaces (85 lines)
   youtube-api.ts      # YouTube Data API v3 + yt-dlp 자막 추출 (495 lines)
   youtube-types.ts    # YouTube TypeScript interfaces (69 lines)
-  courtlistener-api.ts    # CourtListener REST v4 (미국 판례) — search/detail
-  courtlistener-types.ts  # CourtListener TypeScript interfaces
-  openlegaldata-api.ts    # OpenLegalData (독일 판례) — search/detail
-  openlegaldata-types.ts  # OpenLegalData TypeScript interfaces
+  courtlistener-api.ts    # CourtListener REST v4 (미국 판례) — search/detail (~85 lines)
+  courtlistener-types.ts  # CourtListener TypeScript interfaces (~80 lines)
+  openlegaldata-api.ts    # OpenLegalData (독일 판례) — search/detail (~75 lines)
+  openlegaldata-types.ts  # OpenLegalData TypeScript interfaces (~55 lines)
   routes/             # 도메인별 REST 라우트 (10 domain + helpers)
   openapi/            # 도메인별 OpenAPI path 생성기 (10 path modules + shared)
   tools/
@@ -86,7 +86,7 @@ src/
       insurance.ts           # 보험상품 공시 (9 actions, 689 lines, 금융위원회)
       procurement.ts         # 조달청 나라장터 입찰/낙찰 (2 actions, 157 lines)
       youtube.ts             # YouTube 자막/메타데이터/검색/댓글 (5 actions, 223 lines)
-      foreign-case-research.ts # 해외 판례 (4 actions, US CourtListener + DE OpenLegalData)
+      foreign-case-research.ts # 해외 판례 (4 actions, ~450 lines, US CourtListener + DE OpenLegalData, offset 페이지네이션)
 ```
 
 ## Layer Rules
@@ -103,13 +103,15 @@ Protocol (server.ts → tools/skills/index.ts)
     Data Access (law-api.ts, dart-api.ts, data20-api.ts,
                  unipass-api.ts, exim-api.ts, mafra-api.ts,
                  finlife-api.ts, insurance-api.ts,
-                 g2b-api.ts, youtube-api.ts)
+                 g2b-api.ts, youtube-api.ts,
+                 courtlistener-api.ts, openlegaldata-api.ts)
                 |
     Shared (shared.ts, tools/skills/_shared.ts)
     +  Types (law-types.ts, dart-types.ts, data20-types.ts,
              unipass-types.ts, exim-types.ts, mafra-types.ts,
              finlife-types.ts, insurance-types.ts,
-             g2b-types.ts, youtube-types.ts)
+             g2b-types.ts, youtube-types.ts,
+             courtlistener-types.ts, openlegaldata-types.ts)
 ```
 
 - Dependencies flow downward only
@@ -163,7 +165,7 @@ Protocol (server.ts → tools/skills/index.ts)
 - REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`, `/api/courtlistener/*`, `/api/openlegaldata/*`)
 - Error responses: `isError: true` with Korean messages
 - Domain-specific types in `{domain}-types.ts`, API clients in `{domain}-api.ts`
-- Content truncated at 8000 chars for MCP responses
+- Content truncated at 8000 chars for MCP responses (큰 본문은 `truncateWindow()`로 offset 기반 페이지네이션)
 
 
 ## TDD 필수
