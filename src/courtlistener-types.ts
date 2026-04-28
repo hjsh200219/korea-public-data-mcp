@@ -1,80 +1,120 @@
 /**
- * CourtListener REST API v4 타입 정의
+ * CourtListener REST API v4 — 정규화 도메인 타입
  * https://www.courtlistener.com/api/rest/v4/
  *
- * Phase 0 검증된 응답 스키마 기반.
+ * 정규화 원칙:
+ * - camelCase 필드 (원본 응답의 snake_case/camelCase 혼재를 통일)
+ * - cursor 페이지네이션 (v4 native — page 모델 미사용)
+ * - List item 과 Detail 을 별개 인터페이스로 분리 (의미가 다른 필드 혼동 방지)
  */
 
-/** /search/?type=o 의 results 항목 */
-export interface USCaseSearchItem {
-  /** 클러스터 ID — opinions[].id와 별개 */
-  cluster_id: number;
-  caseName: string;
-  caseNameFull?: string;
-  citation?: string[];
-  citeCount?: number;
-  /** 법원 표시 이름 (예: "Supreme Court of the United States") */
-  court: string;
-  /** 법원 슬러그 (예: "scotus", "ca1") */
-  court_id: string;
-  court_citation_string?: string;
-  court_jurisdiction?: string | null;
-  dateFiled?: string;
-  dateArgued?: string | null;
-  docketNumber?: string;
-  docket_id?: number;
-  judge?: string;
-  absolute_url?: string;
-  /** 의견(opinion) 배열 — 각 의견에 PDF/스니펫 포함 */
-  opinions?: USCaseSearchOpinion[];
-}
+export const JURISDICTION_VALUES = [
+  "us-federal",
+  "us-state",
+  "us-scotus",
+] as const;
 
-export interface USCaseSearchOpinion {
-  id: number;
-  author_id?: number | null;
-  download_url?: string;
-  local_path?: string;
-  per_curiam?: boolean;
-  snippet?: string;
-  sha1?: string;
-}
+export const PRECEDENTIAL_STATUS_VALUES = [
+  "Published",
+  "Unpublished",
+  "Errata",
+  "Separate",
+  "In-chambers",
+  "Relating-to",
+  "Unknown",
+] as const;
 
-export interface USCaseSearchResult {
-  count: number;
-  next?: string | null;
-  previous?: string | null;
-  results: USCaseSearchItem[];
-}
+export type Jurisdiction = (typeof JURISDICTION_VALUES)[number];
+export type PrecedentialStatus = (typeof PRECEDENTIAL_STATUS_VALUES)[number];
 
-/** /opinions/{id}/ 응답 */
-export interface USCaseDetail {
-  id: number;
-  resource_uri?: string;
-  cluster_id?: number;
-  cluster?: string;
-  author_id?: number | null;
-  per_curiam?: boolean;
-  type?: string;
-  /** 본문 (HTML/일반/Lawbox 변형 중 하나가 채워짐) */
-  plain_text?: string;
-  html?: string;
-  html_lawbox?: string;
-  html_columbia?: string;
-  download_url?: string;
-  local_path?: string;
-  date_created?: string;
-  date_modified?: string;
-  sha1?: string;
-}
-
-/** searchUSCases 파라미터 */
-export interface SearchUSCasesParams {
+export interface OpinionSearchParams {
   query: string;
-  page?: number;
-  pageSize?: number;
-  /** 법원 슬러그 (예: "scotus", "ca1") */
-  court?: string;
-  /** YYYY-MM-DD */
-  dateFiledAfter?: string;
-  dateFiledBefore?: string;
+  cursor?: string;
+  pageSize?: number; // CourtListener 최대 100
+  jurisdiction?: Jurisdiction;
+  court?: string; // CourtListener 법원 slug (예: "scotus", "ca9")
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?: string;
+  precedentialStatus?: PrecedentialStatus;
+}
+
+export interface OpinionListItem {
+  id: number; // opinion id
+  clusterId: number;
+  caseName: string;
+  citation: string | null;
+  decisionDate: string | null;
+  court: string;
+  courtSlug: string;
+  jurisdiction: string;
+  precedentialStatus: string;
+  snippet: string | null;
+  absoluteUrl: string;
+  citationCount: number | null;
+}
+
+/**
+ * Opinion 상세 — list item 과 별개의 fresh 인터페이스.
+ * (extends 하지 않는다: list 에서 의미 있던 snippet/citationCount 등은 detail 에서 미사용.)
+ */
+export interface OpinionDetail {
+  id: number;
+  clusterId: number;
+  caseName: string;
+  citation: string | null;
+  decisionDate: string | null;
+  court: string;
+  courtSlug: string;
+  precedentialStatus: string;
+  absoluteUrl: string;
+  judges: string | null;
+  plainText: string;
+  citedOpinions: number[];
+}
+
+export interface ClusterDetail {
+  id: number;
+  caseName: string;
+  caseNameShort: string | null;
+  decisionDate: string | null;
+  court: string;
+  courtSlug: string;
+  citations: string[];
+  precedentialStatus: string;
+  judges: string | null;
+  subOpinions: { id: number; type: string; absoluteUrl: string }[];
+  absoluteUrl: string;
+}
+
+export interface CourtListItem {
+  id: string; // court slug
+  fullName: string;
+  shortName: string;
+  jurisdiction: string;
+}
+
+/**
+ * Cursor 페이지네이션 응답 — page 필드 없음.
+ * CourtListener v4 is cursor-native; page-based mapping would require client-side state.
+ * totalCount? is optional because cursor responses don't always include it.
+ */
+export interface SearchOpinionsResult {
+  items: OpinionListItem[];
+  nextCursor?: string;
+  totalCount?: number;
+}
+
+/**
+ * getOpinion 옵션. includeCluster=false (기본) 면 cluster 메타데이터를
+ * 추가 fetch하지 않고 본문만 빠르게 반환 → MCP plain_text-only 호출에서 N+1 방지.
+ */
+export interface GetOpinionOptions {
+  includeCluster?: boolean;
+}
+
+export interface CourtListenerClient {
+  searchOpinions(params: OpinionSearchParams): Promise<SearchOpinionsResult>;
+  getOpinion(opinionId: number, options?: GetOpinionOptions): Promise<OpinionDetail>;
+  getCluster(clusterId: number): Promise<ClusterDetail>;
+  listCourts(jurisdiction?: string): Promise<CourtListItem[]>;
 }

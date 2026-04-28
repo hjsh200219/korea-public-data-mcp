@@ -132,4 +132,30 @@ export function registerSkillPrompts(server: McpServer): void {
       }],
     }),
   );
+
+  server.prompt(
+    "해외판례_비교법_워크플로",
+    "한국 판례를 기반으로 미국(CourtListener) 해외 판례를 비교법 참조하는 가이드",
+    { keyword: z.string().describe("쟁점 키워드 (예: '표현의 자유', '평등권', '데이터 보호')") },
+    async ({ keyword }) => ({
+      messages: [{
+        role: "user",
+        content: {
+          type: "text",
+          text: [
+            `"${keyword}" 비교법 리서치 절차 (한국 ↔ 미국):`,
+            "",
+            "1. case_research(action: \"search_cases\", query: \"${keyword}\") → 한국 판례 검색",
+            "2. case_research(action: \"get_case_detail\", case_id) → 한국 판례 본문에서 핵심 쟁점·영문 키워드 추출",
+            "3. foreign_case_research(action: \"search_us_cases\", query: \"<영문 키워드>\", jurisdiction: \"us-scotus\") → 미국 연방대법원 판례 검색 (cursor 페이지네이션)",
+            "4. foreign_case_research(action: \"get_us_case_detail\", opinion_id) → 미국 판례 본문 (truncate 적용; offset 으로 후속 윈도우 조회)",
+            "5. 한국 판결요지 + 미국 holding 을 인용 표기와 함께 비교 정리",
+            "",
+            "주의: 해외 판례는 비교법 참조용입니다. 법적 효력은 한국 판례에 따릅니다.",
+            "독일 판례(OpenLegalData)도 비교법 참조 가능: foreign_case_research(action: \"search_de_cases\", query: \"<독일어 키워드>\").",
+          ].join("\n"),
+        },
+      }],
+    }),
+  );
 }

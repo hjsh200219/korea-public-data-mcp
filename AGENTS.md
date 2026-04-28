@@ -1,5 +1,5 @@
 ---
-description: K Public Data MCP 프로젝트 규칙 - 한국 공공데이터 MCP 서버
+description: K Public Data MCP 프로젝트 규칙 - 한국 공공데이터 MCP 서버 (해외 판례 보조 포함)
 globs:
 alwaysApply: true
 ---
@@ -61,8 +61,8 @@ src/
   g2b-types.ts        # 조달청 G2B TypeScript interfaces (85 lines)
   youtube-api.ts      # YouTube Data API v3 + yt-dlp 자막 추출 (495 lines)
   youtube-types.ts    # YouTube TypeScript interfaces (69 lines)
-  courtlistener-api.ts    # CourtListener REST v4 (미국 판례) — search/detail (~85 lines)
-  courtlistener-types.ts  # CourtListener TypeScript interfaces (~80 lines)
+  courtlistener-api.ts    # CourtListener REST v4 (미국 판례) — search/getOpinion/getCluster/listCourts, cursor 페이지네이션 (~400 lines)
+  courtlistener-types.ts  # CourtListener 정규화 도메인 타입 (OpinionListItem/OpinionDetail/ClusterDetail/CourtListItem)
   openlegaldata-api.ts    # OpenLegalData (독일 판례) — search/detail (~75 lines)
   openlegaldata-types.ts  # OpenLegalData TypeScript interfaces (~55 lines)
   routes/             # 도메인별 REST 라우트 (10 domain + helpers)
@@ -86,7 +86,7 @@ src/
       insurance.ts           # 보험상품 공시 (9 actions, 689 lines, 금융위원회)
       procurement.ts         # 조달청 나라장터 입찰/낙찰 (2 actions, 157 lines)
       youtube.ts             # YouTube 자막/메타데이터/검색/댓글 (5 actions, 223 lines)
-      foreign-case-research.ts # 해외 판례 (4 actions, ~450 lines, US CourtListener + DE OpenLegalData, offset 페이지네이션)
+      foreign-case-research.ts # 해외 판례 (4 actions, US CourtListener cursor 페이지네이션 + DE OpenLegalData page 페이지네이션)
 ```
 
 ## Layer Rules
@@ -160,8 +160,8 @@ Protocol (server.ts → tools/skills/index.ts)
 ## Conventions
 
 - Korean comments for domain-specific logic
-- MCP 스킬 도구: 15개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택
-- MCP Prompts: 5개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관)
+- MCP 스킬 도구: 15개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택 (해외 판례 `foreign_case_research` 포함)
+- MCP Prompts: 6개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관, 해외판례 비교법)
 - REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`, `/api/courtlistener/*`, `/api/openlegaldata/*`)
 - Error responses: `isError: true` with Korean messages
 - Domain-specific types in `{domain}-types.ts`, API clients in `{domain}-api.ts`

@@ -17,6 +17,8 @@ const FULL_CONFIG: ServerConfig = {
   eximApiKey: "test-exim",
   mafraApiKey: "test-mafra",
   finlifeApiKey: "test-finlife",
+  courtlistenerApiToken: "test-cl",
+  foreignCaseEnabled: true,
 };
 
 const MINIMAL_CONFIG: ServerConfig = {
@@ -47,7 +49,7 @@ describe("MCP 서버 E2E", () => {
     vi.restoreAllMocks();
   });
 
-  it("풀_설정_14개스킬+5개프롬프트_등록확인", async () => {
+  it("풀_설정_15개스킬+6개프롬프트_등록확인", async () => {
     const { client } = await createConnectedClient(FULL_CONFIG);
     const { tools } = await client.listTools();
     const toolNames = tools.map((t) => t.name).sort();
@@ -66,13 +68,15 @@ describe("MCP 서버 E2E", () => {
     expect(toolNames).toContain("insurance");
     expect(toolNames).toContain("procurement");
     expect(toolNames).toContain("youtube");
-    expect(toolNames).toHaveLength(14);
+    expect(toolNames).toContain("foreign_case_research");
+    expect(toolNames).toHaveLength(15);
 
     const { prompts } = await client.listPrompts();
-    expect(prompts.length).toBe(5);
+    expect(prompts.length).toBe(6);
+    expect(prompts.map((p) => p.name)).toContain("해외판례_비교법_워크플로");
   });
 
-  it("최소_설정_법제처3개+기업공시1개+YouTube1개_등록", async () => {
+  it("최소_설정_법제처3개+기업공시1개+YouTube1개_등록 (foreign 미등록)", async () => {
     const { client } = await createConnectedClient(MINIMAL_CONFIG);
     const { tools } = await client.listTools();
     const toolNames = tools.map((t) => t.name).sort();
@@ -82,6 +86,8 @@ describe("MCP 서버 E2E", () => {
     expect(toolNames).toContain("law_amendment");
     expect(toolNames).toContain("corporate_disclosure");
     expect(toolNames).toContain("youtube");
+    // 토큰/플래그 모두 미설정이면 foreign_case_research 미등록
+    expect(toolNames).not.toContain("foreign_case_research");
     expect(toolNames).toHaveLength(5);
   });
 

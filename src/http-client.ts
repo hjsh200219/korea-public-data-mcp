@@ -71,6 +71,34 @@ function sleep(ms: number): Promise<void> {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
+/**
+ * Retry-After 헤더(RFC 7231) 파싱 — delta-seconds 또는 HTTP-date 형식.
+ * - 숫자 (초) → ms 환산
+ * - HTTP-date → 현재 시각과 차이 ms
+ * - 파싱 불가 → null
+ */
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+
+  // delta-seconds (정수)
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10) * 1000;
+  }
+
+  // HTTP-date
+  const dateMs = Date.parse(trimmed);
+  if (!Number.isNaN(dateMs)) {
+    const diff = dateMs - Date.now();
+    return diff >= 0 ? diff : 0;
+  }
+
+  return null;
+}
+
+const RETRY_AFTER_MAX_MS = 60_000;
+
 // ---------------------------------------------------------------------------
 // fetchWithRetry
 // ---------------------------------------------------------------------------
@@ -102,7 +130,23 @@ export async function fetchWithRetry(
       });
 
       if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < maxRetries) {
-        const delay = retryDelay(baseDelay, attempt);
+        const backoff = retryDelay(baseDelay, attempt);
+
+        // RFC 7231: Retry-After is a minimum wait the server requests.
+        // Honor it (max), don't undercut (min). Upper bound applied via
+        // the 60000ms clamp on headerValue.
+        const headerRaw = response.headers.get("Retry-After");
+        const headerParsed = parseRetryAfter(headerRaw);
+        let delay = backoff;
+        if (headerRaw !== null && headerParsed === null) {
+          console.error(
+            `Retry-After 헤더 파싱 실패 — exponential backoff fallback (value: "${headerRaw}")`,
+          );
+        } else if (headerParsed !== null) {
+          const clampedHeader = Math.max(0, Math.min(headerParsed, RETRY_AFTER_MAX_MS));
+          delay = Math.max(clampedHeader, backoff);
+        }
+
         console.error(
           `HTTP ${response.status} — ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`,
         );

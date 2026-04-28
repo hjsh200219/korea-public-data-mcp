@@ -238,3 +238,124 @@ describe("fetchWithRetry 기본값", () => {
     expect(res.status).toBe(200);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Retry-After 헤더 (RFC 7231) — delta-seconds + HTTP-date
+// ---------------------------------------------------------------------------
+
+describe("fetchWithRetry Retry-After 헤더", () => {
+  it("Retry-After헤더_지정시간이상대기후재시도", async () => {
+    vi.useRealTimers();
+    resetThrottleState();
+
+    const timestamps: number[] = [];
+    let call = 0;
+    mockFetch(async () => {
+      timestamps.push(Date.now());
+      call++;
+      if (call === 1) {
+        return new Response(null, {
+          status: 429,
+          headers: { "Retry-After": "1" },
+        });
+      }
+      return okResponse();
+    });
+
+    const res = await fetchWithRetry("https://example.com", {
+      maxRetries: 1,
+      retryDelayMs: 50, // exponential backoff은 더 짧음
+    });
+
+    expect(res.status).toBe(200);
+    expect(call).toBe(2);
+    const gap = timestamps[1] - timestamps[0];
+    // Retry-After: 1 (1000ms) > backoff(50ms) → max로 ≥1000ms 대기
+    expect(gap).toBeGreaterThanOrEqual(900);
+  });
+
+  it("Retry-After없으면_지수백오프fallback", async () => {
+    vi.useRealTimers();
+    resetThrottleState();
+
+    const timestamps: number[] = [];
+    let call = 0;
+    mockFetch(async () => {
+      timestamps.push(Date.now());
+      call++;
+      if (call === 1) return statusResponse(429); // Retry-After 헤더 없음
+      return okResponse();
+    });
+
+    const res = await fetchWithRetry("https://example.com", {
+      maxRetries: 1,
+      retryDelayMs: 100,
+    });
+
+    expect(res.status).toBe(200);
+    const gap = timestamps[1] - timestamps[0];
+    // 헤더 없음 → backoff(100ms) 그대로 대기, 5초 같은 큰 값 아님
+    expect(gap).toBeGreaterThanOrEqual(80);
+    expect(gap).toBeLessThan(500);
+  });
+
+  it("Retry-After_HTTPdate형식_파싱및대기", async () => {
+    vi.useRealTimers();
+    resetThrottleState();
+
+    const timestamps: number[] = [];
+    let call = 0;
+    mockFetch(async () => {
+      timestamps.push(Date.now());
+      call++;
+      if (call === 1) {
+        // 2초 후 시각을 HTTP-date 형식으로 (RFC 1123).
+        // toUTCString은 ms를 잘라내므로 1초 차이는 0~999ms 손실 가능 → 2초 사용.
+        const future = new Date(Date.now() + 2000).toUTCString();
+        return new Response(null, {
+          status: 503,
+          headers: { "Retry-After": future },
+        });
+      }
+      return okResponse();
+    });
+
+    const res = await fetchWithRetry("https://example.com", {
+      maxRetries: 1,
+      retryDelayMs: 50,
+    });
+
+    expect(res.status).toBe(200);
+    const gap = timestamps[1] - timestamps[0];
+    expect(gap).toBeGreaterThanOrEqual(900);
+  });
+
+  it("Retry-After_파싱불가시_console.error_후_backoff", async () => {
+    vi.useRealTimers();
+    resetThrottleState();
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    let call = 0;
+    mockFetch(async () => {
+      call++;
+      if (call === 1) {
+        return new Response(null, {
+          status: 429,
+          headers: { "Retry-After": "garbage-value" },
+        });
+      }
+      return okResponse();
+    });
+
+    const res = await fetchWithRetry("https://example.com", {
+      maxRetries: 1,
+      retryDelayMs: 50,
+    });
+
+    expect(res.status).toBe(200);
+    const errorMessages = errorSpy.mock.calls.map((c) => String(c[0]));
+    expect(errorMessages.some((m) => m.includes("Retry-After 헤더 파싱 실패"))).toBe(true);
+    errorSpy.mockRestore();
+  });
+});

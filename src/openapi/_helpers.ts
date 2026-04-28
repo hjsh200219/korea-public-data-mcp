@@ -62,6 +62,7 @@ export type ApiPathSpec = {
   parameters?: OpenApiParam[];
   responses: OpenApiResponse;
   requestBody?: Record<string, unknown>;
+  tags?: string[];
 };
 
 /**
@@ -81,6 +82,9 @@ export function apiPath(spec: ApiPathSpec): OpenApiPaths {
   }
   if (spec.requestBody !== undefined) {
     operation.requestBody = spec.requestBody;
+  }
+  if (spec.tags !== undefined) {
+    operation.tags = spec.tags;
   }
   operation.responses = spec.responses;
   return { [spec.path]: { [method]: operation } };

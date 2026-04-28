@@ -57,6 +57,7 @@ describe("loadConfig", () => {
     process.env.EXCHANGE_RATE_API_KEY = "EX";
     process.env.MAFRA_API_KEY = "M1";
     process.env.FINLIFE_API_KEY = "F1";
+    process.env.COURTLISTENER_API_TOKEN = "CL_TOKEN";
     process.env.UNIPASS_KEY_API001 = "U1";
     process.env.UNIPASS_KEY_API002 = "U2";
 
@@ -90,6 +91,39 @@ describe("loadConfig", () => {
 
     const cfg = loadConfig();
     expect(cfg.foreignCaseEnabled).toBeUndefined();
+  });
+
+  it("해외판례_3변수_모두미설정시_비활성화경고1회", () => {
+    process.env.LAW_API_OC = "L";
+    delete process.env.COURTLISTENER_API_TOKEN;
+    delete process.env.OPENLEGALDATA_API_TOKEN;
+    delete process.env.FOREIGN_CASE_ENABLED;
+    const warnSpy = vi.spyOn(console, "warn");
+
+    const cfg = loadConfig();
+
+    expect(cfg.courtlistenerApiToken).toBeUndefined();
+    expect(cfg.openLegalDataApiToken).toBeUndefined();
+    expect(cfg.foreignCaseEnabled).toBeUndefined();
+    const warnMessages = warnSpy.mock.calls.map((c) => String(c[0]));
+    const target = warnMessages.filter((m) =>
+      m.includes("해외 판례 도구 비활성화"),
+    );
+    expect(target).toHaveLength(1);
+  });
+
+  it("해외판례_변수1개라도_설정시_경고미발생", () => {
+    process.env.LAW_API_OC = "L";
+    process.env.COURTLISTENER_API_TOKEN = "abc";
+    delete process.env.OPENLEGALDATA_API_TOKEN;
+    delete process.env.FOREIGN_CASE_ENABLED;
+    const warnSpy = vi.spyOn(console, "warn");
+
+    const cfg = loadConfig();
+
+    expect(cfg.courtlistenerApiToken).toBe("abc");
+    const warnMessages = warnSpy.mock.calls.map((c) => String(c[0]));
+    expect(warnMessages.some((m) => m.includes("해외 판례 도구 비활성화"))).toBe(false);
   });
 
   it("빈문자열_선택키는_undefined로정규화", () => {

@@ -1,5 +1,5 @@
 /**
- * 스킬 도구 오케스트레이터 — 12개 스킬 도구 + MCP Prompts 등록
+ * 스킬 도구 오케스트레이터 — 15개 스킬 도구 + MCP Prompts 등록
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

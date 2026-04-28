@@ -53,3 +53,20 @@ export function errorResponse(label: string, error: unknown) {
     isError: true,
   };
 }
+
+/** HTML 태그·엔티티 제거. 도메인 비종속 공유 유틸. */
+export function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&middot;/g, "·")
+    .replace(/&hellip;/g, "…")
+    .replace(/&#\d+;/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

@@ -1,5 +1,8 @@
 /**
  * foreign_case_research 스킬 도구 테스트 — TDD
+ *
+ * US: 정규화 도메인 + cursor 페이지네이션 (CourtListener v4)
+ * DE: page 페이지네이션 (OpenLegalData) — 변경 없음
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { createForeignCaseResearchHandler } from "./foreign-case-research.js";
@@ -49,6 +52,16 @@ describe("foreign_case_research dispatcher", () => {
     expect(result.content[0].text).toContain("opinion_id");
   });
 
+  it("get_us_case_detail — opinion_id 비-숫자 시 안내 에러", async () => {
+    const handler = createForeignCaseResearchHandler({ enableUS: true });
+    const result = await handler({
+      action: "get_us_case_detail",
+      opinion_id: "abc",
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("양의 정수");
+  });
+
   it("get_de_case_detail — de_case_id 누락 시 한글 에러 (case_id 아님)", async () => {
     const handler = createForeignCaseResearchHandler({ enableDE: true });
     const result = await handler({ action: "get_de_case_detail" });
@@ -85,23 +98,26 @@ describe("foreign_case_research dispatcher", () => {
   });
 });
 
-describe("search_us_cases — 출력 포맷", () => {
-  it("[원문: 영어] 마커, 번호 매김 리스트, [id] 마커, 한글 라벨", async () => {
+describe("search_us_cases — 출력 포맷 (정규화 + cursor)", () => {
+  it("[원문: 영어] 마커, [opinion_id] 번호 매김, 한글 라벨, 총 건수 포맷", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
         jsonResponse({
           count: 110305,
+          next: null,
           results: [
             {
+              id: 67890,
               cluster_id: 12345,
               caseName: "Miranda v. Arizona",
               court: "Supreme Court of the United States",
               court_id: "scotus",
               dateFiled: "1966-06-13",
-              docketNumber: "759",
               citation: ["384 U.S. 436"],
-              opinions: [{ id: 67890 }],
+              status: "Published",
+              snippet: "You have the right to remain silent",
+              absolute_url: "/opinion/67890/",
             },
           ],
         }),
@@ -118,11 +134,38 @@ describe("search_us_cases — 출력 포맷", () => {
     expect(text).toContain("[원문: 영어]");
     expect(text).toContain("미국 판례");
     expect(text).toContain("Miranda v. Arizona");
-    expect(text).toContain("[12345]");
+    expect(text).toContain("[67890]"); // opinion id (not cluster_id)
     expect(text).toContain("scotus");
+    expect(text).toContain("Published");
     expect(text).toContain("총 110,305건");
     expect(text).toContain("get_us_case_detail");
+    expect(text).toContain('opinion_id="67890"');
     expect(result.isError).toBeFalsy();
+  });
+
+  it("nextCursor 있으면 출력에 cursor= 안내 포함", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          count: 50,
+          next: "https://www.courtlistener.com/api/rest/v4/search/?cursor=NEXT123&q=x",
+          results: [
+            {
+              id: 1,
+              cluster_id: 2,
+              caseName: "X",
+              court: "Court",
+              court_id: "ca1",
+            },
+          ],
+        }),
+      ),
+    );
+
+    const handler = createForeignCaseResearchHandler({ enableUS: true });
+    const result = await handler({ action: "search_us_cases", query: "x" });
+    expect(result.content[0].text).toContain('cursor="NEXT123"');
   });
 
   it("0건 응답 한글 안내", async () => {
@@ -137,13 +180,12 @@ describe("search_us_cases — 출력 포맷", () => {
       query: "nonexistent",
     });
 
-    const text = result.content[0].text;
-    expect(text).toContain("미국 판례 검색 결과가 없습니다");
+    expect(result.content[0].text).toContain("미국 판례 검색 결과가 없습니다");
   });
 });
 
 describe("get_us_case_detail — 출력 포맷", () => {
-  it("[원문: 영어] 마커 + plain_text 본문 truncate (8000자)", async () => {
+  it("[원문: 영어] 마커 + plain_text 본문 8000자 윈도우", async () => {
     const longBody = "x".repeat(20000);
     vi.stubGlobal(
       "fetch",
@@ -151,8 +193,7 @@ describe("get_us_case_detail — 출력 포맷", () => {
         jsonResponse({
           id: 67890,
           plain_text: longBody,
-          type: "010combined",
-          date_created: "2025-01-01",
+          cluster: { id: 12345, case_name: "Miranda v. Arizona" },
         }),
       ),
     );
@@ -165,7 +206,7 @@ describe("get_us_case_detail — 출력 포맷", () => {
 
     const text = result.content[0].text;
     expect(text).toContain("[원문: 영어]");
-    // 8000자 + 마커 정도. 길이가 원문 20000자보다 작아야 함.
+    expect(text).toContain("Miranda v. Arizona");
     expect(text.length).toBeLessThan(20000);
     expect(text).toContain("이어서 보기");
     expect(text).toContain("offset=8000");
@@ -190,12 +231,10 @@ describe("get_us_case_detail — 출력 포맷", () => {
     const text = result.content[0].text;
     expect(text).toContain("8,001~16,000자");
     expect(text).toContain("총 20,000자");
-    expect(text).toContain("이어서 보기");
-    expect(text).toContain("이어서 보기");
     expect(text).toContain("offset=16000");
   });
 
-  it("마지막 윈도우는 hasMore=false → 안내 없음", async () => {
+  it("마지막 윈도우는 hasMore=false → 이어서 보기 안내 없음", async () => {
     const body = "x".repeat(10000);
     vi.stubGlobal(
       "fetch",
@@ -214,6 +253,28 @@ describe("get_us_case_detail — 출력 포맷", () => {
     const text = result.content[0].text;
     expect(text).toContain("8,001~10,000자");
     expect(text).not.toContain("이어서 보기");
+  });
+
+  it("plain_text 비어 있으면 HTML fallback 사용 (stripped)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          id: 1,
+          plain_text: "",
+          html_with_citations: "<p>Fallback&nbsp;Text</p>",
+        }),
+      ),
+    );
+
+    const handler = createForeignCaseResearchHandler({ enableUS: true });
+    const result = await handler({
+      action: "get_us_case_detail",
+      opinion_id: "1",
+    });
+
+    expect(result.content[0].text).toContain("Fallback");
+    expect(result.content[0].text).not.toContain("<");
   });
 });
 
@@ -256,7 +317,7 @@ describe("search_de_cases — 출력 포맷", () => {
     expect(text).toContain("독일 판례");
     expect(text).toContain("[325566]");
     expect(text).toContain("Landgericht Köln");
-    expect(text).toContain("84 O 249/18"); // file_number = Aktenzeichen
+    expect(text).toContain("84 O 249/18");
     expect(text).toContain("ECLI:DE:LGK:2029:1113.84O249.18.00");
     expect(text).toContain("총 419,984건");
     expect(text).toContain("get_de_case_detail");
@@ -275,8 +336,7 @@ describe("search_de_cases — 출력 포맷", () => {
       query: "nichts",
     });
 
-    const text = result.content[0].text;
-    expect(text).toContain("독일 판례 검색 결과가 없습니다");
+    expect(result.content[0].text).toContain("독일 판례 검색 결과가 없습니다");
   });
 });
 

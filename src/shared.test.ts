@@ -4,6 +4,7 @@ import {
   truncateWindow,
   errorResponse,
   MAX_CONTENT_LENGTH,
+  stripHtmlTags,
 } from "./shared.js";
 
 describe("truncate", () => {
@@ -78,5 +79,20 @@ describe("errorResponse", () => {
     const res = errorResponse("라벨", "string-err");
     expect(res.isError).toBe(true);
     expect((res.content[0] as { text: string }).text).toBe("라벨 오류: 알 수 없는 오류");
+  });
+});
+
+describe("stripHtmlTags", () => {
+  it("stripHtmlTags_HTML태그및entity제거", () => {
+    const html = "<p>Hello&nbsp;<b>world</b>.<br/>&amp; goodbye&hellip;</p>";
+    expect(stripHtmlTags(html)).toBe("Hello world.\n& goodbye…");
+  });
+
+  it("연속개행_2개로축소", () => {
+    expect(stripHtmlTags("a<br/><br/><br/><br/>b")).toBe("a\n\nb");
+  });
+
+  it("plain텍스트_변경없이유지", () => {
+    expect(stripHtmlTags("그냥 텍스트")).toBe("그냥 텍스트");
   });
 });

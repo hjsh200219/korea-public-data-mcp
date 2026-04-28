@@ -33,21 +33,8 @@ const xmlParser = new XMLParser({
 
 // --- 공통 유틸리티 ---
 
-export function stripHtmlTags(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&middot;/g, "·")
-    .replace(/&hellip;/g, "…")
-    .replace(/&#\d+;/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
+import { stripHtmlTags } from "../shared.js";
+export { stripHtmlTags };
 
 export function str(v: unknown): string {
   if (v === null || v === undefined) return "";

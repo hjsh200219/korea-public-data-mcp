@@ -47,6 +47,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
        │  │  public-data       (10 actions)          │
        │  │  financial-product (7 actions)           │
        │  │  insurance         (9 actions)           │
+       │  │  foreign-precedents(4 actions, US/CourtListener) │
        │  └───────────┬────────────────────────────┘
        │              │
        └──────┬───────┘
@@ -61,7 +62,9 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  mafra-api.ts  — 농림축산식품부 XML (2 fn)    │
 │  finlife-api.ts — 금감원 금융상품 JSON (7 fn)│
 │  insurance-api.ts — 금감원 보험상품 JSON (9 fn)  │
-│  shared.ts     — truncate, errorResponse    │
+│  courtlistener-api.ts — CourtListener v4 클라이언트 (US 판례)  │
+│  openlegaldata-api.ts — OpenLegalData (DE 판례)  │
+│  shared.ts     — truncate, errorResponse, stripHtmlTags  │
 └─────────────────┬───────────────────────────┘
                   │
                   ▼
@@ -75,6 +78,8 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  mafra-types.ts    — 농림축산식품부 interfaces │
 │  finlife-types.ts  — 금감원 금융상품 interfaces│
 │  insurance-types.ts— 금감원 보험상품 interfaces│
+│  courtlistener-types.ts — 정규화 도메인 (camelCase, cursor) │
+│  openlegaldata-types.ts — 독일 판례 interfaces │
 └─────────────────────────────────────────────┘
                   │
                   ▼
@@ -85,6 +90,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  unipass.customs.go.kr                      │
 │  koreaexim.go.kr  |  data.mafra.go.kr       │
 │  finlife.fss.or.kr                          │
+│  www.courtlistener.com (Free Law Project)   │
 └─────────────────────────────────────────────┘
 ```
 

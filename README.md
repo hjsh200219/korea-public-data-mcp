@@ -1,7 +1,7 @@
 # K Public Data MCP
 
 대한민국 공공데이터 MCP(Model Context Protocol) 서버입니다.
-법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털 API를 통합하여 법령·판례·기업공시·생활정보를 검색/조회합니다.
+법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털 API를 통합하여 법령·판례·기업공시·생활정보를 검색/조회합니다. 비교법 참조용으로 미국 판례(CourtListener) 검색 도구도 포함됩니다.
 
 ---
 
@@ -59,6 +59,21 @@
 | 32 | 건강기능식품 검색 | `data20_search_health_food` | 건강기능식품 제품 정보 |
 | 33 | 사업자등록 진위확인 | `data20_verify_business` | 사업자번호·대표자명 진위 확인 |
 | 34 | 사업자등록 상태조회 | `data20_check_business_status` | 사업자 상태 (계속/휴업/폐업) |
+
+### 해외 판례 — CourtListener + OpenLegalData (4개 액션, 비교법 참조용)
+
+> 토큰 게이팅: `COURTLISTENER_API_TOKEN` (미국) / `OPENLEGALDATA_API_TOKEN` 또는 `FOREIGN_CASE_ENABLED=true` (독일).
+
+| # | 액션 | 설명 |
+|---|------|------|
+| - | `foreign_case_research.search_us_cases` | 미국 연방·주 법원 판례 검색 (CourtListener v4 cursor 페이지네이션, 정규화 도메인 응답) |
+| - | `foreign_case_research.get_us_case_detail` | 미국 Opinion 상세 (HTML fallback chain + 본문 offset 윈도우) |
+| - | `foreign_case_research.search_de_cases` | 독일 판례 검색 (OpenLegalData, page 페이지네이션) |
+| - | `foreign_case_research.get_de_case_detail` | 독일 판례 상세 (Aktenzeichen, ECLI 포함) |
+
+추가 REST 전용 엔드포인트: `/api/courtlistener/clusters/{clusterId}`, `/api/courtlistener/courts` (Cluster 메타·법원 목록).
+
+워크플로 가이드: `해외판례_비교법_워크플로` MCP 프롬프트로 한국 판례 ↔ 미국 판례 비교법 리서치 자동화.
 
 ---
 
