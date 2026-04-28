@@ -8,7 +8,7 @@ alwaysApply: true
 
 # public-data-mcp
 
-K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시 + 조달청 나라장터 + YouTube 자막/메타데이터).
+K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시 + 조달청 나라장터 + YouTube 자막/메타데이터 + 해외 판례 CourtListener·OpenLegalData).
 
 ## Quick Start
 
@@ -61,11 +61,15 @@ src/
   g2b-types.ts        # 조달청 G2B TypeScript interfaces (85 lines)
   youtube-api.ts      # YouTube Data API v3 + yt-dlp 자막 추출 (495 lines)
   youtube-types.ts    # YouTube TypeScript interfaces (69 lines)
-  routes/             # 도메인별 REST 라우트 (8 domain + helpers, ~1172 lines)
-  openapi/            # 도메인별 OpenAPI path 생성기 (8 path modules + shared, ~1589 lines)
+  courtlistener-api.ts    # CourtListener REST v4 (미국 판례) — search/detail
+  courtlistener-types.ts  # CourtListener TypeScript interfaces
+  openlegaldata-api.ts    # OpenLegalData (독일 판례) — search/detail
+  openlegaldata-types.ts  # OpenLegalData TypeScript interfaces
+  routes/             # 도메인별 REST 라우트 (10 domain + helpers)
+  openapi/            # 도메인별 OpenAPI path 생성기 (10 path modules + shared)
   tools/
-    skills/           # ★ 14개 의도 기반 스킬 도구 + MCP Prompts (v6)
-      index.ts        # 스킬 오케스트레이터 — 전체 등록 (49 lines)
+    skills/           # ★ 15개 의도 기반 스킬 도구 + MCP Prompts (v6)
+      index.ts        # 스킬 오케스트레이터 — 전체 등록
       _shared.ts      # createDispatcher, requireParam 공통 유틸 (77 lines)
       prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts, 135 lines)
       legal-research.ts      # 법령 리서치 (17 actions, 663 lines)
@@ -82,6 +86,7 @@ src/
       insurance.ts           # 보험상품 공시 (9 actions, 689 lines, 금융위원회)
       procurement.ts         # 조달청 나라장터 입찰/낙찰 (2 actions, 157 lines)
       youtube.ts             # YouTube 자막/메타데이터/검색/댓글 (5 actions, 223 lines)
+      foreign-case-research.ts # 해외 판례 (4 actions, US CourtListener + DE OpenLegalData)
 ```
 
 ## Layer Rules
@@ -145,14 +150,17 @@ Protocol (server.ts → tools/skills/index.ts)
 | `YOUTUBE_API_KEY` | No | YouTube Data API v3 key (메타데이터/검색/댓글, 없으면 자막만 사용 가능) |
 | `YOUTUBE_COOKIES_FROM_BROWSER` | No | 자막 봇 차단 우회 — 로컬 브라우저 직접 추출 (`chrome` / `firefox` / `safari` / `brave` / `edge` / `chromium`, 선택적 `:프로파일`). 로컬 stdio 권장 |
 | `YOUTUBE_COOKIES` | No | 자막 봇 차단 우회 — Netscape `cookies.txt` 내용 텍스트 (Railway 등 서버 배포용). `YOUTUBE_COOKIES_FROM_BROWSER`가 설정되면 무시 |
+| `COURTLISTENER_API_TOKEN` | No | CourtListener API 토큰 (미국 판례, 시간당 5,000건). 미설정 시 미국 판례 액션 비활성 |
+| `OPENLEGALDATA_API_TOKEN` | No | OpenLegalData 토큰 (독일 판례, 익명 접근 가능). 미설정이어도 `FOREIGN_CASE_ENABLED=true`로 활성화 가능 |
+| `FOREIGN_CASE_ENABLED` | No | `true`로 설정하면 토큰 없이도 독일 판례 도구(OpenLegalData) 활성화 |
 | `PORT` | No | HTTP server port (default: 3000) |
 
 ## Conventions
 
 - Korean comments for domain-specific logic
-- MCP 스킬 도구: 14개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택
+- MCP 스킬 도구: 15개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택
 - MCP Prompts: 5개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관)
-- REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`)
+- REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`, `/api/courtlistener/*`, `/api/openlegaldata/*`)
 - Error responses: `isError: true` with Korean messages
 - Domain-specific types in `{domain}-types.ts`, API clients in `{domain}-api.ts`
 - Content truncated at 8000 chars for MCP responses

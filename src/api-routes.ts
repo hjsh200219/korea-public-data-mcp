@@ -12,6 +12,8 @@ import { registerEximRoutes } from "./routes/exim-routes.js";
 import { registerMafraRoutes } from "./routes/mafra-routes.js";
 import { registerFinlifeRoutes } from "./routes/finlife-routes.js";
 import { registerInsuranceRoutes } from "./routes/insurance-routes.js";
+import { registerCourtlistenerRoutes } from "./routes/courtlistener-routes.js";
+import { registerOpenlegalDataRoutes } from "./routes/openlegaldata-routes.js";
 
 export function createApiRouter(config: ServerConfig): Router {
   const router = Router();
@@ -41,6 +43,14 @@ export function createApiRouter(config: ServerConfig): Router {
 
   if (config.finlifeApiKey) {
     registerFinlifeRoutes(router, config.finlifeApiKey);
+  }
+
+  if (config.courtlistenerApiToken) {
+    registerCourtlistenerRoutes(router, config.courtlistenerApiToken);
+  }
+
+  if (config.openLegalDataApiToken || config.foreignCaseEnabled) {
+    registerOpenlegalDataRoutes(router, config.openLegalDataApiToken);
   }
 
   return router;

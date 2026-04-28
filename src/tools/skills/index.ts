@@ -18,6 +18,7 @@ import { registerFinancialProduct } from "./financial-product.js";
 import { registerInsurance } from "./insurance.js";
 import { registerProcurement } from "./procurement.js";
 import { registerYoutube } from "./youtube.js";
+import { registerForeignCaseResearch } from "./foreign-case-research.js";
 import { registerSkillPrompts } from "./prompts.js";
 
 export function registerSkillTools(
@@ -52,6 +53,21 @@ export function registerSkillTools(
   }
 
   registerYoutube(server, config.youtubeApiKey);
+
+  // 해외 판례: 소스별 환경변수 게이팅
+  // - COURTLISTENER_API_TOKEN 설정 → 미국 액션 활성
+  // - OPENLEGALDATA_API_TOKEN 설정 또는 FOREIGN_CASE_ENABLED=true → 독일 액션 활성
+  // - 어느 한쪽이라도 활성화되면 도구 등록
+  const hasCourtListener = !!config.courtlistenerApiToken;
+  const hasOpenLegalData = !!config.openLegalDataApiToken || !!config.foreignCaseEnabled;
+  if (hasCourtListener || hasOpenLegalData) {
+    registerForeignCaseResearch(server, {
+      courtlistenerApiToken: config.courtlistenerApiToken,
+      openLegalDataApiToken: config.openLegalDataApiToken,
+      enableUS: hasCourtListener,
+      enableDE: hasOpenLegalData,
+    });
+  }
 
   registerSkillPrompts(server);
 }

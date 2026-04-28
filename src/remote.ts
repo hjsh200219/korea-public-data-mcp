@@ -136,6 +136,8 @@ app.get("/openapi.json", (req, res) => {
     hasExim: !!serverConfig.eximApiKey,
     hasMafra: !!serverConfig.mafraApiKey,
     hasFinlife: !!serverConfig.finlifeApiKey,
+    hasCourtlistener: !!serverConfig.courtlistenerApiToken,
+    hasOpenLegalData: !!serverConfig.openLegalDataApiToken || !!serverConfig.foreignCaseEnabled,
   }));
 });
 

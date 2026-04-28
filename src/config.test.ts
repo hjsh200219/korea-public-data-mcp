@@ -31,6 +31,9 @@ describe("loadConfig", () => {
     delete process.env.EXCHANGE_RATE_API_KEY;
     delete process.env.MAFRA_API_KEY;
     delete process.env.FINLIFE_API_KEY;
+    delete process.env.COURTLISTENER_API_TOKEN;
+    delete process.env.OPENLEGALDATA_API_TOKEN;
+    delete process.env.FOREIGN_CASE_ENABLED;
     for (const k of Object.keys(process.env)) {
       if (k.startsWith("UNIPASS_KEY_API")) delete process.env[k];
     }
@@ -42,6 +45,9 @@ describe("loadConfig", () => {
     expect(cfg.eximApiKey).toBeUndefined();
     expect(cfg.mafraApiKey).toBeUndefined();
     expect(cfg.finlifeApiKey).toBeUndefined();
+    expect(cfg.courtlistenerApiToken).toBeUndefined();
+    expect(cfg.openLegalDataApiToken).toBeUndefined();
+    expect(cfg.foreignCaseEnabled).toBeUndefined();
   });
 
   it("모든환경변수_매핑", () => {
@@ -56,15 +62,34 @@ describe("loadConfig", () => {
 
     const cfg = loadConfig();
 
-    expect(cfg).toEqual({
-      lawApiOc: "L1",
-      dartApiKey: "D1",
-      data20ServiceKey: "DATA",
-      unipassApiKeys: { "001": "U1", "002": "U2" },
-      eximApiKey: "EX",
-      mafraApiKey: "M1",
-      finlifeApiKey: "F1",
-    });
+    expect(cfg.lawApiOc).toBe("L1");
+    expect(cfg.dartApiKey).toBe("D1");
+    expect(cfg.data20ServiceKey).toBe("DATA");
+    expect(cfg.unipassApiKeys).toEqual({ "001": "U1", "002": "U2" });
+    expect(cfg.eximApiKey).toBe("EX");
+    expect(cfg.mafraApiKey).toBe("M1");
+    expect(cfg.finlifeApiKey).toBe("F1");
+  });
+
+  it("해외판례_환경변수_매핑", () => {
+    process.env.LAW_API_OC = "L";
+    process.env.COURTLISTENER_API_TOKEN = "cl-token";
+    process.env.OPENLEGALDATA_API_TOKEN = "old-token";
+    process.env.FOREIGN_CASE_ENABLED = "true";
+
+    const cfg = loadConfig();
+
+    expect(cfg.courtlistenerApiToken).toBe("cl-token");
+    expect(cfg.openLegalDataApiToken).toBe("old-token");
+    expect(cfg.foreignCaseEnabled).toBe(true);
+  });
+
+  it("FOREIGN_CASE_ENABLED는_true문자열만_true_그외undefined", () => {
+    process.env.LAW_API_OC = "L";
+    process.env.FOREIGN_CASE_ENABLED = "false";
+
+    const cfg = loadConfig();
+    expect(cfg.foreignCaseEnabled).toBeUndefined();
   });
 
   it("빈문자열_선택키는_undefined로정규화", () => {

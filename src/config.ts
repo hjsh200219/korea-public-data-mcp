@@ -14,6 +14,9 @@ export interface ServerConfig {
   mafraApiKey?: string;
   finlifeApiKey?: string;
   youtubeApiKey?: string;
+  courtlistenerApiToken?: string;
+  openLegalDataApiToken?: string;
+  foreignCaseEnabled?: boolean;
 }
 
 function collectUnipassKeys(): Record<string, string> {
@@ -33,6 +36,9 @@ export function loadConfig(): ServerConfig {
   const mafraApiKey = process.env.MAFRA_API_KEY || "";
   const finlifeApiKey = process.env.FINLIFE_API_KEY || "";
   const youtubeApiKey = process.env.YOUTUBE_API_KEY || "";
+  const courtlistenerApiToken = process.env.COURTLISTENER_API_TOKEN || "";
+  const openLegalDataApiToken = process.env.OPENLEGALDATA_API_TOKEN || "";
+  const foreignCaseEnabled = process.env.FOREIGN_CASE_ENABLED === "true";
   const unipassKeys = collectUnipassKeys();
 
   if (!lawApiOc) {
@@ -70,6 +76,12 @@ export function loadConfig(): ServerConfig {
     console.warn("YOUTUBE_API_KEY 미설정 — YouTube 메타데이터/검색/댓글 도구 비활성화 (자막 추출은 사용 가능)");
   }
 
+  if (!courtlistenerApiToken && !openLegalDataApiToken && !foreignCaseEnabled) {
+    console.warn(
+      "COURTLISTENER_API_TOKEN / OPENLEGALDATA_API_TOKEN / FOREIGN_CASE_ENABLED 미설정 — 해외 판례 도구 비활성화",
+    );
+  }
+
   return {
     lawApiOc,
     dartApiKey: dartApiKey || undefined,
@@ -79,5 +91,8 @@ export function loadConfig(): ServerConfig {
     mafraApiKey: mafraApiKey || undefined,
     finlifeApiKey: finlifeApiKey || undefined,
     youtubeApiKey: youtubeApiKey || undefined,
+    courtlistenerApiToken: courtlistenerApiToken || undefined,
+    openLegalDataApiToken: openLegalDataApiToken || undefined,
+    foreignCaseEnabled: foreignCaseEnabled || undefined,
   };
 }
