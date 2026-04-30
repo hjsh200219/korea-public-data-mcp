@@ -49,7 +49,7 @@ describe("MCP 서버 E2E", () => {
     vi.restoreAllMocks();
   });
 
-  it("풀_설정_15개스킬+6개프롬프트_등록확인", async () => {
+  it("풀_설정_16개스킬+6개프롬프트_등록확인", async () => {
     const { client } = await createConnectedClient(FULL_CONFIG);
     const { tools } = await client.listTools();
     const toolNames = tools.map((t) => t.name).sort();
@@ -69,7 +69,8 @@ describe("MCP 서버 E2E", () => {
     expect(toolNames).toContain("procurement");
     expect(toolNames).toContain("youtube");
     expect(toolNames).toContain("foreign_case_research");
-    expect(toolNames).toHaveLength(15);
+    expect(toolNames).toContain("tourism");
+    expect(toolNames).toHaveLength(16);
 
     const { prompts } = await client.listPrompts();
     expect(prompts.length).toBe(6);

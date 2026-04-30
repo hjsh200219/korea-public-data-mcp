@@ -14,6 +14,7 @@ import { getFinlifePaths } from "./openapi/finlife-paths.js";
 import { getInsurancePaths } from "./openapi/insurance-paths.js";
 import { getCourtlistenerPaths } from "./openapi/courtlistener-paths.js";
 import { getOpenlegalDataPaths } from "./openapi/openlegaldata-paths.js";
+import { getTourismPaths } from "./openapi/tourism-paths.js";
 
 export interface OpenApiSpecOptions {
   baseUrl: string;
@@ -25,6 +26,7 @@ export interface OpenApiSpecOptions {
   hasFinlife?: boolean;
   hasCourtlistener?: boolean;
   hasOpenLegalData?: boolean;
+  hasData20Tourism?: boolean;
 }
 
 export function generateOpenApiSpec(options: OpenApiSpecOptions) {
@@ -38,6 +40,7 @@ export function generateOpenApiSpec(options: OpenApiSpecOptions) {
     hasFinlife,
     hasCourtlistener,
     hasOpenLegalData,
+    hasData20Tourism,
   } = options;
 
   return {
@@ -59,6 +62,7 @@ export function generateOpenApiSpec(options: OpenApiSpecOptions) {
       ...(hasFinlife ? getFinlifePaths() : {}),
       ...(hasCourtlistener ? getCourtlistenerPaths() : {}),
       ...(hasOpenLegalData ? getOpenlegalDataPaths() : {}),
+      ...(hasData20Tourism ? getTourismPaths() : {}),
     },
   };
 }

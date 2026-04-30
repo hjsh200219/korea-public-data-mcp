@@ -138,6 +138,7 @@ app.get("/openapi.json", (req, res) => {
     hasFinlife: !!serverConfig.finlifeApiKey,
     hasCourtlistener: !!serverConfig.courtlistenerApiToken,
     hasOpenLegalData: !!serverConfig.openLegalDataApiToken || !!serverConfig.foreignCaseEnabled,
+    hasData20Tourism: !!serverConfig.data20ServiceKey,
   }));
 });
 

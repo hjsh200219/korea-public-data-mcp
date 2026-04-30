@@ -68,7 +68,7 @@ src/
   routes/             # 도메인별 REST 라우트 (10 domain + helpers)
   openapi/            # 도메인별 OpenAPI path 생성기 (10 path modules + shared)
   tools/
-    skills/           # ★ 15개 의도 기반 스킬 도구 + MCP Prompts (v6)
+    skills/           # ★ 16개 의도 기반 스킬 도구 + MCP Prompts (v6)
       index.ts        # 스킬 오케스트레이터 — 전체 등록
       _shared.ts      # createDispatcher, requireParam 공통 유틸 (77 lines)
       prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts, 135 lines)
@@ -87,6 +87,7 @@ src/
       procurement.ts         # 조달청 나라장터 입찰/낙찰 (2 actions, 157 lines)
       youtube.ts             # YouTube 자막/메타데이터/검색/댓글 (5 actions, 223 lines)
       foreign-case-research.ts # 해외 판례 (4 actions, US CourtListener cursor 페이지네이션 + DE OpenLegalData page 페이지네이션)
+      tourism.ts             # 한국관광공사 KorService2 (7 actions, 지역·키워드·위치·축제·숙박·상세·코드조회)
 ```
 
 ## Layer Rules
@@ -160,7 +161,7 @@ Protocol (server.ts → tools/skills/index.ts)
 ## Conventions
 
 - Korean comments for domain-specific logic
-- MCP 스킬 도구: 15개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택 (해외 판례 `foreign_case_research` 포함)
+- MCP 스킬 도구: 16개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택 (해외 판례 `foreign_case_research`, 관광 `tourism` 포함)
 - MCP Prompts: 6개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관, 해외판례 비교법)
 - REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`, `/api/courtlistener/*`, `/api/openlegaldata/*`)
 - Error responses: `isError: true` with Korean messages

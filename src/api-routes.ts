@@ -14,6 +14,7 @@ import { registerFinlifeRoutes } from "./routes/finlife-routes.js";
 import { registerInsuranceRoutes } from "./routes/insurance-routes.js";
 import { registerCourtlistenerRoutes } from "./routes/courtlistener-routes.js";
 import { registerOpenlegalDataRoutes } from "./routes/openlegaldata-routes.js";
+import { registerTourismRoutes } from "./routes/tourism-routes.js";
 
 export function createApiRouter(config: ServerConfig): Router {
   const router = Router();
@@ -51,6 +52,10 @@ export function createApiRouter(config: ServerConfig): Router {
 
   if (config.openLegalDataApiToken || config.foreignCaseEnabled) {
     registerOpenlegalDataRoutes(router, config.openLegalDataApiToken);
+  }
+
+  if (config.data20ServiceKey) {
+    registerTourismRoutes(router, config.data20ServiceKey);
   }
 
   return router;

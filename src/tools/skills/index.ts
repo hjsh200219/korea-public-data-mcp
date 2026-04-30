@@ -18,6 +18,7 @@ import { registerFinancialProduct } from "./financial-product.js";
 import { registerInsurance } from "./insurance.js";
 import { registerProcurement } from "./procurement.js";
 import { registerYoutube } from "./youtube.js";
+import { registerTourism } from "./tourism.js";
 import { registerForeignCaseResearch } from "./foreign-case-research.js";
 import { registerSkillPrompts } from "./prompts.js";
 
@@ -42,6 +43,7 @@ export function registerSkillTools(
   if (config.data20ServiceKey) {
     registerPublicData(server, config.data20ServiceKey);
     registerInsurance(server, config.data20ServiceKey);
+    registerTourism(server, config.data20ServiceKey);
   }
 
   if (config.finlifeApiKey) {
