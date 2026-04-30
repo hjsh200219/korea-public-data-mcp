@@ -8,7 +8,7 @@ alwaysApply: true
 
 # public-data-mcp
 
-K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시 + 조달청 나라장터 + YouTube 자막/메타데이터 + 해외 판례 CourtListener·OpenLegalData).
+K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시 + 조달청 나라장터 + YouTube 자막/메타데이터 + 해외 판례 CourtListener·OpenLegalData + 한국관광공사 KorService2).
 
 ## Quick Start
 
@@ -65,8 +65,10 @@ src/
   courtlistener-types.ts  # CourtListener 정규화 도메인 타입 (OpinionListItem/OpinionDetail/ClusterDetail/CourtListItem)
   openlegaldata-api.ts    # OpenLegalData (독일 판례) — search/detail (~75 lines)
   openlegaldata-types.ts  # OpenLegalData TypeScript interfaces (~55 lines)
-  routes/             # 도메인별 REST 라우트 (10 domain + helpers)
-  openapi/            # 도메인별 OpenAPI path 생성기 (10 path modules + shared)
+  tourism-api.ts          # 한국관광공사 KorService2 API client (~340 lines)
+  tourism-types.ts        # 한국관광공사 KorService2 TypeScript interfaces (~190 lines)
+  routes/             # 도메인별 REST 라우트 (11 domain + helpers)
+  openapi/            # 도메인별 OpenAPI path 생성기 (11 path modules + shared)
   tools/
     skills/           # ★ 16개 의도 기반 스킬 도구 + MCP Prompts (v6)
       index.ts        # 스킬 오케스트레이터 — 전체 등록
@@ -105,14 +107,16 @@ Protocol (server.ts → tools/skills/index.ts)
                  unipass-api.ts, exim-api.ts, mafra-api.ts,
                  finlife-api.ts, insurance-api.ts,
                  g2b-api.ts, youtube-api.ts,
-                 courtlistener-api.ts, openlegaldata-api.ts)
+                 courtlistener-api.ts, openlegaldata-api.ts,
+                 tourism-api.ts)
                 |
     Shared (shared.ts, tools/skills/_shared.ts)
     +  Types (law-types.ts, dart-types.ts, data20-types.ts,
              unipass-types.ts, exim-types.ts, mafra-types.ts,
              finlife-types.ts, insurance-types.ts,
              g2b-types.ts, youtube-types.ts,
-             courtlistener-types.ts, openlegaldata-types.ts)
+             courtlistener-types.ts, openlegaldata-types.ts,
+             tourism-types.ts)
 ```
 
 - Dependencies flow downward only
@@ -163,7 +167,7 @@ Protocol (server.ts → tools/skills/index.ts)
 - Korean comments for domain-specific logic
 - MCP 스킬 도구: 16개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택 (해외 판례 `foreign_case_research`, 관광 `tourism` 포함)
 - MCP Prompts: 6개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관, 해외판례 비교법)
-- REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`, `/api/courtlistener/*`, `/api/openlegaldata/*`)
+- REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`, `/api/courtlistener/*`, `/api/openlegaldata/*`, `/api/tourism/*`)
 - Error responses: `isError: true` with Korean messages
 - Domain-specific types in `{domain}-types.ts`, API clients in `{domain}-api.ts`
 - Content truncated at 8000 chars for MCP responses (큰 본문은 `truncateWindow()`로 offset 기반 페이지네이션)

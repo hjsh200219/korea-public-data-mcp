@@ -17,3 +17,6 @@
 - [openlegaldata-de-anonymous-mit](openlegaldata-de-anonymous-mit.md) — 검색·상세 익명 OK, MIT, 활성 유지보수
 - [fetch-mock-convention-vi-stubglobal](fetch-mock-convention-vi-stubglobal.md) — vitest stubGlobal 표준, nock 금지
 - [express-5-req-params-string-array](express-5-req-params-string-array.md) — req.params는 string|string[], String() 캐스트 필수
+- [korservice2-data20-key-reuse](korservice2-data20-key-reuse.md) — KorService2는 DATA20_SERVICE_KEY 재사용, 공공데이터포털 계열 API 공통 패턴
+- [skill-tool-count-16-with-tourism](skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 16개 기준점 및 tourism 7 actions 목록
+- [tdd-api-plus-skill-test-split](tdd-api-plus-skill-test-split.md) — 신규 도메인 테스트는 {domain}-api.test.ts + tools/skills/{domain}.test.ts 2-파일 분리
