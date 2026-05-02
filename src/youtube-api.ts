@@ -207,24 +207,22 @@ async function tryYtDlpClient(
     "--", videoId,
   ];
 
+  let ytdlpError: Error | null = null;
   try {
     await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 30_000 });
   } catch (e) {
     if (!(e instanceof Error)) throw e;
     const msg = e.message;
 
-    // 종료 조건: yt-dlp 미설치, 429, 자막 비활성 → 캐스케이드 중단
+    // 즉시 중단 조건: yt-dlp 미설치, 자막 비활성
     if ((e as NodeJS.ErrnoException).code === "ENOENT" && msg.includes("yt-dlp")) {
       throw new Error("yt-dlp가 설치되어 있지 않습니다. 'pip install yt-dlp' 또는 'brew install yt-dlp'로 설치해주세요.", { cause: e });
-    }
-    if (msg.includes("429")) {
-      throw new Error("YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", { cause: e });
     }
     if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
       throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: e });
     }
-    // PO Token / DRM / 봇 감지 / 포맷 없음 → 다음 클라이언트로
-    return null;
+    // 429 / PO Token / DRM / 봇 감지 등: 이미 쓰인 파일이 있을 수 있으므로 읽기 먼저 시도
+    ytdlpError = e;
   }
 
   // 요청 언어 우선, 없으면 폴백 언어 순서로 시도
@@ -245,7 +243,16 @@ async function tryYtDlpClient(
     }
   }
 
-  // 자막 파일 0개 → 다음 클라이언트로 (조용한 PO Token 보호 등)
+  // 파일도 없을 때 에러 분류
+  if (ytdlpError) {
+    if (ytdlpError.message.includes("429")) {
+      throw new Error("YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", { cause: ytdlpError });
+    }
+    // PO Token / DRM / 봇 감지 → 다음 클라이언트로
+    return null;
+  }
+
+  // yt-dlp 성공했지만 자막 파일 0개 → 다음 클라이언트로
   return null;
 }
 

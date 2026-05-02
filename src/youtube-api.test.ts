@@ -487,6 +487,43 @@ describe("getTranscript (yt-dlp)", () => {
 
     vi.unstubAllEnvs();
   });
+
+  it("429 에러 발생해도 이미 쓰인 자막 파일이 있으면 반환", async () => {
+    // 실제 재현 케이스: en 자막은 성공, ja 자막 요청 중 429 발생 → yt-dlp exit 1
+    const mockEnJson3 = JSON.stringify({
+      events: [
+        { tStartMs: 0, dDurationMs: 100000, id: 1 },
+        {
+          tStartMs: 500,
+          dDurationMs: 3000,
+          wWinId: 1,
+          segs: [{ utf8: "Partial success subtitle" }],
+        },
+      ],
+    });
+
+    const err = new Error(
+      "Command failed: yt-dlp ... ERROR: Unable to download video subtitles for 'ja': HTTP Error 429: Too Many Requests",
+    );
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      // yt-dlp: 429 에러로 exit 1 (en은 이미 다운로드 완료된 상태)
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+
+    // en 파일은 존재, 나머지는 ENOENT
+    vi.mocked(readFile).mockImplementation(((path: unknown) => {
+      const p = String(path);
+      if (p.endsWith(".en.json3")) return Promise.resolve(mockEnJson3);
+      return Promise.reject(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+    }) as typeof readFile);
+
+    const result = await getTranscript("iuYlGRnC7J8", "en");
+    expect(result.videoId).toBe("iuYlGRnC7J8");
+    expect(result.language).toBe("en");
+    expect(result.segments[0].text).toBe("Partial success subtitle");
+  });
 });
 
 // ── getTranscriptFallback 단독 테스트 ──
