@@ -1,0 +1,65 @@
+# Smithery configuration — https://smithery.ai/docs/build/project-config/smithery.yaml
+
+build:
+  dockerfile: Dockerfile
+  dockerBuildPath: .
+
+startCommand:
+  type: http
+  configSchema:
+    type: object
+    required:
+      - lawApiOc
+    properties:
+      lawApiOc:
+        type: string
+        description: "law.go.kr API 인증키 (필수) — 법제처 국가법령정보센터"
+      dartApiKey:
+        type: string
+        description: "DART 전자공시 API key (선택) — 없으면 기업공시 도구 비활성화"
+      data20ServiceKey:
+        type: string
+        description: "공공데이터포털 service key (선택) — 없으면 공공데이터 도구 비활성화"
+      unipassKeyApi:
+        type: string
+        description: "관세청 UNI-PASS API 인증키 (선택) — 없으면 통관/관세 도구 비활성화"
+      mafraApiKey:
+        type: string
+        description: "농림축산식품부 API key (선택)"
+      exchangeRateApiKey:
+        type: string
+        description: "수출입은행 환율 API key (선택)"
+      finlifeApiKey:
+        type: string
+        description: "금융감독원 금융상품 비교공시 API key (선택)"
+      youtubeApiKey:
+        type: string
+        description: "YouTube Data API v3 key (선택) — 없으면 자막만 사용 가능"
+      courtlistenerApiToken:
+        type: string
+        description: "CourtListener API 토큰 (선택) — 미국 판례 검색"
+      foreignCaseEnabled:
+        type: string
+        description: "'true' 설정 시 토큰 없이도 독일 판례(OpenLegalData) 활성화"
+        default: "true"
+  commandFunction: |-
+    (config) => ({
+      command: 'node',
+      args: ['--use-system-ca', 'dist/remote.js'],
+      env: {
+        LAW_API_OC: config.lawApiOc,
+        DART_API_KEY: config.dartApiKey || '',
+        DATA20_SERVICE_KEY: config.data20ServiceKey || '',
+        UNIPASS_KEY_API: config.unipassKeyApi || '',
+        MAFRA_API_KEY: config.mafraApiKey || '',
+        EXCHANGE_RATE_API_KEY: config.exchangeRateApiKey || '',
+        FINLIFE_API_KEY: config.finlifeApiKey || '',
+        YOUTUBE_API_KEY: config.youtubeApiKey || '',
+        COURTLISTENER_API_TOKEN: config.courtlistenerApiToken || '',
+        FOREIGN_CASE_ENABLED: config.foreignCaseEnabled || 'true'
+      }
+    })
+  exampleConfig:
+    lawApiOc: your-law-api-oc-code
+    dartApiKey: your-dart-api-key
+    foreignCaseEnabled: "true"
