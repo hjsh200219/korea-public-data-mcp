@@ -8,7 +8,7 @@ alwaysApply: true
 
 # public-data-mcp
 
-K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시 + 조달청 나라장터 + YouTube 자막/메타데이터 + 해외 판례 CourtListener·OpenLegalData + 한국관광공사 KorService2).
+K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 + 관세청 UNI-PASS + 수출입은행 + 농림축산식품부 + 금융감독원 금융상품 비교공시 + 금융위원회 보험상품 공시 + 조달청 나라장터 + YouTube 자막/메타데이터 + 해외 판례 CourtListener·OpenLegalData + 한국관광공사 KorService2 + 쿠팡 파트너스 상품리뷰).
 
 ## Quick Start
 
@@ -67,6 +67,8 @@ src/
   openlegaldata-types.ts  # OpenLegalData TypeScript interfaces (~55 lines)
   tourism-api.ts          # 한국관광공사 KorService2 API client (~340 lines)
   tourism-types.ts        # 한국관광공사 KorService2 TypeScript interfaces (~190 lines)
+  coupang-api.ts          # 쿠팡 파트너스 API client (99 lines)
+  coupang-types.ts        # 쿠팡 파트너스 TypeScript interfaces (29 lines)
   routes/             # 도메인별 REST 라우트 (11 domain + helpers)
   openapi/            # 도메인별 OpenAPI path 생성기 (11 path modules + shared)
   tools/
@@ -109,7 +111,7 @@ Protocol (server.ts → tools/skills/index.ts)
                  finlife-api.ts, insurance-api.ts,
                  g2b-api.ts, youtube-api.ts,
                  courtlistener-api.ts, openlegaldata-api.ts,
-                 tourism-api.ts)
+                 tourism-api.ts, coupang-api.ts)
                 |
     Shared (shared.ts, tools/skills/_shared.ts)
     +  Types (law-types.ts, dart-types.ts, data20-types.ts,
@@ -117,7 +119,7 @@ Protocol (server.ts → tools/skills/index.ts)
              finlife-types.ts, insurance-types.ts,
              g2b-types.ts, youtube-types.ts,
              courtlistener-types.ts, openlegaldata-types.ts,
-             tourism-types.ts)
+             tourism-types.ts, coupang-types.ts)
 ```
 
 - Dependencies flow downward only
