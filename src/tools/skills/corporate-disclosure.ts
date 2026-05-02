@@ -15,7 +15,7 @@ import {
 } from "../../dart-api.js";
 import { searchStockDividend } from "../../data20-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
 
 const ACTIONS = [
   "resolve_corp_code",
@@ -325,10 +325,11 @@ export function registerCorporateDisclosure(
 ): void {
   const handler = createCorporateDisclosureHandler(dartApiKey, data20ServiceKey);
 
-  server.tool(
-    "corporate_disclosure",
-    "기업 공시 — DART 기업 검색, 공시보고서, 기업개황, 재무제표, 주요계정, 공시서류 본문, 주식배당정보 조회 통합 도구",
-    {
+  registerSkillTool(server, {
+    name: "corporate_disclosure",
+    title: "기업 공시",
+    description: "기업 공시 — DART 기업 검색, 공시보고서, 기업개황, 재무제표, 주요계정, 공시서류 본문, 주식배당정보 조회 통합 도구",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "resolve_corp_code=회사명→고유번호변환 | search_disclosures=공시검색(corp_code필수) | get_company_info=기업개황(corp_code필수) | get_financial_statements=재무제표(corp_code+year필수) | get_document=공시원문(receipt_no필수) | get_key_accounts=주요계정(corp_code+year필수) | search_stock_dividend=배당정보검색(corp_name필수)",
       ),
@@ -337,8 +338,8 @@ export function registerCorporateDisclosure(
       bgn_de: z.string().optional().describe("검색 시작일 YYYYMMDD"),
       end_de: z.string().optional().describe("검색 종료일 YYYYMMDD"),
       pblntf_ty: z.enum(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]).optional().describe("공시유형"),
-      page_no: z.number().optional(),
-      page_count: z.number().optional(),
+      page_no: z.number().optional().describe("페이지 번호 (search_disclosures)"),
+      page_count: z.number().optional().describe("페이지당 결과 수 (search_disclosures)"),
       bsns_year: z.string().optional().describe("사업연도 YYYY"),
       reprt_code: z.enum(["11013", "11012", "11014", "11011"]).optional().describe("보고서코드"),
       fs_div: z.enum(["OFS", "CFS"]).optional().describe("재무제표구분"),
@@ -346,9 +347,9 @@ export function registerCorporateDisclosure(
       stckIssuCmpyNm: z.string().optional().describe("회사명 (search_stock_dividend)"),
       basDt: z.string().optional().describe("기준일자 YYYYMMDD (search_stock_dividend)"),
       crno: z.string().optional().describe("법인등록번호 (search_stock_dividend)"),
-      pageNo: z.number().optional(),
-      numOfRows: z.number().optional(),
+      pageNo: z.number().optional().describe("페이지 번호 (search_stock_dividend)"),
+      numOfRows: z.number().optional().describe("페이지당 결과 수 (search_stock_dividend)"),
     },
-    async (params) => handler(params as CorporateDisclosureParams),
-  );
+    callback: async (params) => handler(params as CorporateDisclosureParams),
+  });
 }

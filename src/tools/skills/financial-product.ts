@@ -44,6 +44,7 @@ import { errorResponse, truncate } from "../../shared.js";
 import {
   createDispatcher,
   emptyResultMessage,
+  registerSkillTool,
   type SkillResult,
 } from "./_shared.js";
 
@@ -420,10 +421,11 @@ export function registerFinancialProduct(
 ): void {
   const handler = createFinancialProductHandler(apiKey);
 
-  server.tool(
-    "financial_product",
-    "금융감독원 금융상품 통합비교공시 — 금융회사, 정기예금, 적금, 연금저축, 주택담보대출, 전세자금대출, 개인신용대출을 하나의 도구로 조회합니다.",
-    {
+  registerSkillTool(server, {
+    name: "financial_product",
+    title: "금융상품 비교공시",
+    description: "금융감독원 금융상품 통합비교공시 — 금융회사, 정기예금, 적금, 연금저축, 주택담보대출, 전세자금대출, 개인신용대출을 하나의 도구로 조회합니다.",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "company=금융회사목록 | deposit=정기예금 | saving=적금 | annuity=연금저축 | mortgage_loan=주택담보대출 | rent_house_loan=전세자금대출 | credit_loan=개인신용대출",
       ),
@@ -433,6 +435,6 @@ export function registerFinancialProduct(
       page_no: z.number().int().min(1).optional().describe("페이지 번호 (기본 1)"),
       fin_co_no: z.string().optional().describe("금융회사 코드 필터 (company action에서 특정 회사만 조회)"),
     },
-    async (params) => handler(params as FinancialParams),
-  );
+    callback: async (params) => handler(params as FinancialParams),
+  });
 }

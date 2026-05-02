@@ -11,7 +11,7 @@ import {
   getVideoMetadata, searchVideos, getVideoComments,
 } from "../../youtube-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
 
 /** API 키 없이 사용 가능한 actions */
 const BASE_ACTIONS = ["get_transcript", "summarize"] as const;
@@ -203,21 +203,22 @@ export function registerYoutube(server: McpServer, apiKey?: string): void {
     ] : []),
   ];
 
-  server.tool(
-    "youtube",
-    `YouTube 자막 추출·요약${apiKey ? " + 영상정보·검색·댓글" : ""}. Actions: ${availableActions.join(", ")}\n${actionDescriptions.join("\n")}`,
-    {
+  registerSkillTool(server, {
+    name: "youtube",
+    title: "YouTube 자막·메타데이터",
+    description: `YouTube 자막 추출·요약${apiKey ? " + 영상정보·검색·댓글" : ""}. Actions: ${availableActions.join(", ")}\n${actionDescriptions.join("\n")}`,
+    inputSchema: {
       action: z.enum(availableActions as unknown as [string, ...string[]]).describe("수행할 작업"),
       url: z.string().optional().describe("YouTube URL 또는 영상 ID (get_transcript, summarize, video_info, comments에 필요)"),
       query: z.string().optional().describe("검색 키워드 (search action에 필요)"),
       lang: z.string().optional().describe("자막 언어 코드 (기본: ko). 예: ko, en, ja"),
       max_results: z.number().optional().describe("검색/댓글 최대 결과 수 (기본: 5/20)"),
     },
-    async (params) => {
+    callback: async (params) => {
       const p = params as YoutubeParams;
       const guard = noKeyGuard(p);
       if (guard) return guard;
       return dispatch(p);
     },
-  );
+  });
 }

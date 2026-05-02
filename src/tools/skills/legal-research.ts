@@ -20,7 +20,7 @@ import {
   getLawArticleSub, searchAILegalTerms, searchLinkedOrdinances,
 } from "../../law-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, emptyResultMessage, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, emptyResultMessage, type SkillResult, registerSkillTool } from "./_shared.js";
 
 const ACTIONS = [
   "search_laws",
@@ -634,10 +634,11 @@ export function registerLegalResearch(
 ): void {
   const handler = createLegalResearchHandler(lawApiOc);
 
-  server.tool(
-    "legal_research",
-    "법령 리서치 — 법률·시행령·행정규칙·자치법규·조약·법령용어·영문법령·별표서식 등을 검색/조회하는 통합 도구",
-    {
+  registerSkillTool(server, {
+    name: "legal_research",
+    title: "법령 리서치",
+    description: "법령 리서치 — 법률·시행령·행정규칙·자치법규·조약·법령용어·영문법령·별표서식 등을 검색/조회하는 통합 도구",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "search_laws=법령검색 | get_law_detail=법령상세(law_id) | search_admin_rules=행정규칙검색 | get_admin_rule_detail=행정규칙상세(admrul_id) | search_ordinances=자치법규검색 | get_ordinance_detail=자치법규상세(ordin_id) | search_treaties=조약검색 | get_treaty_detail=조약상세(treaty_id) | search_legal_terms=법령용어검색 | get_legal_term_detail=법령용어상세(term_id) | search_english_laws=영문법령검색 | get_english_law_detail=영문법령상세(law_id) | search_attached_forms=별표서식검색 | search_law_abbreviations=법령약칭검색 | get_law_article_sub=조항호목조회(law_id+article) | search_ai_legal_terms=지식베이스법령용어검색 | search_linked_ordinances=연계조례검색",
       ),
@@ -658,6 +659,6 @@ export function registerLegalResearch(
       clause: z.string().optional().describe("호번호 6자리 (get_law_article_sub에서 사용)"),
       subclause: z.string().optional().describe("목번호 (get_law_article_sub에서 사용, 예: '가')"),
     },
-    async (params) => handler(params as LegalParams),
-  );
+    callback: async (params) => handler(params as LegalParams),
+  });
 }

@@ -16,7 +16,7 @@ import {
   getBondedRelease,
 } from "../../unipass-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, type SkillResult, registerSkillTool } from "./_shared.js";
 
 const ACTIONS = [
   "export_performance",
@@ -198,10 +198,11 @@ export function registerExportClearance(
 ): void {
   const handler = createExportClearanceHandler(apiKeys);
 
-  server.tool(
-    "export_clearance",
-    "수출 통관 — 수출이행내역, 수출신고필증 검증, 차대번호별 수출, 적재지 검사, 전자상거래 적재, 반출신고 등 수출통관 도구",
-    {
+  registerSkillTool(server, {
+    name: "export_clearance",
+    title: "수출 통관",
+    description: "수출 통관 — 수출이행내역, 수출신고필증 검증, 차대번호별 수출, 적재지 검사, 전자상거래 적재, 반출신고 등 수출통관 도구",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "export_performance=수출이행내역(export_declaration_no필수) | verify_export=수출신고필증검증(pubs_no필수) | export_by_vehicle=차대번호수출이행(vehicle_no필수) | loading_inspection=적재지검사(export_declaration_no필수) | ecommerce_export_load=전자상거래적재이행(ecommerce_decl_no필수) | bonded_release=보세구역반출신고(business_no필수)",
       ),
@@ -216,6 +217,6 @@ export function registerExportClearance(
       ecommerce_decl_no: z.string().optional().describe("전자상거래 수출신고번호 (ecommerce_export_load)"),
       business_no: z.string().optional().describe("사업자등록번호 (bonded_release)"),
     },
-    async (params) => handler(params as ExportClearanceParams),
-  );
+    callback: async (params) => handler(params as ExportClearanceParams),
+  });
 }

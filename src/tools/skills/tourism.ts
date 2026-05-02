@@ -13,7 +13,7 @@ import {
   getAreaBasedSync, getLdongCode, getLclsSystmCode,
 } from "../../tourism-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
 
 const ACTIONS = [
   "search_tourism_area",
@@ -279,10 +279,11 @@ export function createTourismHandler(serviceKey: string) {
 export function registerTourism(server: McpServer, serviceKey: string): void {
   const handler = createTourismHandler(serviceKey);
 
-  server.tool(
-    "tourism",
-    "한국관광공사 KorService2 — 지역·키워드·위치 관광정보 검색, 축제/숙박, 상세정보(공통·소개·반복·이미지), 코드조회(지역·분류·법정동·소분류·동기화)",
-    {
+  registerSkillTool(server, {
+    name: "tourism",
+    title: "한국관광 정보",
+    description: "한국관광공사 KorService2 — 지역·키워드·위치 관광정보 검색, 축제/숙박, 상세정보(공통·소개·반복·이미지), 코드조회(지역·분류·법정동·소분류·동기화)",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "search_tourism_area=지역기반검색(areaCode) | search_tourism_keyword=키워드검색(keyword필수) | search_tourism_location=위치기반검색(mapX·mapY·radius필수) | search_tourism_festival=축제검색(eventStartDate필수) | search_tourism_stay=숙박검색(areaCode) | get_tourism_detail=상세조회(contentId필수,detailType=common|intro|info|image) | get_tourism_codes=코드조회(codeType=area|category|ldong|lclssystm|sync)",
       ),
@@ -304,9 +305,9 @@ export function registerTourism(server: McpServer, serviceKey: string): void {
       lclsSystmCode: z.string().optional().describe("관광타입 소분류 코드 (get_tourism_codes:lclssystm)"),
       modifiedtime: z.string().optional().describe("수정일시 YYYYMMDDHHMMSS (get_tourism_codes:sync 필터)"),
       arrange: z.string().optional().describe("정렬 A=제목순 B=조회순 C=수정일순 D=생성일순 (기본값: A)"),
-      pageNo: z.number().optional(),
-      numOfRows: z.number().optional(),
+      pageNo: z.number().optional().describe("페이지 번호 (기본값: 1)"),
+      numOfRows: z.number().optional().describe("페이지당 결과 수 (기본값: 10)"),
     },
-    async (params) => handler(params as TourismParams),
-  );
+    callback: async (params) => handler(params as TourismParams),
+  });
 }

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { getBidPublicList, getScsbidList } from "../../g2b-api.js";
 import { BID_TYPE_LABELS, type BidType } from "../../g2b-types.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, emptyResultMessage, type SkillResult } from "./_shared.js";
+import { createDispatcher, emptyResultMessage, registerSkillTool, type SkillResult } from "./_shared.js";
 
 const ACTIONS = [
   "bid_list",
@@ -138,10 +138,11 @@ export function registerProcurement(
 ): void {
   const handler = createProcurementHandler(serviceKey);
 
-  server.tool(
-    "procurement",
-    "나라장터 입찰공고·낙찰정보 조회 — 조달청 G2B 물품/용역/공사/외자 입찰공고 검색 및 낙찰결과를 조회합니다.",
-    {
+  registerSkillTool(server, {
+    name: "procurement",
+    title: "나라장터 입찰·낙찰",
+    description: "나라장터 입찰공고·낙찰정보 조회 — 조달청 G2B 물품/용역/공사/외자 입찰공고 검색 및 낙찰결과를 조회합니다.",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "bid_list=입찰공고목록(기간필수) | award_list=낙찰정보목록(기간필수)",
       ),
@@ -152,6 +153,6 @@ export function registerProcurement(
       num_of_rows: z.string().optional().describe("한 페이지 결과 수 (기본 10)"),
       page_no: z.string().optional().describe("페이지 번호 (기본 1)"),
     },
-    async (params) => handler(params as ProcurementParams),
-  );
+    callback: async (params) => handler(params as ProcurementParams),
+  });
 }

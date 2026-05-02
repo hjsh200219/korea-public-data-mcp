@@ -1,6 +1,9 @@
 /**
- * 스킬 공통 유틸 — action 디스패치 + 파라미터 검증
+ * 스킬 공통 유틸 — action 디스패치 + 파라미터 검증 + 도구 등록 래퍼
  */
+
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z, type ZodRawShape } from "zod";
 
 export type SkillResult = {
   content: Array<{ type: "text"; text: string }>;
@@ -74,4 +77,47 @@ export function requireParam(
     };
   }
   return null;
+}
+
+const OUTPUT_SCHEMA = {
+  content: z.array(z.object({ type: z.literal("text"), text: z.string() })),
+};
+
+/**
+ * MCP 스킬 도구 등록 래퍼.
+ * outputSchema(content 배열)와 annotations(readOnly/idempotent/openWorld)을 공통 적용.
+ */
+export function registerSkillTool<TInput extends ZodRawShape>(
+  server: McpServer,
+  opts: {
+    name: string;
+    title: string;
+    description: string;
+    inputSchema: TInput;
+    callback: (params: z.infer<z.ZodObject<TInput>>) => Promise<SkillResult>;
+  },
+): void {
+  server.registerTool(
+    opts.name,
+    {
+      title: opts.title,
+      description: opts.description,
+      inputSchema: opts.inputSchema,
+      outputSchema: OUTPUT_SCHEMA,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (async (params: any) => {
+      const result = await opts.callback(params);
+      return {
+        ...result,
+        structuredContent: { content: result.content },
+      };
+    }) as Parameters<typeof server.registerTool>[2],
+  );
 }

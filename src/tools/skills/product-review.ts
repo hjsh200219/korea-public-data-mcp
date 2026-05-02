@@ -19,6 +19,7 @@ import {
   createDispatcher,
   requireParam,
   emptyResultMessage,
+  registerSkillTool,
   type SkillResult,
 } from "./_shared.js";
 
@@ -236,10 +237,11 @@ export function registerProductReviewSkill(
 
   const handler = createProductReviewHandler(youtubeApiKey, coupangAccessKey, coupangSecretKey);
 
-  server.tool(
-    "product_review",
-    "YouTube 리뷰 자막 추출 + 쿠팡 상품 검색. youtube.md 채널 목록 기반. Actions: find_reviews=YouTube리뷰자막 | coupang_search=쿠팡상품검색 | full_review=리뷰+상품통합",
-    {
+  registerSkillTool(server, {
+    name: "product_review",
+    title: "제품 리뷰",
+    description: "YouTube 리뷰 자막 추출 + 쿠팡 상품 검색. youtube.md 채널 목록 기반. Actions: find_reviews=YouTube리뷰자막 | coupang_search=쿠팡상품검색 | full_review=리뷰+상품통합",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "find_reviews=YouTube채널에서리뷰자막추출(query필수) | coupang_search=쿠팡상품검색(query필수) | full_review=리뷰+상품통합(query필수)",
       ),
@@ -247,6 +249,6 @@ export function registerProductReviewSkill(
       max_videos: z.number().optional().describe("채널당 최대 영상 수 (기본: 3)"),
       max_results: z.number().optional().describe("쿠팡 최대 상품 수 (기본: 10)"),
     },
-    async (params) => handler(params as ReviewParams),
-  );
+    callback: async (params) => handler(params as ReviewParams),
+  });
 }

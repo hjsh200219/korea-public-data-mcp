@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { createDispatcher, requireParam } from "./_shared.js";
+import { describe, it, expect, vi } from "vitest";
+import { createDispatcher, requireParam, registerSkillTool } from "./_shared.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
 describe("createDispatcher", () => {
   it("유효한action_해당핸들러호출", async () => {
@@ -39,6 +41,60 @@ describe("createDispatcher", () => {
     });
 
     await expect(dispatch({ action: "fail" })).rejects.toThrow("boom");
+  });
+});
+
+describe("registerSkillTool", () => {
+  it("annotations.readOnlyHint=true로_registerTool_호출", () => {
+    const registerTool = vi.fn();
+    const server = { registerTool } as unknown as McpServer;
+
+    registerSkillTool(server, {
+      name: "test_tool",
+      title: "Test Tool",
+      description: "테스트 도구",
+      inputSchema: { action: z.string().describe("액션") },
+      callback: async () => ({ content: [{ type: "text" as const, text: "ok" }] }),
+    });
+
+    expect(registerTool).toHaveBeenCalledOnce();
+    const [, config] = registerTool.mock.calls[0];
+    expect(config.annotations?.readOnlyHint).toBe(true);
+    expect(config.annotations?.destructiveHint).toBe(false);
+  });
+
+  it("outputSchema_content_배열_형태로_등록", () => {
+    const registerTool = vi.fn();
+    const server = { registerTool } as unknown as McpServer;
+
+    registerSkillTool(server, {
+      name: "test_tool",
+      title: "Test Tool",
+      description: "테스트 도구",
+      inputSchema: { action: z.string().describe("액션") },
+      callback: async () => ({ content: [{ type: "text" as const, text: "ok" }] }),
+    });
+
+    const [, config] = registerTool.mock.calls[0];
+    expect(config.outputSchema).toBeDefined();
+  });
+
+  it("title과_description이_config에_전달됨", () => {
+    const registerTool = vi.fn();
+    const server = { registerTool } as unknown as McpServer;
+
+    registerSkillTool(server, {
+      name: "test_tool",
+      title: "My Tool Title",
+      description: "도구 설명",
+      inputSchema: { action: z.string().describe("액션") },
+      callback: async () => ({ content: [{ type: "text" as const, text: "ok" }] }),
+    });
+
+    const [name, config] = registerTool.mock.calls[0];
+    expect(name).toBe("test_tool");
+    expect(config.title).toBe("My Tool Title");
+    expect(config.description).toBe("도구 설명");
   });
 });
 

@@ -30,7 +30,7 @@ import {
   truncateWindow,
   MAX_CONTENT_LENGTH,
 } from "../../shared.js";
-import { createDispatcher, requireParam, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
 
 type ForeignCaseAction =
   | "search_us_cases"
@@ -448,10 +448,11 @@ export function registerForeignCaseResearch(
     "주요 미국 연방법원 슬러그: scotus, ca1-ca11, cadc, cafc, dcd",
   ].join("\n");
 
-  server.tool(
-    "foreign_case_research",
+  registerSkillTool(server, {
+    name: "foreign_case_research",
+    title: "해외 판례 조사",
     description,
-    {
+    inputSchema: {
       action: z.enum(availableActions as unknown as [string, ...string[]]).describe(
         "search_us_cases=미국 판례 검색(CourtListener, cursor) | get_us_case_detail=미국 판례 상세(opinion_id 필수) | search_de_cases=독일 판례 검색(OpenLegalData, page) [원문: 독일어] | get_de_case_detail=독일 판례 상세(de_case_id 필수) [원문: 독일어]",
       ),
@@ -499,6 +500,6 @@ export function registerForeignCaseResearch(
           "본문 윈도우 시작 위치 (긴 판례 후속 페이지 조회용, 기본 0). get_us_case_detail / get_de_case_detail에서 사용",
         ),
     },
-    async (params) => handler(params as ForeignCaseParams),
-  );
+    callback: async (params) => handler(params as ForeignCaseParams),
+  });
 }

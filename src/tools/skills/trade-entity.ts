@@ -23,7 +23,7 @@ import {
   getShipCompanyDetail,
 } from "../../unipass-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
 
 const ACTIONS = [
   "search_company",
@@ -303,10 +303,11 @@ export function registerTradeEntity(
 ): void {
   const handler = createTradeEntityHandler(apiKeys);
 
-  server.tool(
-    "trade_entity",
-    "무역 업체 — 통관업체, 관세사, 포워더, 항공사, 선박회사, 해외공급자, 농림축산검역 업체 등 무역 관련 업체 검색/조회 통합 도구",
-    {
+  registerSkillTool(server, {
+    name: "trade_entity",
+    title: "무역 업체 조회",
+    description: "무역 업체 — 통관업체, 관세사, 포워더, 항공사, 선박회사, 해외공급자, 농림축산검역 업체 등 무역 관련 업체 검색/조회 통합 도구",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "search_company=통관업체검색(query필수) | search_broker=관세사검색(query필수) | search_animal_plant_company=농림축산업체검색(company_name필수) | forwarder_list=포워더목록 | forwarder_detail=포워더내역(forwarder_code필수) | airline_list=항공사목록 | airline_detail=항공사내역(airline_code필수) | overseas_supplier=해외공급자검색(query필수) | broker_detail=관세사내역(lca_code필수) | ship_company_list=선박회사목록 | ship_company_detail=선박회사내역",
       ),
@@ -319,6 +320,6 @@ export function registerTradeEntity(
       country_code: z.string().optional().describe("국가부호 (overseas_supplier)"),
       ship_company_code: z.string().optional().describe("선사 부호 (ship_company_detail)"),
     },
-    async (params) => handler(params as TradeEntityParams),
-  );
+    callback: async (params) => handler(params as TradeEntityParams),
+  });
 }

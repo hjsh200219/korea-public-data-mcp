@@ -44,6 +44,7 @@ import { errorResponse, truncate } from "../../shared.js";
 import {
   createDispatcher,
   emptyResultMessage,
+  registerSkillTool,
   type SkillResult,
 } from "./_shared.js";
 
@@ -613,10 +614,11 @@ export function createInsuranceHandler(serviceKey: string) {
 export function registerInsurance(server: McpServer, serviceKey: string): void {
   const handler = createInsuranceHandler(serviceKey);
 
-  server.tool(
-    "insurance",
-    "금융위원회 보험상품 공시 — 실손/일반손해/자동차/변액/생명/개인연금/퇴직연금 보험 정보를 조회합니다. (data.go.kr API, 활용신청 필요)",
-    {
+  registerSkillTool(server, {
+    name: "insurance",
+    title: "보험상품 공시",
+    description: "금융위원회 보험상품 공시 — 실손/일반손해/자동차/변액/생명/개인연금/퇴직연금 보험 정보를 조회합니다. (data.go.kr API, 활용신청 필요)",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "medical_reimbursement=실손보험 보험료 | property_insu_join=일반손해보험 가입정보 | auto_contract=자동차보험 계약정보 | auto_los_circumstance=자동차보험 사고현황 | auto_victim=자동차보험 피해자 정보 | variable_insurance_fund=변액보험 펀드정보 | life_insu_join_status=생명보험 가입현황 | individual_annuity_insu=개인연금보험 가입정보 | retirement_pension_fund=퇴직연금 펀드정보",
       ),
@@ -684,6 +686,6 @@ export function registerInsurance(server: McpServer, serviceKey: string): void {
       offr_ty_nm: z.string().optional().describe("[개인연금] 모집형태명"),
       yer_unit_pymt_term: z.string().optional().describe("[개인연금] 년단위납입기간"),
     },
-    async (params) => handler(params as InsuranceParams),
-  );
+    callback: async (params) => handler(params as InsuranceParams),
+  });
 }

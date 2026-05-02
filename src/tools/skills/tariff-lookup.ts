@@ -20,7 +20,7 @@ import {
 } from "../../unipass-api.js";
 import { getMarketExchangeRates } from "../../exim-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, emptyResultMessage, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, emptyResultMessage, registerSkillTool, type SkillResult } from "./_shared.js";
 
 const ACTIONS = [
   "search_hs",
@@ -261,10 +261,11 @@ export function registerTariffLookup(
 ): void {
   const handler = createTariffLookupHandler(apiKeys, eximApiKey);
 
-  server.tool(
-    "tariff_lookup",
-    "관세율·HS코드·환율 통합 조회 — HS코드 검색, 관세율 조회, 관세환율, 시장환율, 간이환급율, 통계부호, HS 내비게이션 등을 하나의 도구로 제공합니다.",
-    {
+  registerSkillTool(server, {
+    name: "tariff_lookup",
+    title: "관세율·HS코드·환율 조회",
+    description: "관세율·HS코드·환율 통합 조회 — HS코드 검색, 관세율 조회, 관세환율, 시장환율, 간이환급율, 통계부호, HS 내비게이션 등을 하나의 도구로 제공합니다.",
+    inputSchema: {
       action: z.enum(ACTIONS).describe(
         "search_hs=HS부호검색(hs_code필수) | tariff_rate=관세율조회(hs_code필수) | customs_rate=관세환율(currencies선택) | simple_drawback=간이환급률(base_date필수) | simple_drawback_company=간이정액적용업체(business_no필수) | export_period_short=수출기간단축(hs_code필수) | statistics_code=통계부호(code_type필수) | hs_navigation=HS부호체계탐색(hs_code필수) | market_exchange=수출입은행시장환율(date선택)",
       ),
@@ -276,6 +277,6 @@ export function registerTariffLookup(
       value_name: z.string().optional().describe("코드값명칭 (statistics_code에서 사용)"),
       date: z.string().optional().describe("환율 조회 날짜 YYYYMMDD (market_exchange에서 사용)"),
     },
-    async (params) => handler(params as TariffParams),
-  );
+    callback: async (params) => handler(params as TariffParams),
+  });
 }
