@@ -74,7 +74,7 @@ src/
   tools/
     skills/           # ★ 17개 의도 기반 스킬 도구 + MCP Prompts (v6)
       index.ts        # 스킬 오케스트레이터 — 전체 등록
-      _shared.ts      # createDispatcher, requireParam 공통 유틸 (77 lines)
+      _shared.ts      # createDispatcher, requireParam, registerSkillTool 공통 유틸 (123 lines)
       prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts, 135 lines)
       legal-research.ts      # 법령 리서치 (17 actions, 663 lines)
       case-research.ts       # 판례/해석례 리서치 (10 actions, 428 lines)
@@ -171,6 +171,7 @@ Protocol (server.ts → tools/skills/index.ts)
 
 - Korean comments for domain-specific logic
 - MCP 스킬 도구: 17개 의도 기반 도구 (v6), 각 도구는 `action` enum으로 세부 동작 선택 (해외 판례 `foreign_case_research`, 관광 `tourism`, 제품리뷰 `product_review` 포함)
+- 스킬 도구 등록: `server.tool()` 직접 호출 대신 `registerSkillTool()` (`tools/skills/_shared.ts`) 래퍼 사용 — `outputSchema`·`ToolAnnotations`·`structuredContent` 공통 적용
 - MCP Prompts: 6개 워크플로 가이드 (수입통관, 기업분석, 법령리서치, HS코드, 수출통관, 해외판례 비교법)
 - REST routes: `kebab-case` (e.g., `/api/search/admin-rules`, `/api/dart/*`, `/api/data20/*`, `/api/unipass/*`, `/api/exim/*`, `/api/mafra/*`, `/api/finlife/*`, `/api/insurance/*`, `/api/courtlistener/*`, `/api/openlegaldata/*`, `/api/tourism/*`)
 - Error responses: `isError: true` with Korean messages
@@ -257,8 +258,8 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 ## 세션 시작 시 Handoff 강제
 
-세션을 시작할 때 프로젝트 루트에 `handoff.md` 파일이 있는지 먼저 확인한다.
-- `handoff.md`가 존재하면 다른 어떤 작업보다 먼저 **반드시 전체를 읽고 인수인계 컨텍스트를 파악한 뒤 시작**한다.
+세션을 시작할 때 `.claude-project/HANDOFF.md` 파일이 있는지 먼저 확인한다.
+- 존재하면 다른 어떤 작업보다 먼저 **반드시 전체를 읽고 인수인계 컨텍스트를 파악한 뒤 시작**한다.
 - 파일이 없으면 정상 진행한다.
 
 이 규칙은 이전 세션의 미완료 작업·결정 사항·주의사항을 놓치지 않기 위한 강제 사항이다.
