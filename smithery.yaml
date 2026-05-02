@@ -38,6 +38,12 @@ startCommand:
       courtlistenerApiToken:
         type: string
         description: "CourtListener API 토큰 (선택) — 미국 판례 검색"
+      coupangAccessKey:
+        type: string
+        description: "쿠팡 파트너스 Access Key (선택) — 없으면 쿠팡 상품 검색 비활성화"
+      coupangSecretKey:
+        type: string
+        description: "쿠팡 파트너스 Secret Key (선택)"
       foreignCaseEnabled:
         type: string
         description: "'true' 설정 시 토큰 없이도 독일 판례(OpenLegalData) 활성화"
@@ -56,6 +62,8 @@ startCommand:
         FINLIFE_API_KEY: config.finlifeApiKey || '',
         YOUTUBE_API_KEY: config.youtubeApiKey || '',
         COURTLISTENER_API_TOKEN: config.courtlistenerApiToken || '',
+        COUPANG_ACCESS_KEY: config.coupangAccessKey || '',
+        COUPANG_SECRET_KEY: config.coupangSecretKey || '',
         FOREIGN_CASE_ENABLED: config.foreignCaseEnabled || 'true'
       }
     })

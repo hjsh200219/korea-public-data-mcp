@@ -583,3 +583,138 @@ describe("getTranscriptFallback (youtube-transcript-api)", () => {
     await expect(getTranscriptFallback("abc123", "ko")).rejects.toThrow("youtube-transcript-api가 설치되어 있지 않습니다");
   });
 });
+
+// ── parseYoutubeMdChannels ──
+
+import { parseYoutubeMdChannels } from "./youtube-api.js";
+
+describe("parseYoutubeMdChannels", () => {
+  it("URL에서 핸들 추출", () => {
+    const content = [
+      "https://www.youtube.com/@ITSUB",
+      "https://www.youtube.com/@channelTwo",
+    ].join("\n");
+    expect(parseYoutubeMdChannels(content)).toEqual(["ITSUB", "channelTwo"]);
+  });
+
+  it("빈 줄과 비URL 줄 무시", () => {
+    const content = [
+      "",
+      "# 제목",
+      "https://www.youtube.com/@ValidHandle",
+      "   ",
+      "not a url",
+      "https://www.youtube.com/@AnotherOne",
+    ].join("\n");
+    expect(parseYoutubeMdChannels(content)).toEqual(["ValidHandle", "AnotherOne"]);
+  });
+});
+
+// ── resolveChannelHandles / _resetChannelCache ──
+
+import { resolveChannelHandles, _resetChannelCache } from "./youtube-api.js";
+
+describe("resolveChannelHandles", () => {
+  beforeEach(() => {
+    _resetChannelCache();
+    vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("channels.list API 호출 후 ChannelInfo[] 반환", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [{ id: "UC_abc123", snippet: { title: "ITSUB Channel" } }],
+      }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await resolveChannelHandles("apikey", ["ITSUB"]);
+    expect(result).toEqual([{ handle: "ITSUB", channelId: "UC_abc123", title: "ITSUB Channel" }]);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).toContain("channels");
+    expect(url).toContain("forHandle=ITSUB");
+  });
+
+  it("두 번째 호출은 캐시 사용 (API 한 번만 호출)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [{ id: "UC_abc123", snippet: { title: "ITSUB Channel" } }],
+      }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await resolveChannelHandles("apikey", ["ITSUB"]);
+    await resolveChannelHandles("apikey", ["ITSUB"]);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("_resetChannelCache 호출 후 캐시 클리어됨", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [{ id: "UC_abc123", snippet: { title: "ITSUB Channel" } }],
+      }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await resolveChannelHandles("apikey", ["ITSUB"]);
+    _resetChannelCache();
+    await resolveChannelHandles("apikey", ["ITSUB"]);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ── getChannelVideos ──
+
+import { getChannelVideos } from "./youtube-api.js";
+
+describe("getChannelVideos", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("playlistItems.list를 UU 접두사로 호출하고 SearchResultItem[] 반환", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            snippet: {
+              resourceId: { videoId: "vid001" },
+              title: "Test Video",
+              description: "A description",
+              channelTitle: "My Channel",
+              publishedAt: "2024-01-01T00:00:00Z",
+              thumbnails: { high: { url: "https://img.url/hq.jpg" } },
+            },
+          },
+        ],
+        pageInfo: { totalResults: 1 },
+      }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    // channelId starts with "UC", so uploadsPlaylistId = "UU" + channelId.slice(2)
+    const result = await getChannelVideos("apikey", "UCtest123");
+    expect(result).toHaveLength(1);
+    expect(result[0].videoId).toBe("vid001");
+    expect(result[0].title).toBe("Test Video");
+
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).toContain("playlistItems");
+    expect(url).toContain("UUtest123");
+  });
+});

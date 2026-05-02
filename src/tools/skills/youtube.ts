@@ -118,7 +118,7 @@ function handleSearch(apiKey: string) {
     if (err) return err;
 
     try {
-      const result = await searchVideos(apiKey, p.query!, p.max_results ?? 5);
+      const result = await searchVideos(apiKey, p.query!, { maxResults: p.max_results ?? 5 });
       const lines = result.items.map((item, i) => [
         `${i + 1}. ${item.title}`,
         `   채널: ${item.channelTitle}`,

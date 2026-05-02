@@ -17,6 +17,8 @@ export interface ServerConfig {
   courtlistenerApiToken?: string;
   openLegalDataApiToken?: string;
   foreignCaseEnabled?: boolean;
+  coupangAccessKey?: string;
+  coupangSecretKey?: string;
 }
 
 function collectUnipassKeys(): Record<string, string> {
@@ -39,6 +41,8 @@ export function loadConfig(): ServerConfig {
   const courtlistenerApiToken = process.env.COURTLISTENER_API_TOKEN || "";
   const openLegalDataApiToken = process.env.OPENLEGALDATA_API_TOKEN || "";
   const foreignCaseEnabled = process.env.FOREIGN_CASE_ENABLED === "true";
+  const coupangAccessKey = process.env.COUPANG_ACCESS_KEY || "";
+  const coupangSecretKey = process.env.COUPANG_SECRET_KEY || "";
   const unipassKeys = collectUnipassKeys();
 
   if (!lawApiOc) {
@@ -82,6 +86,10 @@ export function loadConfig(): ServerConfig {
     );
   }
 
+  if (!coupangAccessKey || !coupangSecretKey) {
+    console.warn("COUPANG_ACCESS_KEY/COUPANG_SECRET_KEY 미설정 — 쿠팡 상품 검색 비활성화");
+  }
+
   return {
     lawApiOc,
     dartApiKey: dartApiKey || undefined,
@@ -94,5 +102,7 @@ export function loadConfig(): ServerConfig {
     courtlistenerApiToken: courtlistenerApiToken || undefined,
     openLegalDataApiToken: openLegalDataApiToken || undefined,
     foreignCaseEnabled: foreignCaseEnabled || undefined,
+    coupangAccessKey: coupangAccessKey || undefined,
+    coupangSecretKey: coupangSecretKey || undefined,
   };
 }

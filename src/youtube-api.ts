@@ -440,20 +440,127 @@ export async function getVideoMetadata(
   };
 }
 
+// ─── 채널 핸들 파싱 ───
+
+/**
+ * youtube.md 파일 내용에서 YouTube 채널 핸들 배열 추출
+ * https://www.youtube.com/@HANDLE 형식의 URL에서 핸들(@ 제외) 파싱
+ */
+export function parseYoutubeMdChannels(content: string): string[] {
+  const handles: string[] = [];
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    const match = trimmed.match(/youtube\.com\/@([\w-]+)/);
+    if (match) handles.push(match[1]);
+  }
+  return handles;
+}
+
+// ─── 채널 ID 캐시 (24h TTL) ───
+
+export interface ChannelInfo {
+  handle: string;
+  channelId: string;
+  title: string;
+}
+
+const CHANNEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const channelCache = new Map<string, { channelId: string; title: string; expiresAt: number }>();
+
+export function _resetChannelCache(): void {
+  channelCache.clear();
+}
+
+/**
+ * 핸들 배열을 채널 ID로 변환 (캐시 24h)
+ */
+export async function resolveChannelHandles(
+  apiKey: string,
+  handles: string[],
+): Promise<ChannelInfo[]> {
+  const results: ChannelInfo[] = [];
+  const now = Date.now();
+
+  for (const handle of handles) {
+    const cached = channelCache.get(handle);
+    if (cached && cached.expiresAt > now) {
+      results.push({ handle, channelId: cached.channelId, title: cached.title });
+      continue;
+    }
+
+    const data = await ytApiFetch("channels", apiKey, {
+      part: "id,snippet",
+      forHandle: handle,
+    });
+
+    if (!data.items || data.items.length === 0) {
+      console.warn(`[youtube] 핸들 '${handle}'에 해당하는 채널을 찾을 수 없습니다.`);
+      continue;
+    }
+
+    const item = data.items[0];
+    const channelId = String(item.id ?? "");
+    const snippet = (item.snippet ?? {}) as Record<string, unknown>;
+    const title = String(snippet.title ?? "");
+
+    channelCache.set(handle, { channelId, title, expiresAt: now + CHANNEL_CACHE_TTL_MS });
+    results.push({ handle, channelId, title });
+  }
+
+  return results;
+}
+
+/**
+ * 채널의 최근 업로드 영상 목록 조회 (playlistItems.list)
+ * uploadsPlaylistId = "UU" + channelId.slice(2)
+ */
+export async function getChannelVideos(
+  apiKey: string,
+  channelId: string,
+  maxResults = 50,
+): Promise<SearchResultItem[]> {
+  const playlistId = "UU" + channelId.slice(2);
+  const data = await ytApiFetch("playlistItems", apiKey, {
+    part: "snippet",
+    playlistId,
+    maxResults: String(Math.min(maxResults, 50)),
+  });
+
+  return (data.items ?? []).map((item) => {
+    const snippet = pickObj(item, "snippet");
+    const resourceId = pickObj(snippet, "resourceId");
+    const thumbnails = pickObj(snippet, "thumbnails");
+    const highThumb = pickObj(thumbnails, "high");
+    return {
+      videoId: pickStr(resourceId, "videoId"),
+      title: pickStr(snippet, "title"),
+      description: pickStr(snippet, "description"),
+      channelTitle: pickStr(snippet, "channelTitle"),
+      publishedAt: pickStr(snippet, "publishedAt"),
+      thumbnailUrl: pickStr(highThumb, "url"),
+    };
+  });
+}
+
 /**
  * 영상 검색
  */
 export async function searchVideos(
   apiKey: string,
   query: string,
-  maxResults = 5,
+  opts?: { maxResults?: number; channelId?: string; order?: string },
 ): Promise<SearchResult> {
-  const data = await ytApiFetch("search", apiKey, {
+  const maxResults = opts?.maxResults ?? 5;
+  const params: Record<string, string> = {
     part: "snippet",
     type: "video",
     q: query,
     maxResults: String(Math.min(maxResults, 20)),
-  });
+  };
+  if (opts?.channelId) params.channelId = opts.channelId;
+  if (opts?.order) params.order = opts.order;
+
+  const data = await ytApiFetch("search", apiKey, params);
 
   const items: SearchResultItem[] = (data.items ?? []).map((item) => {
     const id = pickObj(item, "id");

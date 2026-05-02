@@ -1,5 +1,5 @@
 /**
- * 스킬 도구 오케스트레이터 — 15개 스킬 도구 + MCP Prompts 등록
+ * 스킬 도구 오케스트레이터 — 17개 스킬 도구 + MCP Prompts 등록
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -20,6 +20,7 @@ import { registerProcurement } from "./procurement.js";
 import { registerYoutube } from "./youtube.js";
 import { registerTourism } from "./tourism.js";
 import { registerForeignCaseResearch } from "./foreign-case-research.js";
+import { registerProductReviewSkill } from "./product-review.js";
 import { registerSkillPrompts } from "./prompts.js";
 
 export function registerSkillTools(
@@ -55,6 +56,8 @@ export function registerSkillTools(
   }
 
   registerYoutube(server, config.youtubeApiKey);
+
+  registerProductReviewSkill(server, config.youtubeApiKey, config.coupangAccessKey, config.coupangSecretKey);
 
   // 해외 판례: 소스별 환경변수 게이팅
   // - COURTLISTENER_API_TOKEN 설정 → 미국 액션 활성
