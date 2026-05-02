@@ -24,75 +24,75 @@ npm run dev:remote   # Dev with tsx (HTTP)
 
 ```
 src/
-  index.ts            # Stdio entrypoint (23 lines)
-  remote.ts           # HTTP entrypoint - Express (195 lines)
-  config.ts           # 환경변수 수집, ServerConfig 로드 (74 lines)
-  server.ts           # MCP 서버 오케스트레이터 — 스킬 도구 등록 (21 lines)
-  api-routes.ts       # REST 라우트 오케스트레이터 (47 lines)
-  openapi.ts          # OpenAPI 스펙 오케스트레이터 (47 lines)
-  http-client.ts      # 공통 HTTP fetch/retry/throttle (128 lines)
-  shared.ts           # Shared utilities - truncate, truncateWindow (offset 페이지네이션), errorResponse
-  kst-date.ts         # KST 날짜 유틸리티 (41 lines)
-  logger.ts           # 구조화 로깅 모듈 (35 lines)
-  law-api.ts          # 법제처 API re-export barrel (7 lines)
+  index.ts            # Stdio entrypoint
+  remote.ts           # HTTP entrypoint (Express)
+  config.ts           # 환경변수 수집, ServerConfig 로드
+  server.ts           # MCP 서버 오케스트레이터 — 스킬 도구 등록
+  api-routes.ts       # REST 라우트 오케스트레이터
+  openapi.ts          # OpenAPI 스펙 오케스트레이터
+  http-client.ts      # 공통 HTTP fetch/retry/throttle
+  shared.ts           # truncate, truncateWindow (offset 페이지네이션), errorResponse
+  kst-date.ts         # KST 날짜 유틸리티
+  logger.ts           # 구조화 로깅
+  law-api.ts          # 법제처 API re-export barrel
   law/                # 법제처 API 모듈 분리
-    helpers.ts        # XML 파서, HTTP, 변환 유틸 (~190 lines)
+    helpers.ts        # XML 파서, HTTP, 변환 유틸
     search.ts         # 검색 (법령/행정규칙/자치법규/조약/영문/약칭 등)
     detail.ts         # 상세 (법령/행정규칙/조약/조항호목)
     case.ts           # 판례/해석례/헌재/위원회/행정심판
     amendment.ts      # 신구법비교/법령체계도/3단비교/변경이력
     index.ts          # barrel re-export
-  law-types.ts        # 법제처 TypeScript interfaces (598 lines)
-  dart-api.ts         # DART 전자공시 API client (375 lines)
-  dart-types.ts       # DART TypeScript interfaces (153 lines)
-  data20-api.ts       # 공공데이터포털 API client (~396 lines)
-  data20-types.ts     # 공공데이터포털 TypeScript interfaces (143 lines)
-  unipass-api.ts      # 관세청 UNI-PASS API client (1560 lines)
-  unipass-types.ts    # 관세청 UNI-PASS TypeScript interfaces (574 lines)
-  exim-api.ts         # 수출입은행 API client (113 lines)
-  exim-types.ts       # 수출입은행 TypeScript interfaces (27 lines)
-  mafra-api.ts        # 농림축산식품부 API client (104 lines)
-  mafra-types.ts      # 농림축산식품부 TypeScript interfaces (38 lines)
-  finlife-api.ts      # 금융감독원 금융상품 비교공시 API client (232 lines)
-  finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces (318 lines)
-  insurance-api.ts    # 금융위원회 보험상품 공시 API client (367 lines)
-  insurance-types.ts  # 금융위원회 보험상품 공시 TypeScript interfaces (275 lines)
-  g2b-api.ts          # 조달청 나라장터 G2B API client (122 lines)
-  g2b-types.ts        # 조달청 G2B TypeScript interfaces (85 lines)
-  youtube-api.ts      # YouTube Data API v3 + yt-dlp 자막 추출 (495 lines)
-  youtube-types.ts    # YouTube TypeScript interfaces (69 lines)
-  courtlistener-api.ts    # CourtListener REST v4 (미국 판례) — search/getOpinion/getCluster/listCourts, cursor 페이지네이션 (~400 lines)
-  courtlistener-types.ts  # CourtListener 정규화 도메인 타입 (OpinionListItem/OpinionDetail/ClusterDetail/CourtListItem)
-  openlegaldata-api.ts    # OpenLegalData (독일 판례) — search/detail (~75 lines)
-  openlegaldata-types.ts  # OpenLegalData TypeScript interfaces (~55 lines)
-  tourism-api.ts          # 한국관광공사 KorService2 API client (~340 lines)
-  tourism-types.ts        # 한국관광공사 KorService2 TypeScript interfaces (~190 lines)
-  coupang-api.ts          # 쿠팡 파트너스 API client (99 lines)
-  coupang-types.ts        # 쿠팡 파트너스 TypeScript interfaces (29 lines)
-  routes/             # 도메인별 REST 라우트 (11 domain + helpers)
-  openapi/            # 도메인별 OpenAPI path 생성기 (11 path modules + shared)
+  law-types.ts        # 법제처 TypeScript interfaces
+  dart-api.ts         # DART 전자공시 API client
+  dart-types.ts       # DART TypeScript interfaces
+  data20-api.ts       # 공공데이터포털 API client
+  data20-types.ts     # 공공데이터포털 TypeScript interfaces
+  unipass-api.ts      # 관세청 UNI-PASS API client
+  unipass-types.ts    # 관세청 UNI-PASS TypeScript interfaces
+  exim-api.ts         # 수출입은행 API client
+  exim-types.ts       # 수출입은행 TypeScript interfaces
+  mafra-api.ts        # 농림축산식품부 API client
+  mafra-types.ts      # 농림축산식품부 TypeScript interfaces
+  finlife-api.ts      # 금융감독원 금융상품 비교공시 API client
+  finlife-types.ts    # 금융감독원 금융상품 비교공시 TypeScript interfaces
+  insurance-api.ts    # 금융위원회 보험상품 공시 API client
+  insurance-types.ts  # 금융위원회 보험상품 공시 TypeScript interfaces
+  g2b-api.ts          # 조달청 나라장터 G2B API client
+  g2b-types.ts        # 조달청 G2B TypeScript interfaces
+  youtube-api.ts      # YouTube Data API v3 + yt-dlp 자막 추출
+  youtube-types.ts    # YouTube TypeScript interfaces
+  courtlistener-api.ts    # CourtListener REST v4 (미국 판례) — cursor 페이지네이션
+  courtlistener-types.ts  # CourtListener 정규화 도메인 타입
+  openlegaldata-api.ts    # OpenLegalData (독일 판례) — search/detail
+  openlegaldata-types.ts  # OpenLegalData TypeScript interfaces
+  tourism-api.ts          # 한국관광공사 KorService2 API client
+  tourism-types.ts        # 한국관광공사 KorService2 TypeScript interfaces
+  coupang-api.ts          # 쿠팡 파트너스 API client
+  coupang-types.ts        # 쿠팡 파트너스 TypeScript interfaces
+  routes/             # 도메인별 REST 라우트
+  openapi/            # 도메인별 OpenAPI path 생성기
   tools/
     skills/           # ★ 17개 의도 기반 스킬 도구 + MCP Prompts (v6)
       index.ts        # 스킬 오케스트레이터 — 전체 등록
-      _shared.ts      # createDispatcher, requireParam, registerSkillTool 공통 유틸 (123 lines)
-      prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts, 135 lines)
-      legal-research.ts      # 법령 리서치 (17 actions, 663 lines)
-      case-research.ts       # 판례/해석례 리서치 (10 actions, 428 lines)
-      law-amendment.ts       # 법령 비교/개정 (9 actions, 366 lines)
-      import-clearance.ts    # 수입통관 (20 actions, 649 lines, MAFRA 포함)
-      export-clearance.ts    # 수출통관 (6 actions, 221 lines)
-      shipping-logistics.ts  # 선적/물류 (9 actions, 280 lines)
-      tariff-lookup.ts       # 관세/HS코드/환율 (9 actions, 281 lines, EXIM 포함)
-      trade-entity.ts        # 무역업체 (11 actions, 324 lines)
-      corporate-disclosure.ts # 기업공시 (7 actions, 363 lines, DART + 배당)
-      public-data.ts         # 공공데이터포털 (11 actions, ~376 lines)
-      financial-product.ts   # 금융상품 비교공시 (7 actions, 438 lines, 금융감독원)
-      insurance.ts           # 보험상품 공시 (9 actions, 689 lines, 금융위원회)
-      procurement.ts         # 조달청 나라장터 입찰/낙찰 (2 actions, 157 lines)
-      youtube.ts             # YouTube 자막/메타데이터/검색/댓글 (5 actions, 223 lines)
-      foreign-case-research.ts # 해외 판례 (4 actions, US CourtListener cursor 페이지네이션 + DE OpenLegalData page 페이지네이션)
-      tourism.ts             # 한국관광공사 KorService2 (7 actions, 지역·키워드·위치·축제·숙박·상세·코드조회)
-      product-review.ts      # 제품 리뷰 (3 actions: find_reviews/coupang_search/full_review, youtube.md 동적 채널)
+      _shared.ts      # createDispatcher, requireParam, registerSkillTool 공통 유틸
+      prompts.ts      # MCP Prompts 워크플로 가이드 (5 prompts)
+      legal-research.ts      # 법령 리서치 (17 actions)
+      case-research.ts       # 판례/해석례 리서치 (10 actions)
+      law-amendment.ts       # 법령 비교/개정 (9 actions)
+      import-clearance.ts    # 수입통관 (20 actions, MAFRA 포함)
+      export-clearance.ts    # 수출통관 (6 actions)
+      shipping-logistics.ts  # 선적/물류 (9 actions)
+      tariff-lookup.ts       # 관세/HS코드/환율 (9 actions, EXIM 포함)
+      trade-entity.ts        # 무역업체 (11 actions)
+      corporate-disclosure.ts # 기업공시 (7 actions, DART + 배당)
+      public-data.ts         # 공공데이터포털 (11 actions)
+      financial-product.ts   # 금융상품 비교공시 (7 actions)
+      insurance.ts           # 보험상품 공시 (9 actions)
+      procurement.ts         # 조달청 나라장터 입찰/낙찰 (2 actions)
+      youtube.ts             # YouTube 자막/메타데이터/검색/댓글 (5 actions)
+      foreign-case-research.ts # 해외 판례 (4 actions, US cursor + DE page 페이지네이션)
+      tourism.ts             # 한국관광공사 KorService2 (7 actions)
+      product-review.ts      # 제품 리뷰 (3 actions, youtube.md 동적 채널)
 ```
 
 ## Layer Rules
@@ -191,70 +191,7 @@ Protocol (server.ts → tools/skills/index.ts)
 
 ## Behavioral Guidelines
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
-Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
-
-### 1. Think Before Coding
-
-Don't assume. Don't hide confusion. Surface tradeoffs.
-
-Before implementing:
-
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-### 2. Simplicity First
-
-Minimum code that solves the problem. Nothing speculative.
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-### 3. Surgical Changes
-
-Touch only what you must. Clean up only your own mess.
-
-When editing existing code:
-
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-### 4. Goal-Driven Execution
-
-Define success criteria. Loop until verified.
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
-These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+See [docs/dev-guidelines.md](docs/dev-guidelines.md).
 
 ## 세션 시작 시 Handoff 강제
 
