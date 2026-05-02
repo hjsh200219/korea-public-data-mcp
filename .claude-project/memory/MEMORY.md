@@ -23,3 +23,5 @@
 - [product-review-skill-youtube-md-dynamic-channels](product-review-skill-youtube-md-dynamic-channels.md) — youtube.md 동적 채널 로드, find_reviews/coupang_search/full_review 패턴
 - [coupang-partners-rate-limit-and-disclosure](coupang-partners-rate-limit-and-disclosure.md) — 시간당 10회 제한, 수수료 공시 문구 필수 (COUPANG_DISCLOSURE 상수)
 - [tdd-api-plus-skill-test-split](tdd-api-plus-skill-test-split.md) — 신규 도메인 테스트는 {domain}-api.test.ts + tools/skills/{domain}.test.ts 2-파일 분리
+- [yt-dlp-stderr-429-false-positive](yt-dlp-stderr-429-false-positive.md) — execFileAsync 에러 메시지에 커맨드 전체 포함 — '429' 문자열 검사는 오탐
+- [youtube-cookies-railway-refresh-runbook](youtube-cookies-railway-refresh-runbook.md) — Railway YOUTUBE_COOKIES 갱신 전체 절차 (추출 → 필터 → 주입 → 재배포)
