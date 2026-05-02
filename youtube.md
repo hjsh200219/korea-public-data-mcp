@@ -1,0 +1,12 @@
+https://www.youtube.com/@ITSUB
+https://www.youtube.com/@gwigom
+https://www.youtube.com/@techmong
+https://www.youtube.com/@calarygirl
+https://www.youtube.com/@hyojin94517
+https://www.youtube.com/@the-edit-life
+https://www.youtube.com/@the-edit
+https://www.youtube.com/@bgsreview
+https://www.youtube.com/@Gajoo
+https://www.youtube.com/@JANGPS
+https://www.youtube.com/@RISABAE
+https://www.youtube.com/@director_pihyunjung
