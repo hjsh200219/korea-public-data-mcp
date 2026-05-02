@@ -11,7 +11,7 @@ import {
   getVideoMetadata, searchVideos, getVideoComments,
 } from "../../youtube-api.js";
 import { errorResponse, truncate } from "../../shared.js";
-import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
+import { createDispatcher, requireParam, registerSkillTool, type ActionHandler, type SkillResult } from "./_shared.js";
 
 /** API 키 없이 사용 가능한 actions */
 const BASE_ACTIONS = ["get_transcript", "summarize"] as const;
@@ -168,8 +168,7 @@ function handleComments(apiKey: string) {
 
 export function registerYoutube(server: McpServer, apiKey?: string): void {
   const availableActions: AllAction[] = [...BASE_ACTIONS];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handlers: Record<string, any> = {
+  const handlers: Record<string, ActionHandler<YoutubeParams>> = {
     get_transcript: handleGetTranscript(),
     summarize: handleSummarize(),
   };

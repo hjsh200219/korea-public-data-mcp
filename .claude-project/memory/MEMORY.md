@@ -25,3 +25,5 @@
 - [tdd-api-plus-skill-test-split](tdd-api-plus-skill-test-split.md) — 신규 도메인 테스트는 {domain}-api.test.ts + tools/skills/{domain}.test.ts 2-파일 분리
 - [yt-dlp-stderr-429-false-positive](yt-dlp-stderr-429-false-positive.md) — execFileAsync 에러 메시지에 커맨드 전체 포함 — '429' 문자열 검사는 오탐
 - [youtube-cookies-railway-refresh-runbook](youtube-cookies-railway-refresh-runbook.md) — Railway YOUTUBE_COOKIES 갱신 전체 절차 (추출 → 필터 → 주입 → 재배포)
+- [mcp-sdk-outputschema-requires-structuredcontent](mcp-sdk-outputschema-requires-structuredcontent.md) — outputSchema 설정 시 콜백에 structuredContent 필수, registerSkillTool()에 캡슐화됨
+- [register-skill-tool-wrapper-pattern](register-skill-tool-wrapper-pattern.md) — registerSkillTool() 래퍼 표준 패턴, server.tool() 직접 호출 금지

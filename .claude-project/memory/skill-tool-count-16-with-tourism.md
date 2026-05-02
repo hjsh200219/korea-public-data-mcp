@@ -20,5 +20,9 @@ product_review 스킬: 3 actions
 환경변수: COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY
 채널 목록: youtube.md 동적 로드 (process.cwd()/youtube.md)
 
+2026-05-03 추가: 17개 스킬 모두 `registerSkillTool()` 마이그레이션 완료.
+`server.tool()` 직접 호출은 더 이상 없음.
+
 **Why:** 스킬 수 기준점으로 다음 통합 시 충돌/중복 방지 및 e2e 테스트 assertion 기준.
 **How to apply:** 새 스킬 추가 시 index.ts 등록 + e2e test 카운트 갱신 + 이 메모 업데이트.
+신규 스킬은 반드시 `registerSkillTool()` 사용 (`server.tool()` 금지).
