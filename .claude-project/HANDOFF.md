@@ -1,41 +1,65 @@
 ---
-created: 2026-05-02T11:20:00+09:00
+created: 2026-05-03T01:00:00+09:00
 project: k-public-data-mcp
-summary: YouTube 자막 추출 버그 수정 (429 에러 시 기존 파일 반환)
+summary: product_review MCP 스킬 추가 (YouTube 리뷰 + 쿠팡 구매 URL) + Smithery 마켓플레이스 등록 진행
 ---
 
 ## Session Digest
 
-`tryYtDlpClient` 함수에서 `--sub-lang en,ja,zh-Hans,...` 처럼 다중 언어를 지정할 때, 일부 언어에서 HTTP 429가 발생하면 yt-dlp가 exit code 1로 종료된다. 기존 코드는 이 에러를 즉시 throw하여 이미 성공적으로 다운로드된 앞 언어의 자막 파일을 읽지 못하는 버그가 있었다. 이를 수정하여 에러 발생 시에도 디스크에 쓰인 파일을 먼저 확인하고, 파일이 있으면 반환하도록 변경했다.
+`product_review` MCP 스킬(17번째 스킬)을 구현했다. YouTube 리뷰 자막 추출(youtube.md 동적 채널 로드)과 쿠팡 Partners API HMAC-SHA256 인증으로 구매 URL을 반환한다. Smithery MCP 마켓플레이스 등록을 위한 `smithery.yaml`을 작성하고 GitHub에 푸시까지 완료했다. 820개 테스트 통과.
 
 ## Progress
 
-- **버그 수정 완료** (`src/youtube-api.ts`, `tryYtDlpClient` 함수, lines ~210-255)
-  - `execFileAsync` 호출을 try/catch로 감싸 에러를 `ytdlpError`에 저장
-  - ENOENT(`yt-dlp` 미설치), "no subtitles"/"Subtitles are disabled" 는 즉시 throw (기존 동작 유지)
-  - 429 / PO Token / DRM / 봇 감지 등 나머지 에러: 파일 읽기 먼저 시도, 파일 있으면 반환
-  - 파일도 없을 때만 429 에러를 사용자 친화적 메시지로 throw
-- **TDD 완료** (`src/youtube-api.test.ts`, line 491)
-  - 신규 테스트: `"429 에러 발생해도 이미 쓰인 자막 파일이 있으면 반환"`
-  - `execFile` mock → 429 에러 반환, `readFile` mock → `.en.json3` 파일 존재, 나머지 ENOENT
-  - 전체 801개 테스트 통과
-- **빌드/린트 클린** — `npm run build`, `npm run lint` 모두 성공
-- **커밋 및 푸시 완료** — `06bbdb3` → `origin/master`
+- **완료**:
+  - `product_review` MCP 스킬 구현 (`src/tools/skills/product-review.ts`, 252 lines)
+    - `find_reviews` — YouTube 채널에서 상품 리뷰 자막 검색
+    - `coupang_search` — 쿠팡 Products API로 상품 검색 + 딥링크 URL 반환
+    - `full_review` — find_reviews + coupang_search 통합 워크플로
+  - `src/coupang-api.ts` — Coupang Partners HMAC-SHA256 인증, 1h 캐시, fetchWithRetry (99 lines)
+  - `src/coupang-types.ts` — 쿠팡 TypeScript 인터페이스 (29 lines)
+  - `src/youtube-api.ts` — `parseYoutubeMdChannels` / `resolveChannelHandles` / `getChannelVideos` 추가, `searchVideos` 옵션 객체 시그니처로 리팩터 (+113 lines)
+  - `youtube.md` — 12개 리뷰 채널 목록 추가 (동적 로드 소스)
+  - `src/config.ts` — `COUPANG_ACCESS_KEY` / `COUPANG_SECRET_KEY` 환경변수 추가
+  - `smithery.yaml` — Smithery MCP 마켓플레이스 등록용 메타데이터 (65 lines)
+  - `AGENTS.md` — product_review 스킬 문서 업데이트
+  - TDD 완료: `src/coupang-api.test.ts` (148 lines), `src/tools/skills/product-review.test.ts` (206 lines)
+  - Railway 환경변수 `COUPANG_ACCESS_KEY` / `COUPANG_SECRET_KEY` 추가 및 재배포
+  - E2E 테스트 통과 (쿠팡 딥링크 URL 정상 반환 확인)
+  - GitHub 푸시 완료 (`ef2688b` HEAD)
+- **미완료**:
+  - Smithery 마켓플레이스 실제 등록 승인 대기 중 (제출은 완료)
 
 ## Next Steps
 
-- 없음. 이번 세션 목표 완전 달성. 다음 작업은 별도 이슈 기반으로 진행 가능.
+1. Smithery 마켓플레이스 등록 승인 확인 — 등록 완료 후 README/CLAUDE.md에 Smithery 배지/링크 추가
+2. `awesome-mcp-servers` GitHub 리포에 PR 제출 (마케팅)
+3. MCP Prompts(`src/tools/skills/prompts.ts`) — product_review 워크플로 가이드 프롬프트 추가 고려
+4. youtube.md 채널 확장 — 현재 12개, 카테고리별 채널 추가 가능
 
 ## Blockers
 
-- 없음.
+- Smithery 등록 승인은 외부 의존 (별도 처리 불필요, 대기)
+- 쿠팡 Partners API는 `COUPANG_ACCESS_KEY` / `COUPANG_SECRET_KEY` 필수 — 미설정 시 `coupang_search` / `full_review` 액션 비활성화됨
 
 ## Watch Out
 
-- `tryYtDlpClient`는 `null`을 반환하면 호출자(`getTranscript`)가 다음 player client(`web`, `tv`, `android_vr` 캐스케이드)로 넘어간다. 429 에러이면서 파일도 없는 경우에만 throw하므로, 429를 받았더라도 파일이 존재하면 정상 반환 — 캐스케이드가 불필요하게 돌지 않는다.
-- 동일 함수에서 PO Token / DRM / 봇 감지 에러는 `null` 반환(다음 클라이언트 시도)으로 처리된다. 추후 이 분기에 새 에러 메시지가 추가되면 `ytdlpError` null 체크 이후 로직을 함께 검토해야 한다.
+- `youtube.md` 파일이 `product_review` 스킬의 채널 소스다. 파일 삭제/이동 시 `find_reviews`가 동작하지 않는다.
+- `searchVideos` 함수 시그니처가 이번 세션에서 **옵션 객체 형태로 변경**됐다. 외부에서 직접 호출하는 코드가 있다면 인터페이스 확인 필요.
+- 쿠팡 Partners API 딥링크는 `coupangpick.com` 도메인이 아닌 `link.coupang.com` 기반이다 — URL 패턴 변경 시 E2E 테스트가 깨진다.
+- CLAUDE.md Source Map 업데이트 완료 (`coupang-api.ts`, `coupang-types.ts`, Layer Rules, 헤더 포함).
 
 ## Files Touched
 
-- `/Users/hoshin/workspace/k-public-data-mcp/src/youtube-api.ts` — `tryYtDlpClient` 함수 로직 변경 (lines ~210-257)
-- `/Users/hoshin/workspace/k-public-data-mcp/src/youtube-api.test.ts` — 신규 테스트 추가 (line 491-526)
+- `/Users/hoshin/workspace/k-public-data-mcp/src/coupang-api.ts` — 신규 생성
+- `/Users/hoshin/workspace/k-public-data-mcp/src/coupang-api.test.ts` — 신규 생성
+- `/Users/hoshin/workspace/k-public-data-mcp/src/coupang-types.ts` — 신규 생성
+- `/Users/hoshin/workspace/k-public-data-mcp/src/tools/skills/product-review.ts` — 신규 생성
+- `/Users/hoshin/workspace/k-public-data-mcp/src/tools/skills/product-review.test.ts` — 신규 생성
+- `/Users/hoshin/workspace/k-public-data-mcp/src/tools/skills/index.ts` — product_review 스킬 등록
+- `/Users/hoshin/workspace/k-public-data-mcp/src/tools/skills/youtube.ts` — import 경로 수정
+- `/Users/hoshin/workspace/k-public-data-mcp/src/youtube-api.ts` — 채널 동적 로드 함수 추가, searchVideos 시그니처 변경
+- `/Users/hoshin/workspace/k-public-data-mcp/src/youtube-api.test.ts` — 신규 테스트 추가
+- `/Users/hoshin/workspace/k-public-data-mcp/src/config.ts` — Coupang 환경변수 추가
+- `/Users/hoshin/workspace/k-public-data-mcp/youtube.md` — 12개 채널 목록 추가
+- `/Users/hoshin/workspace/k-public-data-mcp/smithery.yaml` — 신규 생성
+- `/Users/hoshin/workspace/k-public-data-mcp/AGENTS.md` — product_review 문서 업데이트

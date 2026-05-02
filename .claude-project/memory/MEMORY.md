@@ -18,5 +18,8 @@
 - [fetch-mock-convention-vi-stubglobal](fetch-mock-convention-vi-stubglobal.md) — vitest stubGlobal 표준, nock 금지
 - [express-5-req-params-string-array](express-5-req-params-string-array.md) — req.params는 string|string[], String() 캐스트 필수
 - [korservice2-data20-key-reuse](korservice2-data20-key-reuse.md) — KorService2는 DATA20_SERVICE_KEY 재사용, 공공데이터포털 계열 API 공통 패턴
-- [skill-tool-count-16-with-tourism](skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 16개 기준점 및 tourism 7 actions 목록
+- [skill-tool-count-16-with-tourism](skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 17개 기준점 (product_review 추가 후)
+- [coupang-partners-hmac-auth-pattern](coupang-partners-hmac-auth-pattern.md) — 쿠팡 파트너스 HMAC-SHA256 인증: datetime 포맷 yymmddTHHMMSSZ, queryString에 ? 제외
+- [product-review-skill-youtube-md-dynamic-channels](product-review-skill-youtube-md-dynamic-channels.md) — youtube.md 동적 채널 로드, find_reviews/coupang_search/full_review 패턴
+- [coupang-partners-rate-limit-and-disclosure](coupang-partners-rate-limit-and-disclosure.md) — 시간당 10회 제한, 수수료 공시 문구 필수 (COUPANG_DISCLOSURE 상수)
 - [tdd-api-plus-skill-test-split](tdd-api-plus-skill-test-split.md) — 신규 도메인 테스트는 {domain}-api.test.ts + tools/skills/{domain}.test.ts 2-파일 분리
