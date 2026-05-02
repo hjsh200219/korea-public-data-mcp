@@ -1,57 +1,41 @@
 ---
-created: 2026-04-30T09:10:00+09:00
+created: 2026-05-02T11:20:00+09:00
 project: k-public-data-mcp
-summary: 한국관광공사 KorService2 통합 완료 — 16번째 MCP 스킬 도구 tourism 추가, 전체 테스트 795/800 통과 후 master push
+summary: YouTube 자막 추출 버그 수정 (429 에러 시 기존 파일 반환)
 ---
 
 ## Session Digest
 
-한국관광공사 KorService2 API를 16번째 MCP 스킬 도구(`tourism`)로 통합 완료했다. TDD 기반으로 43개 신규 테스트(tourism-api 21개 + skill 22개)를 작성해 전체 795/800 통과를 확인하고 master에 push했다. REST 14개 + OpenAPI paths 14개도 함께 추가되어 HTTP 모드에서도 즉시 사용 가능하다.
+`tryYtDlpClient` 함수에서 `--sub-lang en,ja,zh-Hans,...` 처럼 다중 언어를 지정할 때, 일부 언어에서 HTTP 429가 발생하면 yt-dlp가 exit code 1로 종료된다. 기존 코드는 이 에러를 즉시 throw하여 이미 성공적으로 다운로드된 앞 언어의 자막 파일을 읽지 못하는 버그가 있었다. 이를 수정하여 에러 발생 시에도 디스크에 쓰인 파일을 먼저 확인하고, 파일이 있으면 반환하도록 변경했다.
 
 ## Progress
 
-- [x] `tourism-api.ts` — KorService2 15개 엔드포인트 전체 구현
-- [x] `tourism-types.ts` — TypeScript 인터페이스 정의
-- [x] `tools/skills/tourism.ts` — 7 actions MCP 스킬 도구
-- [x] `tools/skills/tourism.test.ts` — 22개 테스트 통과
-- [x] `tourism-api.test.ts` — 21개 테스트 통과
-- [x] `routes/tourism-routes.ts` — REST 14개 라우트
-- [x] `openapi/tourism-paths.ts` — OpenAPI paths 14개
-- [x] 오케스트레이터 등록 (api-routes.ts, openapi.ts, remote.ts, skills/index.ts)
-- [x] AGENTS.md / CLAUDE.md 스킬 수 15→16, Source Map, Layer Rules, REST routes 갱신
-- [x] e2e 테스트 스킬 카운트 assertion 15→16 갱신
-- [x] 빌드·lint·전체 테스트 통과 후 master push 완료 (fe6d626)
+- **버그 수정 완료** (`src/youtube-api.ts`, `tryYtDlpClient` 함수, lines ~210-255)
+  - `execFileAsync` 호출을 try/catch로 감싸 에러를 `ytdlpError`에 저장
+  - ENOENT(`yt-dlp` 미설치), "no subtitles"/"Subtitles are disabled" 는 즉시 throw (기존 동작 유지)
+  - 429 / PO Token / DRM / 봇 감지 등 나머지 에러: 파일 읽기 먼저 시도, 파일 있으면 반환
+  - 파일도 없을 때만 429 에러를 사용자 친화적 메시지로 throw
+- **TDD 완료** (`src/youtube-api.test.ts`, line 491)
+  - 신규 테스트: `"429 에러 발생해도 이미 쓰인 자막 파일이 있으면 반환"`
+  - `execFile` mock → 429 에러 반환, `readFile` mock → `.en.json3` 파일 존재, 나머지 ENOENT
+  - 전체 801개 테스트 통과
+- **빌드/린트 클린** — `npm run build`, `npm run lint` 모두 성공
+- **커밋 및 푸시 완료** — `06bbdb3` → `origin/master`
 
 ## Next Steps
 
-1. **procurement.ts TDD 보강** — `procurement.test.ts` 미존재, 5개 skipped 테스트와 연관 가능성 확인
-2. **QUALITY.md 업데이트** — tourism 모듈 품질 등급 및 테스트 커버리지 반영
-3. **다음 공공데이터 도메인 검토** — 기상청 단기예보, 한국도로공사 고속도로 정보 등 후보 결정
-4. **README 환경변수 표** — tourism이 DATA20_SERVICE_KEY 의존임을 명시
+- 없음. 이번 세션 목표 완전 달성. 다음 작업은 별도 이슈 기반으로 진행 가능.
 
 ## Blockers
 
-- 없음
+- 없음.
 
 ## Watch Out
 
-- `tourism` 도구는 `DATA20_SERVICE_KEY`에 의존 — 키 미설정 시 tourism도 함께 비활성화됨
-- `src/tools/skills/tourism.ts:190,200` — `detailType=intro/info`에서 `contentTypeId` 미입력 시 `"12"` 묵시적 fallback (오류 없이 잘못된 타입으로 요청될 수 있음)
-- 전체 800개 테스트 중 5개 skipped — 이번 세션에서 새로 생긴 것이 아닌 기존 항목
+- `tryYtDlpClient`는 `null`을 반환하면 호출자(`getTranscript`)가 다음 player client(`web`, `tv`, `android_vr` 캐스케이드)로 넘어간다. 429 에러이면서 파일도 없는 경우에만 throw하므로, 429를 받았더라도 파일이 존재하면 정상 반환 — 캐스케이드가 불필요하게 돌지 않는다.
+- 동일 함수에서 PO Token / DRM / 봇 감지 에러는 `null` 반환(다음 클라이언트 시도)으로 처리된다. 추후 이 분기에 새 에러 메시지가 추가되면 `ytdlpError` null 체크 이후 로직을 함께 검토해야 한다.
 
 ## Files Touched
 
-- `src/tourism-api.ts` (신규)
-- `src/tourism-types.ts` (신규)
-- `src/tourism-api.test.ts` (신규)
-- `src/tools/skills/tourism.ts` (신규)
-- `src/tools/skills/tourism.test.ts` (신규)
-- `src/routes/tourism-routes.ts` (신규)
-- `src/openapi/tourism-paths.ts` (신규)
-- `src/tools/skills/index.ts` (수정)
-- `src/api-routes.ts` (수정)
-- `src/openapi.ts` (수정)
-- `src/remote.ts` (수정)
-- `src/__tests__/mcp-server.e2e.test.ts` (수정)
-- `AGENTS.md` (수정)
-- `CLAUDE.md` (수정)
+- `/Users/hoshin/workspace/k-public-data-mcp/src/youtube-api.ts` — `tryYtDlpClient` 함수 로직 변경 (lines ~210-257)
+- `/Users/hoshin/workspace/k-public-data-mcp/src/youtube-api.test.ts` — 신규 테스트 추가 (line 491-526)

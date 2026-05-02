@@ -1,0 +1,25 @@
+# Project Memory Index
+
+- [claude-desktop-stdio-mcp-path](memory/claude-desktop-stdio-mcp-path.md) — Claude Desktop stdio MCP 등록 시 PATH 환경변수 완전 명시 필요
+- [claude-md-symlink-to-agents-md](memory/claude-md-symlink-to-agents-md.md) — 이 레포의 CLAUDE.md는 AGENTS.md로 향하는 심볼릭 링크
+- [courtlistener-normalized-domain-types](memory/courtlistener-normalized-domain-types.md) — CourtListener 클라이언트는 정규화 도메인 타입(camelCase) + cursor 페이지네이션 사용. raw API 패스스루 아님
+- [courtlistener-rest-api-v4-auth](memory/courtlistener-rest-api-v4-auth.md) — CourtListener v4 — search anon OK, detail 401 without token, public domain
+- [dual-entrypoints-stdio-http](memory/dual-entrypoints-stdio-http.md) — public-data-mcp는 stdio + HTTP 두 진입점이 같은 도구를 공유
+- [express-5-req-params-string-array](memory/express-5-req-params-string-array.md) — Express 5에서 req.params.X는 string | string[] — 항상 String() 캐스트
+- [fetch-mock-convention-vi-stubglobal](memory/fetch-mock-convention-vi-stubglobal.md) — HTTP 목은 vi.stubGlobal("fetch", ...) — nock은 사용하지 않음
+- [fetch-with-retry-429-test-timeout](memory/fetch-with-retry-429-test-timeout.md) — 429 응답 모킹 테스트는 vitest 기본 5s 타임아웃을 늘려야 함 (재시도 백오프 7s 소요)
+- [korservice2-data20-key-reuse](memory/korservice2-data20-key-reuse.md) — 한국관광공사 KorService2 API는 DATA20_SERVICE_KEY를 그대로 재사용 (별도 환경변수 불필요)
+- [master-direct-push-railway-autodeploy](memory/master-direct-push-railway-autodeploy.md) — 이 레포는 PR 없이 master 직접 push, GitHub→Railway 자동 배포
+- [openlegaldata-de-anonymous-mit](memory/openlegaldata-de-anonymous-mit.md) — OpenLegalData (de.openlegaldata.io) — anonymous OK, MIT 라이선스, 활성 유지보수
+- [railway-cli-scale-syntax](memory/railway-cli-scale-syntax.md) — Railway CLI 리전 변경 명령어 정확한 문법
+- [railway-cli-variables-redeploy-flow](memory/railway-cli-variables-redeploy-flow.md) — Railway CLI — --skip-deploys로 환경변수 설정 + 명시적 redeploy 분리
+- [railway-env-var-32kb-limit](memory/railway-env-var-32kb-limit.md) — Railway 환경변수당 하드 리밋 32,768바이트
+- [railway-region-youtube-blocking](memory/railway-region-youtube-blocking.md) — Railway 리전별 YouTube 한국 콘텐츠 차단 패턴 (2026-04-26 기준)
+- [railway-youtube-429-transient](memory/railway-youtube-429-transient.md) — Railway 송출 IP의 YouTube 429는 일시적 — 5–10분 대기 후 재시도가 1차 대응
+- [skill-tool-count-16-with-tourism](memory/skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 수 16개 기준점 및 전체 목록 (tourism 추가 후)
+- [tdd-api-plus-skill-test-split](memory/tdd-api-plus-skill-test-split.md) — API client 테스트와 skill 테스트를 파일 분리하는 패턴 (tourism: 21 + 22개)
+- [youtube-transcript-api-v1-migration](memory/youtube-transcript-api-v1-migration.md) — youtube-transcript-api v1.0+ API 변경 (정적 메서드 → 인스턴스 메서드)
+- [youtube-yt-dlp-client-selection](memory/youtube-yt-dlp-client-selection.md) — yt-dlp YouTube 자동자막 우회를 위한 클라이언트 캐스케이드 (tv → web w/ cookies, android w/o)
+- [yt-dlp-cookies-file-quirks](memory/yt-dlp-cookies-file-quirks.md) — yt-dlp --cookies 파일/URL 사용 시 함정 두 가지
+- [yt-dlp-cookies-from-browser-leakage](memory/yt-dlp-cookies-from-browser-leakage.md) — yt-dlp --cookies-from-browser는 모든 사이트 쿠키 추출 — 도메인 필터 필수
+- [yt-dlp-partial-write-on-exit1](memory/yt-dlp-partial-write-on-exit1.md) — yt-dlp exits 1 on multi-lang 429 but may have already written subtitle files — read before throwing
