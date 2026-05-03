@@ -48,6 +48,9 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - 스킬 내 텍스트 검색: `matchesQuery(title, description, query)` — title+description 토큰 분리 매칭, 대소문자 무시
 - YouTube kill switches: `YOUTUBE_CIRCUIT_BREAKER_ENABLED`, `YOUTUBE_PROBE_ENABLED` (`false`로 즉시 비활성화)
 - YouTube cookies: `.youtube.com` 도메인만 필터링 (Railway 32KB 제한 — `.google.com` 포함 시 초과)
+- CLI scripts (`scripts/*.ts`): `main()`은 `process.argv[1]` 가드로 보호 — import 시 자동 실행 방지 (test:coverage 부작용)
+- Dead-code (Knip): 내부 전용 심볼은 `export` 제거, 외부 참조 없는 타입은 삭제
+- `verify-docs.ts` EXPECTED 카운트: 파일 추가/삭제 시 `npm run verify-docs`로 동기화 필수
 
 ## TDD 필수
 

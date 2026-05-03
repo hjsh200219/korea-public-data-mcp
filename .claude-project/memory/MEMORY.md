@@ -39,3 +39,4 @@
 - [youtube-stability-kill-switches](youtube-stability-kill-switches.md) — YOUTUBE_CIRCUIT_BREAKER_ENABLED/PROBE_ENABLED/COOKIES_POOL kill switch 3종
 - [railway-youtube-cookies-32kb-domain-filter](railway-youtube-cookies-32kb-domain-filter.md) — YOUTUBE_COOKIES는 .youtube.com만 필터링 (553KB→3KB, Railway 32KB 제한)
 - [verify-docs-expected-counts-sync-requirement](verify-docs-expected-counts-sync-requirement.md) — 파일 추가 시 verify-docs.ts EXPECTED 카운트 동기화 필수 (CI quality-gate)
+- [scripts-cli-guard-pattern](scripts-cli-guard-pattern.md) — scripts/*.ts main() 자동 실행 방지 — process.argv[1] 가드 필수
