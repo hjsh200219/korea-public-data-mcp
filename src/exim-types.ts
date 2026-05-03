@@ -1,6 +1,6 @@
 /**
  * 한국수출입은행 환율 API 타입 정의
- * https://www.koreaexim.go.kr
+ * https://oapi.koreaexim.go.kr
  */
 
 export interface EximExchangeRateRaw {

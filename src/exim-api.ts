@@ -1,6 +1,6 @@
 /**
  * 한국수출입은행 환율 API 클라이언트
- * https://www.koreaexim.go.kr/site/program/financial/exchangeJSON
+ * https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON
  *
  * 수출입은행 API는 쿠키 기반 보안 검증 사용:
  * 첫 요청 → 302 + Set-Cookie → 쿠키 포함 재요청 → JSON 응답
@@ -13,7 +13,7 @@ import type { EximExchangeRateRaw, EximExchangeRate } from "./exim-types.js";
 import { toKSTDate, formatYYYYMMDD, subtractDays, skipWeekends } from "./kst-date.js";
 
 const KOREAEXIM_API_URL =
-  "https://www.koreaexim.go.kr/site/program/financial/exchangeJSON";
+  "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON";
 const TIMEOUT_MS = 15000;
 const MAX_FALLBACK_DAYS = 7;
 
@@ -52,7 +52,7 @@ async function fetchRatesForDate(
     const location = first.headers.get("location") ?? "";
     const redirectUrl = location.startsWith("http")
       ? location
-      : `https://www.koreaexim.go.kr${location}`;
+      : `https://oapi.koreaexim.go.kr${location}`;
     response = await fetch(redirectUrl, {
       ...fetchOptions,
       headers: {
