@@ -134,6 +134,33 @@ export function registerSkillPrompts(server: McpServer): void {
   );
 
   server.prompt(
+    "제품리뷰_워크플로",
+    "제품명으로 유튜브 리뷰 + 쿠팡 구매 링크 통합 조회 가이드",
+    { product: z.string().describe("검색할 제품명 (예: '무선 마우스', '에어팟')") },
+    async ({ product }) => ({
+      messages: [{
+        role: "user",
+        content: {
+          type: "text",
+          text: [
+            `"${product}" 제품 리뷰 조회 절차:`,
+            "",
+            "1. product_review(action: \"full_review\", query: \"${product}\") 를 **먼저** 호출하세요.",
+            "   → 유튜브 리뷰 자막 + 쿠팡 구매 링크를 한 번에 가져옵니다.",
+            "2. 반환된 자막을 바탕으로 장단점을 항목별로 요약하세요.",
+            "3. 쿠팡 상품 링크를 함께 노출하세요 (파트너스 고지 포함).",
+            "",
+            "주의사항:",
+            "- youtube 스킬의 search action이 아닌 product_review 스킬을 사용하세요.",
+            "- 찾은 영상은 전부 요약하세요. 임의로 줄이지 마세요.",
+            "- 영상을 못 찾으면 product_review(action: \"coupang_search\", query) 로 쿠팡만 조회하세요.",
+          ].join("\n"),
+        },
+      }],
+    }),
+  );
+
+  server.prompt(
     "해외판례_비교법_워크플로",
     "한국 판례를 기반으로 미국(CourtListener) 해외 판례를 비교법 참조하는 가이드",
     { keyword: z.string().describe("쟁점 키워드 (예: '표현의 자유', '평등권', '데이터 보호')") },

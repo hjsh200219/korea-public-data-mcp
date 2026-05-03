@@ -23,6 +23,13 @@ import {
   type SkillResult,
 } from "./_shared.js";
 
+/** 쿼리 토큰(공백 분리) 중 하나라도 제목 또는 설명에 포함되면 true */
+export function matchesQuery(title: string, description: string, query: string): boolean {
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const haystack = (title + " " + description).toLowerCase();
+  return tokens.some((t) => haystack.includes(t));
+}
+
 const COUPANG_DISCLOSURE =
   "※ 이 링크는 쿠팡 파트너스 활동의 일환으로 수수료를 제공받을 수 있습니다.";
 const YOUTUBE_MD_PATH = path.resolve(process.cwd(), "youtube.md");
@@ -151,16 +158,15 @@ function makeFindReviewsHandler(youtubeApiKey: string) {
       const videoLists = await Promise.all(
         channels.map((ch) =>
           getChannelVideos(youtubeApiKey, ch.channelId, maxVideos).catch(
-            () => [] as { videoId: string; title: string; publishedAt: string }[],
+            () => [] as { videoId: string; title: string; description: string; channelTitle: string; publishedAt: string; thumbnailUrl: string }[],
           ),
         ),
       );
 
-      const query = p.query!.toLowerCase();
       const matched: { videoId: string; title: string; channelHandle: string }[] = [];
       for (let i = 0; i < channels.length; i++) {
         for (const v of videoLists[i]) {
-          if (v.title.toLowerCase().includes(query)) {
+          if (matchesQuery(v.title, v.description ?? "", p.query!)) {
             matched.push({ videoId: v.videoId, title: v.title, channelHandle: channels[i].handle });
           }
         }
@@ -239,8 +245,8 @@ export function registerProductReviewSkill(
 
   registerSkillTool(server, {
     name: "product_review",
-    title: "Product Review / 제품 리뷰",
-    description: "Product Review — extract YouTube review captions and search Coupang products. Based on youtube.md channel list. Actions: find_reviews=YouTube captions | coupang_search=Coupang product search | full_review=combined. / YouTube 리뷰 자막 추출 + 쿠팡 상품 검색. youtube.md 채널 목록 기반.",
+    title: "Product Review (YouTube + Coupang) / 제품 리뷰 (유튜브+쿠팡)",
+    description: "YouTube product review search + Coupang purchase links. Use full_review to get BOTH YouTube review captions AND Coupang product links together. Use find_reviews for YouTube-only review search. Use coupang_search for Coupang-only product search. / 유튜브 제품 리뷰 검색 + 쿠팡 구매 링크. 유튜브 리뷰를 찾을 때는 이 도구를 사용하세요. full_review=유튜브리뷰+쿠팡링크 통합 | find_reviews=유튜브리뷰만 | coupang_search=쿠팡상품만.",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "find_reviews=YouTube채널에서리뷰자막추출(query필수) | coupang_search=쿠팡상품검색(query필수) | full_review=리뷰+상품통합(query필수)",

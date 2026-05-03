@@ -62,10 +62,10 @@ describe("product_review 스킬", () => {
   it("find_reviews_정상동작", async () => {
     vi.mocked(parseYoutubeMdChannels).mockReturnValue(["@TestChannel"]);
     vi.mocked(resolveChannelHandles).mockResolvedValue([
-      { handle: "@TestChannel", channelId: "UC123" },
+      { handle: "@TestChannel", channelId: "UC123", title: "TestChannel" },
     ]);
     vi.mocked(getChannelVideos).mockResolvedValue([
-      { videoId: "vid1", title: "에어팟 리뷰 솔직후기", publishedAt: "2024-01-01" },
+      { videoId: "vid1", title: "에어팟 리뷰 솔직후기", publishedAt: "2024-01-01", description: "", channelTitle: "TestChannel", thumbnailUrl: "" },
     ]);
     vi.mocked(getTranscript).mockResolvedValue({
       videoId: "vid1",
@@ -128,10 +128,10 @@ describe("product_review 스킬", () => {
   it("full_review_정상동작", async () => {
     vi.mocked(parseYoutubeMdChannels).mockReturnValue(["@TestChannel"]);
     vi.mocked(resolveChannelHandles).mockResolvedValue([
-      { handle: "@TestChannel", channelId: "UC123" },
+      { handle: "@TestChannel", channelId: "UC123", title: "TestChannel" },
     ]);
     vi.mocked(getChannelVideos).mockResolvedValue([
-      { videoId: "vid1", title: "에어팟 리뷰", publishedAt: "2024-01-01" },
+      { videoId: "vid1", title: "에어팟 리뷰", publishedAt: "2024-01-01", description: "", channelTitle: "TestChannel", thumbnailUrl: "" },
     ]);
     vi.mocked(getTranscript).mockResolvedValue({
       videoId: "vid1",
@@ -168,11 +168,11 @@ describe("product_review 스킬", () => {
   it("full_review_부분실패허용", async () => {
     vi.mocked(parseYoutubeMdChannels).mockReturnValue(["@TestChannel"]);
     vi.mocked(resolveChannelHandles).mockResolvedValue([
-      { handle: "@TestChannel", channelId: "UC123" },
+      { handle: "@TestChannel", channelId: "UC123", title: "TestChannel" },
     ]);
     vi.mocked(getChannelVideos).mockResolvedValue([
-      { videoId: "vid1", title: "에어팟 리뷰 1", publishedAt: "2024-01-01" },
-      { videoId: "vid2", title: "에어팟 리뷰 2", publishedAt: "2024-01-02" },
+      { videoId: "vid1", title: "에어팟 리뷰 1", publishedAt: "2024-01-01", description: "", channelTitle: "TestChannel", thumbnailUrl: "" },
+      { videoId: "vid2", title: "에어팟 리뷰 2", publishedAt: "2024-01-02", description: "", channelTitle: "TestChannel", thumbnailUrl: "" },
     ]);
     vi.mocked(getTranscript)
       .mockResolvedValueOnce({
@@ -202,5 +202,36 @@ describe("product_review 스킬", () => {
     const result = await handler({ action: "unknown_action" } as any);
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("알 수 없는 action");
+  });
+
+  // 11. find_reviews — description에만 쿼리가 있어도 매칭
+  it("find_reviews_description매칭", async () => {
+    vi.mocked(parseYoutubeMdChannels).mockReturnValue(["@TestChannel"]);
+    vi.mocked(resolveChannelHandles).mockResolvedValue([
+      { handle: "@TestChannel", channelId: "UC123", title: "TestChannel" },
+    ]);
+    vi.mocked(getChannelVideos).mockResolvedValue([
+      {
+        videoId: "vid1",
+        title: "이번 주 구매한 것들", // 제목에 "마우스" 없음
+        description: "오늘은 무선 마우스를 구매했어요", // description에만 있음
+        publishedAt: "2024-01-01",
+        channelTitle: "TestChannel",
+        thumbnailUrl: "",
+      },
+    ]);
+    vi.mocked(getTranscript).mockResolvedValue({
+      videoId: "vid1",
+      language: "ko",
+      segmentCount: 5,
+      fullText: "마우스 리뷰입니다",
+      segments: [],
+    });
+    vi.mocked(cleanTranscriptText).mockReturnValue("마우스 리뷰입니다");
+
+    const handler = createProductReviewHandler(YOUTUBE_KEY, COUPANG_ACCESS, COUPANG_SECRET);
+    const result = await handler({ action: "find_reviews", query: "마우스" } as any);
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("vid1");
   });
 });

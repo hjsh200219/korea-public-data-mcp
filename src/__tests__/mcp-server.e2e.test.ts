@@ -73,7 +73,7 @@ describe("MCP 서버 E2E", () => {
     expect(toolNames).toHaveLength(16);
 
     const { prompts } = await client.listPrompts();
-    expect(prompts.length).toBe(6);
+    expect(prompts.length).toBe(7);
     expect(prompts.map((p) => p.name)).toContain("해외판례_비교법_워크플로");
   });
 
