@@ -172,7 +172,7 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 import { execFile } from "node:child_process";
-import { readFile, rm, mkdtemp } from "node:fs/promises";
+import { readFile, rm, mkdtemp, writeFile } from "node:fs/promises";
 import { getTranscript } from "./youtube-api.js";
 
 describe("getTranscript (yt-dlp)", () => {
@@ -402,6 +402,25 @@ describe("getTranscript (yt-dlp)", () => {
     const args = allCalls[0];
     const idx = args.indexOf("--cookies-from-browser");
     expect(args[idx + 1]).toBe("chrome:Default");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("YOUTUBE_COOKIES에 Netscape 헤더 없으면 자동 추가", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", ".youtube.com\tTRUE\t/\tFALSE\t0\ttest\tvalue");
+
+    const { allCalls } = setupClientCascade(1);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    const writeCalls = vi.mocked(writeFile).mock.calls;
+    const cookieWriteCall = writeCalls.find((c) => String(c[0]).endsWith("cookies.txt"));
+    expect(cookieWriteCall).toBeDefined();
+    const written = String(cookieWriteCall![1]);
+    expect(written.startsWith("# Netscape HTTP Cookie File\n")).toBe(true);
+    expect(written).toContain(".youtube.com");
 
     vi.unstubAllEnvs();
   });

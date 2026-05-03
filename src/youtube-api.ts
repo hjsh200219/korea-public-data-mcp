@@ -288,7 +288,9 @@ export async function getTranscript(
     const cookiesEnv = process.env.YOUTUBE_COOKIES;
     if (cookiesEnv) {
       cookieFile = join(rootTmp, "cookies.txt");
-      await writeFile(cookieFile, cookiesEnv, "utf-8");
+      const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
+      const content = cookiesEnv.startsWith("#") ? cookiesEnv : NETSCAPE_HEADER + cookiesEnv;
+      await writeFile(cookieFile, content, "utf-8");
     }
   }
   const hasCookies = Boolean(browserCookies) || Boolean(cookieFile);
