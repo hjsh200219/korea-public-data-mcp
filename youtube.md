@@ -10,3 +10,8 @@ https://www.youtube.com/@Gajoo
 https://www.youtube.com/@JANGPS
 https://www.youtube.com/@RISABAE
 https://www.youtube.com/@director_pihyunjung
+https://www.youtube.com/@zuyoni
+https://www.youtube.com/@HGHLab
+https://www.youtube.com/@EatwithBoki
+https://www.youtube.com/@PONYSyndrome
+https://www.youtube.com/@clarins_unni
