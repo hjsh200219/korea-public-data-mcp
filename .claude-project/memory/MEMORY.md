@@ -27,3 +27,5 @@
 - [youtube-cookies-railway-refresh-runbook](youtube-cookies-railway-refresh-runbook.md) — Railway YOUTUBE_COOKIES 갱신 전체 절차 (추출 → 필터 → 주입 → 재배포)
 - [mcp-sdk-outputschema-requires-structuredcontent](mcp-sdk-outputschema-requires-structuredcontent.md) — outputSchema 설정 시 콜백에 structuredContent 필수, registerSkillTool()에 캡슐화됨
 - [register-skill-tool-wrapper-pattern](register-skill-tool-wrapper-pattern.md) — registerSkillTool() 래퍼 표준 패턴, server.tool() 직접 호출 금지
+- [exim-api-base-url-oapi](exim-api-base-url-oapi.md) — 수출입은행 API 도메인은 oapi.koreaexim.go.kr (구 www 도메인 폐기)
+- [youtube-md-hash-comment-grouping](youtube-md-hash-comment-grouping.md) — youtube.md # 주석 카테고리 그룹핑, parseYoutubeMdChannels가 자동 무시

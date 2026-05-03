@@ -41,6 +41,7 @@ npm run dev:remote   # Dev with tsx (HTTP)
 - Error responses: `isError: true` with Korean messages
 - Domain files: `{domain}-api.ts` + `{domain}-types.ts`
 - MCP responses: 8000자 truncate (`truncateWindow()`로 offset 페이지네이션)
+- `youtube.md` 채널 목록: `# 주석` 줄로 그룹핑 가능 (`parseYoutubeMdChannels`가 자동 무시)
 
 ## TDD 필수
 
