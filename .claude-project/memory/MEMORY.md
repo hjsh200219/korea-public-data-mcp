@@ -29,3 +29,6 @@
 - [register-skill-tool-wrapper-pattern](register-skill-tool-wrapper-pattern.md) — registerSkillTool() 래퍼 표준 패턴, server.tool() 직접 호출 금지
 - [exim-api-base-url-oapi](exim-api-base-url-oapi.md) — 수출입은행 API 도메인은 oapi.koreaexim.go.kr (구 www 도메인 폐기)
 - [youtube-md-hash-comment-grouping](youtube-md-hash-comment-grouping.md) — youtube.md # 주석 카테고리 그룹핑, parseYoutubeMdChannels가 자동 무시
+- [product-review-matches-query-token-matching](product-review-matches-query-token-matching.md) — matchesQuery(): 토큰 분리 + title/description 동시 탐색, exact match 대신
+- [skill-tool-bilingual-title-llm-routing](skill-tool-bilingual-title-llm-routing.md) — 스킬 title/description 강화로 LLM 도구 선택 오류 방지 패턴
+- [mcp-prompt-workflow-guide-pattern](mcp-prompt-workflow-guide-pattern.md) — prompts.ts 워크플로 등록 패턴, full_review 우선 + 전체 요약 지시
