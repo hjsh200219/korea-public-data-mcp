@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps, cleanTranscriptText } from "./youtube-api.js";
+import { TranscriptError, TranscriptErrorCode } from "./youtube-types.js";
 
 // ── extractVideoId (기존 로직, 변경 없음) ──
 
@@ -689,6 +690,94 @@ describe("resolveChannelHandles", () => {
     await resolveChannelHandles("apikey", ["ITSUB"]);
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ── TranscriptError 에러 코드 분류 ──
+
+describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(mkdtemp).mockResolvedValue("/tmp/yt-sub-abc123");
+    vi.mocked(rm).mockResolvedValue(undefined);
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function mockYtDlpError(msg: string) {
+    const err = new Error(msg);
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
+      } else {
+        // python3 fallback도 실패
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+  }
+
+  it("yt-dlp stderr에 '429' 포함 시 RATE_LIMITED 코드", async () => {
+    mockYtDlpError("ERROR: HTTP Error 429: Too Many Requests");
+
+    const err = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(err).toBeInstanceOf(TranscriptError);
+    expect((err as TranscriptError).code).toBe(TranscriptErrorCode.RATE_LIMITED);
+  });
+
+  it("yt-dlp stderr에 'no subtitles' 포함 시 NO_SUBTITLES 코드", async () => {
+    const err = new Error("ERROR: gc297hx4F7o: no subtitles available");
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
+  });
+
+  it("python3 fallback ok:false 시 NO_SUBTITLES 코드", async () => {
+    // yt-dlp 성공이지만 파일 없음, fallback도 자막 없음
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      } else {
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
+  });
+
+  it("yt-dlp stderr에 'PO Token' 포함 시 fallback 시도 후 NO_SUBTITLES (파일 없고 fallback 실패)", async () => {
+    mockYtDlpError("ERROR: Sign in to confirm you're not a bot. PO Token required.");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    // PO Token → cascade → fallback 실패 → TranscriptError NO_SUBTITLES
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
   });
 });
 

@@ -12,6 +12,9 @@ import { createApiRouter } from "./api-routes.js";
 import { generateOpenApiSpec } from "./openapi.js";
 import { loadConfig, SERVER_VERSION } from "./config.js";
 import { createLogger } from "./logger.js";
+import { youtubeProbe } from "./youtube-probe.js";
+import { youtubeCircuitBreaker } from "./youtube-circuit-breaker.js";
+import { youtubeCookiePool } from "./youtube-cookie-pool.js";
 
 const log = createLogger("remote");
 const serverConfig = loadConfig();
@@ -120,6 +123,12 @@ app.get("/health", (_req, res) => {
     startedAt: startedAt.toISOString(),
     memoryMB: Math.round(process.memoryUsage.rss() / 1024 / 1024),
   });
+});
+
+// YouTube 헬스 체크 — 합성 프로브 결과 + 쿠키 풀 + 서킷 브레이커 상태
+app.get("/health/youtube", (_req, res) => {
+  const data = youtubeProbe.getHealthData(youtubeCookiePool.getHealthInfo(), youtubeCircuitBreaker.state);
+  res.json(data);
 });
 
 // REST API (GPT Actions 등 일반 HTTP 클라이언트용)
@@ -251,4 +260,5 @@ app.listen(PORT, "0.0.0.0", () => {
   log.info(`MCP endpoint: http://0.0.0.0:${PORT}/mcp`);
   log.info(`REST API: http://0.0.0.0:${PORT}/api`);
   log.info(`OpenAPI spec: http://0.0.0.0:${PORT}/openapi.json`);
+  youtubeProbe.start();
 });

@@ -19,6 +19,8 @@
     "dead-code": "knip --no-config-hints",
     "verify-harness-meta": "tsx scripts/verify-harness-meta.ts",
     "gc": "npm run typecheck && npm run lint && npm run verify-docs && npm run dead-code && npm run verify-harness-meta && npm run test:coverage && npm run build",
+    "canary:ytdlp": "tsx scripts/canary-ytdlp.ts",
+    "refresh:cookies": "tsx scripts/refresh-youtube-cookies.ts",
     "register": "node scripts/register-claude-desktop.mjs",
     "register:local": "node scripts/register-claude-desktop.mjs --local",
     "unregister": "node scripts/register-claude-desktop.mjs --remove",

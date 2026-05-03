@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
-    branches: [main]
+    branches: [master, main]
+  schedule:
+    - cron: '0 0 * * *'  # nightly UTC 00:00
 
 jobs:
   quality-gate:
@@ -41,3 +43,15 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  nightly-canary:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npm run canary:ytdlp
+        continue-on-error: true

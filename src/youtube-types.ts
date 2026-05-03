@@ -67,3 +67,24 @@ export interface CommentsResult {
   totalResults: number;
   items: CommentItem[];
 }
+
+/** 자막 추출 에러 분류 코드 */
+export enum TranscriptErrorCode {
+  COOKIE_EXPIRED = "COOKIE_EXPIRED",
+  PO_TOKEN_REQUIRED = "PO_TOKEN_REQUIRED",
+  RATE_LIMITED = "RATE_LIMITED",
+  REGION_BLOCKED = "REGION_BLOCKED",
+  BOT_DETECTED = "BOT_DETECTED",
+  NO_SUBTITLES = "NO_SUBTITLES",
+}
+
+/** 자막 추출 에러 (에러 코드 포함) */
+export class TranscriptError extends Error {
+  readonly code: TranscriptErrorCode;
+  constructor(message: string, code: TranscriptErrorCode, cause?: unknown) {
+    super(message);
+    this.name = "TranscriptError";
+    this.code = code;
+    if (cause !== undefined) this.cause = cause;
+  }
+}

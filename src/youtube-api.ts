@@ -9,6 +9,9 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { TranscriptError, TranscriptErrorCode } from "./youtube-types.js";
+import { youtubeCircuitBreaker } from "./youtube-circuit-breaker.js";
+import { youtubeCookiePool } from "./youtube-cookie-pool.js";
 import type {
   TranscriptResult, TranscriptSegment,
   VideoMetadata, SearchResult, SearchResultItem,
@@ -156,7 +159,10 @@ export async function getTranscriptFallback(
   }
 
   if (!parsed.ok || !parsed.data) {
-    throw new Error(`자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다. (${parsed.error ?? "unknown"})`);
+    throw new TranscriptError(
+      `자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다. (${parsed.error ?? "unknown"})`,
+      TranscriptErrorCode.NO_SUBTITLES,
+    );
   }
 
   const segments: TranscriptSegment[] = parsed.data
@@ -169,7 +175,10 @@ export async function getTranscriptFallback(
     .filter((s) => s.text.length > 0);
 
   if (segments.length === 0) {
-    throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.");
+    throw new TranscriptError(
+      "자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.",
+      TranscriptErrorCode.NO_SUBTITLES,
+    );
   }
 
   return {
@@ -219,7 +228,11 @@ async function tryYtDlpClient(
       throw new Error("yt-dlp가 설치되어 있지 않습니다. 'pip install yt-dlp' 또는 'brew install yt-dlp'로 설치해주세요.", { cause: e });
     }
     if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
-      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: e });
+      throw new TranscriptError(
+        "자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.",
+        TranscriptErrorCode.NO_SUBTITLES,
+        e,
+      );
     }
     // 429 / PO Token / DRM / 봇 감지 등: 이미 쓰인 파일이 있을 수 있으므로 읽기 먼저 시도
     ytdlpError = e;
@@ -245,10 +258,30 @@ async function tryYtDlpClient(
 
   // 파일도 없을 때 에러 분류
   if (ytdlpError) {
-    if (ytdlpError.message.includes("429")) {
-      throw new Error("YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", { cause: ytdlpError });
+    const errMsg = ytdlpError.message;
+    if (errMsg.includes("429")) {
+      throw new TranscriptError(
+        "YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+        TranscriptErrorCode.RATE_LIMITED,
+        ytdlpError,
+      );
     }
-    // PO Token / DRM / 봇 감지 → 다음 클라이언트로
+    if (errMsg.includes("PO Token")) {
+      // PO Token 요구 → 다음 클라이언트로 (BOT_DETECTED로 분류하되 cascade 계속)
+      return null;
+    }
+    if (errMsg.includes("Sign in") || errMsg.includes("cookie")) {
+      // 쿠키 만료 → 다음 클라이언트로 cascade 계속
+      return null;
+    }
+    if (errMsg.includes("not available in your country")) {
+      throw new TranscriptError(
+        "이 영상은 현재 지역에서 시청할 수 없습니다.",
+        TranscriptErrorCode.REGION_BLOCKED,
+        ytdlpError,
+      );
+    }
+    // PO Token / DRM / 봇 감지 등 → 다음 클라이언트로
     return null;
   }
 
@@ -276,6 +309,14 @@ export async function getTranscript(
   urlOrId: string,
   lang?: string,
 ): Promise<TranscriptResult> {
+  // 서킷 브레이커 체크
+  if (youtubeCircuitBreaker.isOpen()) {
+    throw new TranscriptError(
+      "YouTube 자막 추출 서비스가 일시적으로 차단되었습니다. 잠시 후 다시 시도해주세요.",
+      TranscriptErrorCode.BOT_DETECTED,
+    );
+  }
+
   const videoId = extractVideoId(urlOrId);
   const primaryLang = lang ?? "ko";
   const langsToTry = [primaryLang, ...FALLBACK_LANGS.filter((l) => l !== primaryLang)];
@@ -284,13 +325,25 @@ export async function getTranscript(
 
   const browserCookies = process.env.YOUTUBE_COOKIES_FROM_BROWSER?.trim() || undefined;
   let cookieFile: string | null = null;
+  // 쿠키 풀 또는 단일 쿠키 설정
   if (!browserCookies) {
-    const cookiesEnv = process.env.YOUTUBE_COOKIES;
-    if (cookiesEnv) {
-      cookieFile = join(rootTmp, "cookies.txt");
-      const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
-      const content = cookiesEnv.startsWith("#") ? cookiesEnv : NETSCAPE_HEADER + cookiesEnv;
-      await writeFile(cookieFile, content, "utf-8");
+    // YOUTUBE_COOKIES_POOL이 설정된 경우 풀에서 round-robin으로 쿠키 선택
+    const poolEnv = process.env.YOUTUBE_COOKIES_POOL;
+    if (poolEnv) {
+      const cookieContent = youtubeCookiePool.nextCookie();
+      if (cookieContent) {
+        cookieFile = join(rootTmp, "cookies.txt");
+        await writeFile(cookieFile, cookieContent, "utf-8");
+      }
+    } else {
+      // 기존 단일 쿠키 fallback (YOUTUBE_COOKIES)
+      const cookiesEnv = process.env.YOUTUBE_COOKIES;
+      if (cookiesEnv) {
+        cookieFile = join(rootTmp, "cookies.txt");
+        const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
+        const content = cookiesEnv.startsWith("#") ? cookiesEnv : NETSCAPE_HEADER + cookiesEnv;
+        await writeFile(cookieFile, content, "utf-8");
+      }
     }
   }
   const hasCookies = Boolean(browserCookies) || Boolean(cookieFile);
@@ -300,18 +353,36 @@ export async function getTranscript(
     for (const playerClient of clients) {
       // 시도마다 별도 디렉터리: 이전 시도 잔여 파일이 다음 시도 결과를 오염시키지 않도록
       const dir = await mkdtemp(join(rootTmp, "attempt-"));
-      const result = await tryYtDlpClient(
-        videoId, langsToTry, subLangArg,
-        playerClient, browserCookies, cookieFile, dir,
-      );
-      if (result) return result;
+      try {
+        const result = await tryYtDlpClient(
+          videoId, langsToTry, subLangArg,
+          playerClient, browserCookies, cookieFile, dir,
+        );
+        if (result) {
+          youtubeCircuitBreaker.recordSuccess();
+          return result;
+        }
+      } catch (e) {
+        if (e instanceof TranscriptError) {
+          youtubeCircuitBreaker.recordFailure(e.code);
+          // 쿠키 풀 사용 중이면 실패한 쿠키 마킹
+          if (process.env.YOUTUBE_COOKIES_POOL && cookieFile) {
+            youtubeCookiePool.markCurrentFailed(e.code);
+          }
+        }
+        throw e;
+      }
     }
 
     // 모든 yt-dlp 시도 실패 → Python fallback
     try {
       return await getTranscriptFallback(videoId, primaryLang);
     } catch (fallbackErr) {
-      throw new Error("자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.", { cause: fallbackErr });
+      throw new TranscriptError(
+        "자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.",
+        TranscriptErrorCode.NO_SUBTITLES,
+        fallbackErr,
+      );
     }
   } finally {
     await rm(rootTmp, { recursive: true, force: true }).catch(() => {});
