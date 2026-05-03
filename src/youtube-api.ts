@@ -206,7 +206,7 @@ async function tryYtDlpClient(
   const ytdlpArgs = [
     "--skip-download",
     "--write-sub",
-    "--write-auto-sub",
+    "--write-auto-subs",
     "--sub-lang", subLangArg,
     "--sub-format", "json3",
     "--extractor-args", `youtube:player_client=${playerClient}`,

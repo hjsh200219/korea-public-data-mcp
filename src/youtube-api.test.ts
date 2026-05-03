@@ -426,6 +426,20 @@ describe("getTranscript (yt-dlp)", () => {
     vi.unstubAllEnvs();
   });
 
+  it("yt-dlp 인자에 --write-auto-subs 포함 (자동자막 추출 가능)", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+
+    const { allCalls } = setupClientCascade(1);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    expect(allCalls[0]).toContain("--write-auto-subs");
+    expect(allCalls[0]).not.toContain("--write-auto-sub");
+
+    vi.unstubAllEnvs();
+  });
+
   it("YOUTUBE_COOKIES (파일 쿠키)도 tv → web 캐스케이드 사용", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
     vi.stubEnv("YOUTUBE_COOKIES", "# Netscape HTTP Cookie File\nfake");
