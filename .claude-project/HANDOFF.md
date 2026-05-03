@@ -1,122 +1,112 @@
 ---
-created: 2026-05-03T16:30:00+09:00
+created: 2026-05-04T07:15:00+09:00
 project: k-public-data-mcp
-summary: YouTube 쿠키 Railway 32KB 제한 해결 + CI quality-gate 수정 + main() 자동 실행 방지
+summary: YouTube 자막 추출 버그 2건 수정 (write-auto-subs + 에러 대소문자 매칭)
 ---
 
 ## Session Digest
 
-이 세션에서는 이전 YouTube 안정화 작업(54c7489)을 완료한 후 3가지 CI/배포 이슈를 해결했다:
+이 세션에서는 YouTube 자막 추출의 근본 원인 2건을 수정했다:
 
-1. **Railway YOUTUBE_COOKIES 32KB 초과** — 전체 쿠키(553KB)에서 `.youtube.com` 도메인만 필터링(3KB)으로 감소. Railway 환경변수 업데이트 및 재배포 완료. `/health/youtube` 정상 동작 확인 (`status:healthy`, `cookiePool[0]:healthy`).
-2. **CI quality-gate 실패** — `verify-docs.ts`의 EXPECTED 예상 값을 실제 값으로 동기화:
-   - `skillModules`: 12 → 17
-   - `routes` + `openapi`: 8 → 11
-   - `apis` + `types`: 8 → 14
-3. **Knip dead-code CI** — 미사용 export 7개 제거 (InqryDiv 타입 등):
-   - `src/g2b-types.ts`: InqryDiv 제거
-   - `src/openlegaldata-types.ts`: unused exports 제거
-   - `src/shared.ts`: unused exports 제거
-   - `src/tools/skills/{foreign-case-research,procurement,product-review}.ts`: unused exports 제거
-   - `src/youtube-api.ts`: unused exports 제거
-4. **refresh-youtube-cookies.ts main() 자동 실행 방지** — CLI 직접 실행 시에만 `main()` 호출하도록 `process.argv[1]` 체크 추가. 테스트 import 시 자동 실행으로 인한 unhandled error 방지.
+1. **--write-auto-subs 플래그 오류** (d955eab)
+   - 기존: `--write-auto-sub` (단수, 존재하지 않는 플래그)
+   - 수정: `--write-auto-subs` (복수, 올바른 플래그)
+   - 영향: 자동자막이 전혀 다운로드되지 않던 버그 해결
+   - 테스트: yt-dlp 인자에 `--write-auto-subs` 포함 검증 추가
 
-모든 CI 체크 통과 ✅ (fe78351 커밋).
+2. **yt-dlp 에러 문자열 대소문자 매칭** (2761d4f)
+   - 기존: 정확한 대소문자 비교 → yt-dlp 버전 업데이트 시 대소문자 변형으로 인해 오분류
+   - 수정: `toLowerCase()` 적용 → 대소문자 무시 매칭
+   - 패턴: `no subtitles`, `subtitles are disabled`, `PO Token`, `po_token`, `sign in`, `not available in your country`
+   - 테스트: 대소문자 변형 케이스 4개 추가 (python3 fallback 미호출 검증)
 
 ## Progress
 
 ### 완료
-- Railway YOUTUBE_COOKIES 필터링: 553KB → 3KB (.youtube.com 도메인만)
-- Railway 재배포 + `/health/youtube` 정상 동작 확인
-- `verify-docs.ts` EXPECTED 카운트 4개 항목 수정 (skillModules, routes, openapi, apis, types)
-- Knip dead-code CI 통과 (미사용 export 7개 제거)
-- `refresh-youtube-cookies.ts` main() 자동 실행 방지 (`process.argv[1]` 체크)
-- 전체 CI 통과: `npm run test`, `npm run build`, quality-gate ✅
-- Master 푸시 (fe78351)
+- ✅ `--write-auto-subs` 플래그 수정 (d955eab)
+  - `src/youtube-api.ts` 1줄 수정
+  - `src/youtube-api.test.ts` 테스트 추가 (14줄)
+- ✅ yt-dlp 에러 문자열 대소문자 무시 매칭 (2761d4f)
+  - `src/youtube-api.ts` 6줄 수정
+  - `src/youtube-api.test.ts` 39줄 테스트 추가
+- ✅ 전체 CI 통과: `npm run test`, `npm run build` ✅
 
 ### 미완료 (인계)
-- Smithery 마켓플레이스 등록 승인 대기 (외부 심사)
-- `awesome-mcp-servers` GitHub PR 미제출
-- `youtube-api.ts` 파일 분리 follow-up 티켓 (622줄 → transcript/data-api/channel 모듈 분리)
+
+**구조 변경 필요** (Codex 리뷰 이슈):
+- **#3**: 클라이언트 캐스케이드 고정
+  - 현황: 쿠키 있으면 tv/web만, 없으면 android만 시도
+  - 검토 필요: 원래 의도적 설계인지 여부 (쿠키 풀 거동 재검토)
+  
+- **#4/#5**: PO Token/bot 경로 null 반환 + 쿠키 풀 미동기
+  - #4: PO Token/bot 경로에서 null 반환 시 타입 정보 미보존
+  - #5: 에러 시 `markCurrentFailed()` 미호출로 쿠키 풀 미동기
+  - 특징: 밀접하게 얽혀 있어 함께 리팩토링 필요
 
 ## Next Steps
 
-1. **Smithery 등록 상태 확인**: 마켓플레이스 대시보드 확인 → 승인 시 README/CLAUDE.md 배지·링크 추가
-2. **awesome-mcp-servers PR 제출**: GitHub k-public-data-mcp 프로젝트 추가
-3. **youtube-api.ts 분리 티켓**: 622줄 단일 파일 → 모듈 분리 (transcript, data-api, channel)
-4. **쿠키 만료 모니터링**: Remote 루틴 `trig_013jaxkLuRLDkpk71g49tJxB` (매주 월요일 09:00 KST) 동작 확인
+1. **#3 검토**: `src/youtube-api.ts` 클라이언트 캐스케이드 로직 재검토
+   - 쿠키 풀 거동과의 일관성 확인
+   - 의도적 설계라면 주석 추가
+
+2. **#4/#5 리팩토링**: entangled refactor 필요
+   - `markCurrentFailed()` 호출 위치 정확히 파악
+   - PO Token/bot 경로에서 타입 정보 보존 방식 개선
+   - 테스트: 쿠키 풀 상태 동기화 검증 추가
+
+3. **YouTube 안정성 모니터링**
+   - 자막 추출 성공률 확인 (circuit breaker, probe metrics)
+   - 쿠키 풀 갱신 주기 (Remote 루틴 `trig_013jaxkLuRLDkpk71g49tJxB`)
 
 ## Blockers
 
-- **Smithery 마켓플레이스 승인 대기**: 외부 심사 프로세스 (액션 불필요, 대시보드 확인만)
+- **#3/#4/#5**: 구조 변경이 필요한 미완료 이슈 (다음 세션 주제)
 
 ## Watch Out
 
-### Railway YOUTUBE_COOKIES 관리
-- **도메인 필터**: `.youtube.com`만 유지. `.google.com` 포함 시 Railway 32KB 제한 초과
-- **쿠키 갱신 SOP** (만료 시):
-  ```bash
-  yt-dlp --cookies-from-browser chrome --cookies /tmp/yt_cookies.txt --skip-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-  # .youtube.com 라인만 필터링 (~3KB)
-  railway variables --set YOUTUBE_COOKIES="$(cat /tmp/yt_filtered.txt)"
-  # 또는 scripts/refresh-youtube-cookies.ts 사용
-  ```
-- **Remote 루틴**: `trig_013jaxkLuRLDkpk71g49tJxB` (매주 월요일 09:00 KST)
+### YouTube yt-dlp 에러 매칭
+- **대소문자 무시 매칭 필수**: yt-dlp 버전 업데이트 시 에러 메시지의 대소문자가 변할 수 있음
+- **패턴 목록** (모두 `toLowerCase()`로 비교):
+  - `no subtitles`
+  - `subtitles are disabled`
+  - `po token` (대문자 변형)
+  - `sign in`
+  - `not available in your country`
+- **python3 fallback**: 새로운 에러 패턴 발견 시 테스트 케이스 추가 필수
 
-### 버전 고정
-- **yt-dlp**: `.railway/nixpacks.toml`에서 `2026.03.17` 고정. 업그레이드 시 nightly canary 통과 후 Dockerfile 수동 범프 필요
+### 쿠키 풀 상태 관리
+- **markCurrentFailed() 호출**: 에러 발생 시 쿠키를 실패 상태로 마킹해야 풀이 다음 쿠키 시도
+- **PO Token/bot 경로**: null 반환 시에도 상태 추적 필수 (타입 정보 보존)
 
-### 스킬 도구 관리
-- **현재 스킬 도구**: 17개 (verify-docs.ts EXPECTED 값 동기화됨)
-- **prompts.ts**: 현재 7개. `mcp-server.e2e.test.ts`의 `expect(prompts.length).toBe(7)` 동기화 필수
-- **registerSkillTool()**: `outputSchema` 자동 주입 → `structuredContent` 함께 반환
-- **text search**: `matchesQuery(title, description, query)` — title+description 토큰 분리 매칭, 대소문자 무시
-
-### YouTube kill switches
-- `YOUTUBE_CIRCUIT_BREAKER_ENABLED`: `false`로 즉시 CB 비활성화
-- `YOUTUBE_PROBE_ENABLED`: `false`로 즉시 프로브 비활성화
+### 클라이언트 캐스케이드
+- **현재 로직**: 쿠키 유무에 따라 클라이언트 목록 다름
+  - 쿠키 있음: `tv`, `web`
+  - 쿠키 없음: `android`
+- **검토 필요**: 의도적인가, 아니면 버그인가
 
 ## Files Touched
 
-| 파일 | 변경 사항 | 이유 |
+| 파일 | 변경 사항 | 커밋 |
 |------|---------|------|
-| `.railway/nixpacks.toml` | (이전) | yt-dlp 2026.03.17 버전 고정 |
-| `scripts/verify-docs.ts` | EXPECTED 카운트 5개 항목 수정 | skillModules:12→17, routes:8→11, openapi:8→11, apis:8→14, types:8→14 |
-| `scripts/refresh-youtube-cookies.ts` | main() 자동 실행 방지 | process.argv[1] 체크 추가 (CI test:coverage 수정) |
-| `scripts/refresh-youtube-cookies.test.ts` | 9줄 추가 | 테스트 코드 업데이트 |
-| `src/g2b-types.ts` | InqryDiv 제거 | Knip dead-code (미사용 타입) |
-| `src/openlegaldata-types.ts` | unused exports 제거 | Knip dead-code |
-| `src/shared.ts` | unused exports 제거 | Knip dead-code |
-| `src/tools/skills/foreign-case-research.ts` | unused exports 제거 | Knip dead-code |
-| `src/tools/skills/procurement.ts` | unused exports 제거 | Knip dead-code |
-| `src/tools/skills/product-review.ts` | unused exports 제거 | Knip dead-code |
-| `src/youtube-api.ts` | unused exports 제거 | Knip dead-code |
-| Railway 환경변수 `YOUTUBE_COOKIES` | 필터링된 쿠키로 업데이트 | 553KB → 3KB (.youtube.com 도메인만) |
-| `.claude-project/HANDOFF.md` | 업데이트 | 이전 세션 내용 압축 + 현재 세션 결과 추가 |
-| `.claude-project/memory/MEMORY.md` | 2줄 추가 | 쿠키 필터링 및 verify-docs 주의사항 |
-| `.claude-project/memory/railway-youtube-cookies-32kb-domain-filter.md` | 신규 (16줄) | Railway 32KB 제한 대응 절차 (도메인 필터링) |
-| `.claude-project/memory/verify-docs-expected-counts-sync-requirement.md` | 신규 (15줄) | verify-docs.ts EXPECTED 값 동기화 체크리스트 |
-| `AGENTS.md` | 15줄 수정 | 세션 결과 반영 |
+| `src/youtube-api.ts` | `--write-auto-sub` → `--write-auto-subs`, 에러 매칭 toLowerCase() 적용 | d955eab, 2761d4f |
+| `src/youtube-api.test.ts` | 14줄 (write-auto-subs) + 39줄 (대소문자 케이스) 테스트 추가 | d955eab, 2761d4f |
 
 ## Session Timeline
 
-1. **16:20** — 이전 HANDOFF 인계 (YouTube 안정화 완료)
-2. **16:21-16:23** — Railway YOUTUBE_COOKIES 32KB 필터링 + 재배포
-3. **16:24-16:25** — CI quality-gate 실패 → verify-docs.ts EXPECTED 값 수정
-4. **16:26** — Knip dead-code 7개 export 제거 + refresh-youtube-cookies.ts main() 자동 실행 방지
-5. **16:27** — 전체 CI 통과 확인 (fe78351)
-6. **16:30** — HANDOFF 작성 및 master 푸시
+1. **07:08** — `--write-auto-subs` 플래그 수정 (d955eab)
+2. **07:11** — yt-dlp 에러 대소문자 매칭 (2761d4f)
+3. **07:15** — HANDOFF 작성
 
 ## Decision Log
 
-- **YOUTUBE_COOKIES 필터 선택: .youtube.com only** — `.google.com` 포함 시 Railway 32KB 제한 초과 (553KB → 3KB). 향후 확장 시 Railway Unlimited 플랜 검토 필요.
-- **InqryDiv 타입 제거** — 미사용 (Knip). 향후 필요 시 재추가 가능.
-- **refresh-youtube-cookies.ts process.argv[1] 체크** — 테스트 import 시 자동 실행으로 인한 unhandled error 방지. CLI 직접 실행 시에만 main() 호출.
+- **write-auto-subs 복수형**: yt-dlp 공식 플래그 (단수 `--write-auto-sub`는 존재하지 않음)
+- **toLowerCase() 적용**: yt-dlp 버전 업데이트 시 에러 메시지 대소문자 변형 대응
+- **구조 변경 미루기**: #3/#4/#5는 밀접하게 얽혀 있어 별도 세션에서 함께 리팩토링
 
 ---
 
 **다음 세션 시작 시**:
-1. Smithery 마켓플레이스 승인 상태 확인
-2. `awesome-mcp-servers` PR 제출 여부 확인
-3. YouTube 쿠키 만료 시간 모니터링 (Remote 루틴)
-4. YouTube 안정화 메트릭 확인 (cb-circuit-breaker, probe success rate)
+1. #3 클라이언트 캐스케이드 설계 의도 검토
+2. #4/#5 entangled refactor 실행
+3. YouTube 자막 추출 성공률 메트릭 확인 (쿠키 풀, circuit breaker, probe)
+4. Smithery 마켓플레이스 승인 상태 + `awesome-mcp-servers` PR 상태 확인 (이전 세션 미완료)

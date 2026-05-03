@@ -40,3 +40,5 @@
 - [railway-youtube-cookies-32kb-domain-filter](railway-youtube-cookies-32kb-domain-filter.md) — YOUTUBE_COOKIES는 .youtube.com만 필터링 (553KB→3KB, Railway 32KB 제한)
 - [verify-docs-expected-counts-sync-requirement](verify-docs-expected-counts-sync-requirement.md) — 파일 추가 시 verify-docs.ts EXPECTED 카운트 동기화 필수 (CI quality-gate)
 - [scripts-cli-guard-pattern](scripts-cli-guard-pattern.md) — scripts/*.ts main() 자동 실행 방지 — process.argv[1] 가드 필수
+- [yt-dlp-auto-subtitle-flag-plural](yt-dlp-auto-subtitle-flag-plural.md) — --write-auto-subs(복수형)만 유효, 단수형 --write-auto-sub은 존재하지 않음
+- [yt-dlp-error-msg-case-insensitive-matching](yt-dlp-error-msg-case-insensitive-matching.md) — yt-dlp stderr 에러 메시지 매칭은 toLowerCase() 후 수행 필수
