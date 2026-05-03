@@ -368,8 +368,8 @@ export function registerPublicData(
 
   registerSkillTool(server, {
     name: "public_data",
-    title: "공공데이터 통합",
-    description: "공공데이터 — 약국, 병원, 동물병원, 희귀의약품, 건강식품, 생동성인정품목, 의약품 특허, 온비드 공고목록/공고물건상세, 사업자등록 진위확인/상태조회 통합 도구",
+    title: "Public Data / 공공데이터 통합",
+    description: "Public Data — pharmacies, hospitals, veterinary clinics, rare drugs, health foods, bioequivalence items, drug patents, OnBid auction listings, and business registration verification. / 공공데이터 — 약국, 병원, 동물병원, 희귀의약품, 건강식품, 생동성인정품목, 의약품 특허, 온비드 공고목록/공고물건상세, 사업자등록 진위확인/상태조회 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "search_pharmacy=약국검색(Q0=시도명) | search_hospital=병원검색(yadmNm=병원명) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_list=온비드공고목록(선택:onbid_list_filters_json) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",

@@ -327,8 +327,8 @@ export function registerCorporateDisclosure(
 
   registerSkillTool(server, {
     name: "corporate_disclosure",
-    title: "기업 공시",
-    description: "기업 공시 — DART 기업 검색, 공시보고서, 기업개황, 재무제표, 주요계정, 공시서류 본문, 주식배당정보 조회 통합 도구",
+    title: "Corporate Disclosure / 기업 공시",
+    description: "Corporate Disclosure — DART company search, disclosure reports, corporate overview, financial statements, key accounts, document text, and dividend information. / 기업 공시 — DART 기업 검색, 공시보고서, 기업개황, 재무제표, 주요계정, 공시서류 본문, 주식배당정보 조회 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "resolve_corp_code=회사명→고유번호변환 | search_disclosures=공시검색(corp_code필수) | get_company_info=기업개황(corp_code필수) | get_financial_statements=재무제표(corp_code+year필수) | get_document=공시원문(receipt_no필수) | get_key_accounts=주요계정(corp_code+year필수) | search_stock_dividend=배당정보검색(corp_name필수)",

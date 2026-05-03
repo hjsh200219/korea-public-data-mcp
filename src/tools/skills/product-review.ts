@@ -239,8 +239,8 @@ export function registerProductReviewSkill(
 
   registerSkillTool(server, {
     name: "product_review",
-    title: "제품 리뷰",
-    description: "YouTube 리뷰 자막 추출 + 쿠팡 상품 검색. youtube.md 채널 목록 기반. Actions: find_reviews=YouTube리뷰자막 | coupang_search=쿠팡상품검색 | full_review=리뷰+상품통합",
+    title: "Product Review / 제품 리뷰",
+    description: "Product Review — extract YouTube review captions and search Coupang products. Based on youtube.md channel list. Actions: find_reviews=YouTube captions | coupang_search=Coupang product search | full_review=combined. / YouTube 리뷰 자막 추출 + 쿠팡 상품 검색. youtube.md 채널 목록 기반.",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "find_reviews=YouTube채널에서리뷰자막추출(query필수) | coupang_search=쿠팡상품검색(query필수) | full_review=리뷰+상품통합(query필수)",

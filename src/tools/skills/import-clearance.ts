@@ -615,8 +615,8 @@ export function registerImportClearance(
 
   registerSkillTool(server, {
     name: "import_clearance",
-    title: "수입 통관",
-    description: "수입 통관 — 화물추적, 수입신고 검증, 검사검역, 제세 납부, 요건확인, 보세구역, 우편물통관, 재수출면세, 수입축산물 이력 등 수입통관 전체를 커버하는 통합 도구",
+    title: "Import Clearance / 수입 통관",
+    description: "Import Clearance — cargo tracking, import declaration verification, inspection/quarantine, tax payment, requirements confirmation, bonded zones, postal customs, re-export exemption, and livestock import history. / 수입 통관 — 화물추적, 수입신고 검증, 검사검역, 제세 납부, 요건확인, 보세구역, 우편물통관, 재수출면세, 수입축산물 이력 등 수입통관 전체를 커버하는 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "track_cargo=B/L화물추적 | get_containers=컨테이너정보 | get_arrival_report=입항적하목록 | verify_declaration=수입신고조회 | get_inspection=검사정보 | get_tax_payment=세금납부정보 | import_requirement=수입요건확인 | single_window=싱글윈도우이력 | customs_check=세관검사대상 | postal_customs=우편세관 | attachment_status=첨부서류상태 | reimport_balance=재수입면세잔량 | postal_clearance=우편통관 | reexport_balance=재수출면세잔량 | reexport_deadline=재수출기한 | reexport_completion=재수출이행 | collateral_release=담보해제 | declaration_correction=신고정정 | search_import_meat=수입축산물이력검색 | lookup_meat_by_bl=B/L축산물이력",

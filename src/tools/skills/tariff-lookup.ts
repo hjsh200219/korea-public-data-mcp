@@ -263,8 +263,8 @@ export function registerTariffLookup(
 
   registerSkillTool(server, {
     name: "tariff_lookup",
-    title: "관세율·HS코드·환율 조회",
-    description: "관세율·HS코드·환율 통합 조회 — HS코드 검색, 관세율 조회, 관세환율, 시장환율, 간이환급율, 통계부호, HS 내비게이션 등을 하나의 도구로 제공합니다.",
+    title: "Tariff, HS Code & Exchange Rate / 관세율·HS코드·환율 조회",
+    description: "Tariff, HS Code & Exchange Rate — HS code search, tariff rates, customs exchange rate, market exchange rate, simplified drawback rate, statistics codes, and HS navigation. / 관세율·HS코드·환율 통합 조회 — HS코드 검색, 관세율 조회, 관세환율, 시장환율, 간이환급율, 통계부호, HS 내비게이션 등을 하나의 도구로 제공합니다.",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "search_hs=HS부호검색(hs_code필수) | tariff_rate=관세율조회(hs_code필수) | customs_rate=관세환율(currencies선택) | simple_drawback=간이환급률(base_date필수) | simple_drawback_company=간이정액적용업체(business_no필수) | export_period_short=수출기간단축(hs_code필수) | statistics_code=통계부호(code_type필수) | hs_navigation=HS부호체계탐색(hs_code필수) | market_exchange=수출입은행시장환율(date선택)",

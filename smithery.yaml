@@ -2,7 +2,7 @@
 
 name: K Public Data MCP
 description: >
-  대한민국 공공데이터 통합 MCP 서버. 법제처 법령·판례, DART 전자공시, 관세청 UNI-PASS, 금융감독원 금융상품, 금융위원회 보험공시, 조달청 나라장터, 수출입은행 환율, 농림축산식품부, 한국관광공사, YouTube 자막·메타데이터, 해외 판례(미국·독일), 쿠팡 파트너스 상품리뷰를 단일 서버에서 제공합니다.
+  Korean public data unified MCP server — law (MOJ), DART corporate disclosures, customs (UNI-PASS), FSS financial products, FSC insurance, KONEPS procurement, KEXIM exchange rates, MAFRA, Korea Tourism, YouTube captions/metadata, foreign case law (US·Germany), and Coupang product reviews. / 대한민국 공공데이터 통합 MCP 서버. 법제처 법령·판례, DART 전자공시, 관세청 UNI-PASS, 금융감독원 금융상품, 금융위원회 보험공시, 조달청 나라장터, 수출입은행 환율, 농림축산식품부, 한국관광공사, YouTube 자막·메타데이터, 해외 판례(미국·독일), 쿠팡 파트너스 상품리뷰를 단일 서버에서 제공합니다.
 homepage: https://github.com/hjsh200219/korea-public-data-mcp
 
 build:

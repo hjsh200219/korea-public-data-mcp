@@ -204,8 +204,8 @@ export function registerYoutube(server: McpServer, apiKey?: string): void {
 
   registerSkillTool(server, {
     name: "youtube",
-    title: "YouTube 자막·메타데이터",
-    description: `YouTube 자막 추출·요약${apiKey ? " + 영상정보·검색·댓글" : ""}. Actions: ${availableActions.join(", ")}\n${actionDescriptions.join("\n")}`,
+    title: "YouTube Captions & Metadata / YouTube 자막·메타데이터",
+    description: `YouTube caption extraction & summarization${apiKey ? " + video info, search, comments" : ""}. / YouTube 자막 추출·요약${apiKey ? " + 영상정보·검색·댓글" : ""}. Actions: ${availableActions.join(", ")}\n${actionDescriptions.join("\n")}`,
     inputSchema: {
       action: z.enum(availableActions as unknown as [string, ...string[]]).describe("수행할 작업"),
       url: z.string().optional().describe("YouTube URL 또는 영상 ID (get_transcript, summarize, video_info, comments에 필요)"),

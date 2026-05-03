@@ -255,8 +255,8 @@ export function registerShippingLogistics(
 
   registerSkillTool(server, {
     name: "shipping_logistics",
-    title: "물류·운송",
-    description: "물류·운송 — 보세구역, 장치장, 보세운송, 입출항보고, 하선신고, 출항허가, 항공입항, 배차정보 등 물류/운송 통합 도구",
+    title: "Shipping & Logistics / 물류·운송",
+    description: "Shipping & Logistics — bonded zones, storage yards, bonded transport, port entry/exit reports, discharge declarations, departure permits, air arrival, and vehicle dispatch. / 물류·운송 — 보세구역, 장치장, 보세운송, 입출항보고, 하선신고, 출항허가, 항공입항, 배차정보 등 물류/운송 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "bonded_area=보세구역장치기간(cargo_no필수) | shed_info=장치장정보(customs_code필수) | bonded_vehicle=보세운송차량(btco_code필수) | port_entry_exit=입출항보고(imo_no필수) | unloading_declarations=하선신고(cargo_no필수) | sea_departure=해상출항허가(imo_no필수) | air_departure=항공출항허가 | air_arrival_report=항공입항보고 | bonded_transport_info=보세운송배차정보",

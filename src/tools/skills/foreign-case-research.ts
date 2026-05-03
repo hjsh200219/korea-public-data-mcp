@@ -443,14 +443,15 @@ export function registerForeignCaseResearch(
   if (availableActions.length === 0) return;
 
   const description = [
-    "해외 판례 리서치 — CourtListener (미국, cursor 페이지네이션) + OpenLegalData (독일, page 페이지네이션)",
-    "본문은 원문 언어 그대로 제공됩니다 (영어/독일어 — 번역 미제공). 메타데이터 라벨은 한글.",
-    "주요 미국 연방법원 슬러그: scotus, ca1-ca11, cadc, cafc, dcd",
+    "Foreign Case Research — CourtListener (US, cursor pagination) + OpenLegalData (Germany, page pagination).",
+    "Full text is provided in the original language (English/German — no translation). Metadata labels in Korean.",
+    "Key US federal court slugs: scotus, ca1–ca11, cadc, cafc, dcd",
+    "/ 해외 판례 리서치 — CourtListener (미국) + OpenLegalData (독일). 본문은 원문 언어 그대로 제공됩니다.",
   ].join("\n");
 
   registerSkillTool(server, {
     name: "foreign_case_research",
-    title: "해외 판례 조사",
+    title: "Foreign Case Research / 해외 판례 조사",
     description,
     inputSchema: {
       action: z.enum(availableActions as unknown as [string, ...string[]]).describe(

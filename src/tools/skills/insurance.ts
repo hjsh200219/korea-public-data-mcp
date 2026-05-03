@@ -616,8 +616,8 @@ export function registerInsurance(server: McpServer, serviceKey: string): void {
 
   registerSkillTool(server, {
     name: "insurance",
-    title: "보험상품 공시",
-    description: "금융위원회 보험상품 공시 — 실손/일반손해/자동차/변액/생명/개인연금/퇴직연금 보험 정보를 조회합니다. (data.go.kr API, 활용신청 필요)",
+    title: "Insurance Product Disclosure / 보험상품 공시",
+    description: "Insurance Product Disclosure (FSC) — retrieve indemnity, general casualty, auto, variable, life, personal pension, and retirement pension insurance information. (data.go.kr API, subscription required) / 금융위원회 보험상품 공시 — 실손/일반손해/자동차/변액/생명/개인연금/퇴직연금 보험 정보를 조회합니다.",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "medical_reimbursement=실손보험 보험료 | property_insu_join=일반손해보험 가입정보 | auto_contract=자동차보험 계약정보 | auto_los_circumstance=자동차보험 사고현황 | auto_victim=자동차보험 피해자 정보 | variable_insurance_fund=변액보험 펀드정보 | life_insu_join_status=생명보험 가입현황 | individual_annuity_insu=개인연금보험 가입정보 | retirement_pension_fund=퇴직연금 펀드정보",

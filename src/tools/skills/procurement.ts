@@ -140,8 +140,8 @@ export function registerProcurement(
 
   registerSkillTool(server, {
     name: "procurement",
-    title: "나라장터 입찰·낙찰",
-    description: "나라장터 입찰공고·낙찰정보 조회 — 조달청 G2B 물품/용역/공사/외자 입찰공고 검색 및 낙찰결과를 조회합니다.",
+    title: "KONEPS Procurement / 나라장터 입찰·낙찰",
+    description: "KONEPS Procurement — search G2B bid announcements (goods, services, construction, foreign) and retrieve award results. / 나라장터 입찰공고·낙찰정보 조회 — 조달청 G2B 물품/용역/공사/외자 입찰공고 검색 및 낙찰결과를 조회합니다.",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
         "bid_list=입찰공고목록(기간필수) | award_list=낙찰정보목록(기간필수)",
