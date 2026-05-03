@@ -222,12 +222,13 @@ async function tryYtDlpClient(
   } catch (e) {
     if (!(e instanceof Error)) throw e;
     const msg = e.message;
+    const msgLower = msg.toLowerCase();
 
     // 즉시 중단 조건: yt-dlp 미설치, 자막 비활성
     if ((e as NodeJS.ErrnoException).code === "ENOENT" && msg.includes("yt-dlp")) {
       throw new Error("yt-dlp가 설치되어 있지 않습니다. 'pip install yt-dlp' 또는 'brew install yt-dlp'로 설치해주세요.", { cause: e });
     }
-    if (msg.includes("no subtitles") || msg.includes("Subtitles are disabled")) {
+    if (msgLower.includes("no subtitles") || msgLower.includes("subtitles are disabled")) {
       throw new TranscriptError(
         "자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.",
         TranscriptErrorCode.NO_SUBTITLES,
@@ -259,6 +260,7 @@ async function tryYtDlpClient(
   // 파일도 없을 때 에러 분류
   if (ytdlpError) {
     const errMsg = ytdlpError.message;
+    const errLower = errMsg.toLowerCase();
     if (errMsg.includes("429")) {
       throw new TranscriptError(
         "YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
@@ -266,22 +268,22 @@ async function tryYtDlpClient(
         ytdlpError,
       );
     }
-    if (errMsg.includes("PO Token")) {
-      // PO Token 요구 → 다음 클라이언트로 (BOT_DETECTED로 분류하되 cascade 계속)
+    if (errLower.includes("po token") || errLower.includes("po_token")) {
+      // PO Token 요구 → 다음 클라이언트로 cascade 계속
       return null;
     }
-    if (errMsg.includes("Sign in") || errMsg.includes("cookie")) {
+    if (errLower.includes("sign in") || errLower.includes("cookie")) {
       // 쿠키 만료 → 다음 클라이언트로 cascade 계속
       return null;
     }
-    if (errMsg.includes("not available in your country")) {
+    if (errLower.includes("not available in your country")) {
       throw new TranscriptError(
         "이 영상은 현재 지역에서 시청할 수 없습니다.",
         TranscriptErrorCode.REGION_BLOCKED,
         ytdlpError,
       );
     }
-    // PO Token / DRM / 봇 감지 등 → 다음 클라이언트로
+    // DRM / 봇 감지 등 → 다음 클라이언트로
     return null;
   }
 

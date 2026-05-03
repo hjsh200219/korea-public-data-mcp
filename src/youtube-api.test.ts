@@ -793,6 +793,45 @@ describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
     expect(thrown).toBeInstanceOf(TranscriptError);
     expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
   });
+
+  it("'No Subtitles' 대소문자 변형 — python fallback 미호출, NO_SUBTITLES 즉시 분류", async () => {
+    mockYtDlpError("ERROR: gc297hx4F7o: No Subtitles available for requested languages");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
+    // 즉시 throw여야 함: python3(fallback) 호출 없어야 함
+    const python3Calls = vi.mocked(execFile).mock.calls.filter((c) => c[0] === "python3");
+    expect(python3Calls).toHaveLength(0);
+  });
+
+  it("'subtitles are disabled' 소문자 — python fallback 미호출, NO_SUBTITLES 즉시 분류", async () => {
+    mockYtDlpError("ERROR: subtitles are disabled for this video");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
+    const python3Calls = vi.mocked(execFile).mock.calls.filter((c) => c[0] === "python3");
+    expect(python3Calls).toHaveLength(0);
+  });
+
+  it("'po_token' 소문자도 cascade null 처리 (NO_SUBTITLES로 최종 귀결)", async () => {
+    mockYtDlpError("ERROR: This video requires a po_token to access.");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
+  });
+
+  it("'not available in your country' 대소문자 변형도 REGION_BLOCKED — yt-dlp 1회만 호출", async () => {
+    mockYtDlpError("ERROR: This video is not available in your country due to copyright restrictions");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.REGION_BLOCKED);
+    const ytdlpCalls = vi.mocked(execFile).mock.calls.filter((c) => c[0] === "yt-dlp");
+    expect(ytdlpCalls).toHaveLength(1);
+  });
 });
 
 // ── getChannelVideos ──
