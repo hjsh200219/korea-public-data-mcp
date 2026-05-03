@@ -36,6 +36,7 @@ npm run dev:remote   # Dev with tsx (HTTP)
 - Korean comments for domain-specific logic
 - 스킬 도구: 17개 의도 기반, `action` enum으로 세부 동작 선택
 - 스킬 등록: `server.tool()` 대신 `registerSkillTool()` (`tools/skills/_shared.ts`) 사용
+- 스킬 도구 `title`/`description`: 이중 언어 형식 — `"English / 한글"` (title), `"English desc. / 한글 설명"` (description)
 - REST routes: `kebab-case`
 - Error responses: `isError: true` with Korean messages
 - Domain files: `{domain}-api.ts` + `{domain}-types.ts`

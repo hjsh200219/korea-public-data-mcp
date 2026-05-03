@@ -19,12 +19,14 @@ grep -E "^(#|\.youtube\.com|youtube\.com|\.google\.com|google\.com)" \
   /tmp/yt-cookies-full.txt > /tmp/yt-cookies-filtered.txt
 
 # 3. Railway 환경변수 주입 + 재배포
-railway variables set YOUTUBE_COOKIES="$(cat /tmp/yt-cookies-filtered.txt)"
+railway variables --set YOUTUBE_COOKIES="$(cat /tmp/yt-cookies-filtered.txt)"
 railway redeploy --yes
 ```
 
-필터 후 결과: 약 50줄 / 6KB (Railway 32KB 한도 충족).
-전체 파일은 약 3200줄로 한도 초과.
+필터 후 결과: ~24KB (Railway 32,768자 한도 이내 충족). 2026-05-03 실측.
+전체 파일은 약 3200줄 / 100KB+ 로 한도 초과.
+
+> 주의: Railway CLI는 `railway variables set`(구 문법)이 아닌 `railway variables --set KEY="VALUE"` 사용.
 
 **Why:** Chrome에서 추출한 raw 쿠키는 전체 브라우저 쿠키를 포함하여 Railway 환경변수 32KB 한도를 초과하고, 다른 서비스 세션 쿠키도 포함되어 보안 위험. YouTube/Google 도메인만 grep 필터링 후 주입 필요.
 
