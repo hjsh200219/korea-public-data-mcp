@@ -20,14 +20,14 @@ describe("filterCookiesByDomain", () => {
     expect(result).not.toContain(".example.com");
   });
 
-  it(".google.com 도메인만 통과", () => {
+  it(".google.com 도메인은 제외됨", () => {
     const raw = [
       makeLine(".google.com"),
       makeLine(".facebook.com"),
     ].join("\n");
 
     const result = filterCookiesByDomain(raw);
-    expect(result).toContain(".google.com");
+    expect(result).not.toContain(".google.com");
     expect(result).not.toContain(".facebook.com");
   });
 
@@ -42,11 +42,10 @@ describe("filterCookiesByDomain", () => {
 
     const result = filterCookiesByDomain(raw);
     expect(result).toContain(".youtube.com");
-    expect(result).toContain(".google.com");
+    expect(result).not.toContain(".google.com");
     expect(result).not.toContain(".twitter.com");
     expect(result).not.toContain(".github.com");
-    // accounts.google.com은 .google.com으로 끝나므로 통과
-    expect(result).toContain("accounts.google.com");
+    expect(result).not.toContain("accounts.google.com");
   });
 
   it("헤더와 주석 줄은 건너뜀 (필터 출력에 포함 안 됨)", () => {

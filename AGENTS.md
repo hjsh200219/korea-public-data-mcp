@@ -13,11 +13,13 @@ K public data MCP server (법제처 + DART 전자공시 + 공공데이터포털 
 ## Quick Start
 
 ```bash
-npm run build        # TypeScript -> dist/
-npm run start:stdio  # MCP stdio mode (local)
-npm start            # HTTP mode (Railway deploy)
-npm run dev          # Dev with tsx (stdio)
-npm run dev:remote   # Dev with tsx (HTTP)
+npm run build           # TypeScript -> dist/
+npm run start:stdio     # MCP stdio mode (local)
+npm start               # HTTP mode (Railway deploy)
+npm run dev             # Dev with tsx (stdio)
+npm run dev:remote      # Dev with tsx (HTTP)
+npm run canary:ytdlp    # yt-dlp 연결 상태 점검
+npm run refresh:cookies # YouTube 쿠키 풀 갱신
 ```
 
 ## Docs
@@ -30,6 +32,7 @@ npm run dev:remote   # Dev with tsx (HTTP)
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 시스템 다이어그램, 외부 의존성 |
 | [docs/design-docs/layer-rules.md](docs/design-docs/layer-rules.md) | import 규칙 |
 | [docs/QUALITY.md](docs/QUALITY.md) | 품질 평가 |
+| [docs/runbook-youtube.md](docs/runbook-youtube.md) | YouTube 운영 런북 (쿠키/CB/프로브) |
 
 ## Conventions
 
@@ -43,6 +46,7 @@ npm run dev:remote   # Dev with tsx (HTTP)
 - MCP responses: 8000자 truncate (`truncateWindow()`로 offset 페이지네이션)
 - `youtube.md` 채널 목록: `# 주석` 줄로 그룹핑 가능 (`parseYoutubeMdChannels`가 자동 무시)
 - 스킬 내 텍스트 검색: `matchesQuery(title, description, query)` — title+description 토큰 분리 매칭, 대소문자 무시
+- YouTube kill switches: `YOUTUBE_CIRCUIT_BREAKER_ENABLED`, `YOUTUBE_PROBE_ENABLED` (`false`로 즉시 비활성화)
 
 ## TDD 필수
 

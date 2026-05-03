@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
 const RAW_COOKIE_PATH = "/tmp/yt_raw_cookies.txt";
 const FILTERED_COOKIE_PATH = "/tmp/yt_filtered.txt";
-const ALLOWED_DOMAINS = [".youtube.com", ".google.com"];
+const ALLOWED_DOMAINS = [".youtube.com"];
 
 // 20KB 경고 임계값
 const WARN_SIZE_BYTES = 20 * 1024;
