@@ -29,11 +29,11 @@ const dataAccessApis = listTs(SRC).filter((f) => f.endsWith("-api.ts"));
 const typesFiles = listTs(SRC).filter((f) => f.endsWith("-types.ts"));
 
 const EXPECTED = {
-  skillModules: 12,
-  routeDomainFiles: 8,
-  openapiPathModules: 8,
-  dataAccessApis: 8,
-  typesFiles: 8,
+  skillModules: 17,
+  routeDomainFiles: 11,
+  openapiPathModules: 11,
+  dataAccessApis: 14,
+  typesFiles: 14,
 } as const;
 
 function assertCount(label: string, actual: number, expected: number): void {
