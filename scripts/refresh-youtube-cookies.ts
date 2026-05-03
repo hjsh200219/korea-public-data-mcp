@@ -116,4 +116,9 @@ async function main(): Promise<void> {
   console.log(`   railway variables set YOUTUBE_COOKIES="$(cat ${FILTERED_COOKIE_PATH})"`);
 }
 
-main();
+// CLI로 직접 실행할 때만 main() 호출 (import 시 자동 실행 방지)
+const isMain = process.argv[1]?.endsWith("refresh-youtube-cookies.ts") ||
+  process.argv[1]?.endsWith("refresh-youtube-cookies.js");
+if (isMain) {
+  main();
+}
