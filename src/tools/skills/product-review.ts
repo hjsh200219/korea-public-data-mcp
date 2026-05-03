@@ -24,7 +24,7 @@ import {
 } from "./_shared.js";
 
 /** 쿼리 토큰(공백 분리) 중 하나라도 제목 또는 설명에 포함되면 true */
-export function matchesQuery(title: string, description: string, query: string): boolean {
+function matchesQuery(title: string, description: string, query: string): boolean {
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
   const haystack = (title + " " + description).toLowerCase();
   return tokens.some((t) => haystack.includes(t));

@@ -125,7 +125,7 @@ function handleAwardList(serviceKey: string) {
   };
 }
 
-export function createProcurementHandler(serviceKey: string) {
+function createProcurementHandler(serviceKey: string) {
   return createDispatcher<ProcurementParams>("procurement", {
     bid_list: handleBidList(serviceKey),
     award_list: handleAwardList(serviceKey),

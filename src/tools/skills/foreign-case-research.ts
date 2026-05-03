@@ -38,7 +38,7 @@ type ForeignCaseAction =
   | "search_de_cases"
   | "get_de_case_detail";
 
-export interface ForeignCaseResearchOptions {
+interface ForeignCaseResearchOptions {
   courtlistenerApiToken?: string;
   openLegalDataApiToken?: string;
   enableUS?: boolean;

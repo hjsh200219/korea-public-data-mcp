@@ -16,12 +16,12 @@ export function truncate(text: string, max = MAX_CONTENT_LENGTH): string {
  * 단순 substring보다 메타데이터가 많아: hasMore/totalLength로 LLM이
  * 다음 호출을 판단하고, windowStart/windowEnd로 사용자에게 위치를 보여줄 수 있다.
  */
-export interface TruncateWindowOptions {
+interface TruncateWindowOptions {
   max?: number;
   offset?: number;
 }
 
-export interface TruncateWindowResult {
+interface TruncateWindowResult {
   text: string;
   totalLength: number;
   windowStart: number;

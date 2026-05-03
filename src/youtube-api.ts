@@ -531,7 +531,7 @@ export function parseYoutubeMdChannels(content: string): string[] {
 
 // ─── 채널 ID 캐시 (24h TTL) ───
 
-export interface ChannelInfo {
+interface ChannelInfo {
   handle: string;
   channelId: string;
   title: string;

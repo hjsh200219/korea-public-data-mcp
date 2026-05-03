@@ -71,8 +71,6 @@ export interface ScsbidItem {
   fnlSucsfDate: string;
 }
 
-/** 조회 구분 (공통 파라미터) */
-export type InqryDiv = "1" | "2" | "3" | "4" | "5";
 
 /** 입찰 유형 */
 export type BidType = "thng" | "servc" | "cnstwk" | "frgcpt";

@@ -5,7 +5,7 @@
  * Phase 0 검증된 응답 스키마 기반.
  */
 
-export interface DECourtRef {
+interface DECourtRef {
   id: number;
   name: string;
   slug: string;
