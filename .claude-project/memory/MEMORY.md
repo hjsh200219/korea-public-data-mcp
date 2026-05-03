@@ -37,3 +37,5 @@
 - [youtube-health-probe-endpoint](youtube-health-probe-endpoint.md) — /health/youtube 엔드포인트 + 5분 프로브, cookiePool/circuitBreaker 상태 반환
 - [yt-dlp-version-pin-and-nightly-canary](yt-dlp-version-pin-and-nightly-canary.md) — Dockerfile 2026.03.17 고정, nightly canary로 정책 변경 감지
 - [youtube-stability-kill-switches](youtube-stability-kill-switches.md) — YOUTUBE_CIRCUIT_BREAKER_ENABLED/PROBE_ENABLED/COOKIES_POOL kill switch 3종
+- [railway-youtube-cookies-32kb-domain-filter](railway-youtube-cookies-32kb-domain-filter.md) — YOUTUBE_COOKIES는 .youtube.com만 필터링 (553KB→3KB, Railway 32KB 제한)
+- [verify-docs-expected-counts-sync-requirement](verify-docs-expected-counts-sync-requirement.md) — 파일 추가 시 verify-docs.ts EXPECTED 카운트 동기화 필수 (CI quality-gate)

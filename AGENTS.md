@@ -47,6 +47,7 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - `youtube.md` 채널 목록: `# 주석` 줄로 그룹핑 가능 (`parseYoutubeMdChannels`가 자동 무시)
 - 스킬 내 텍스트 검색: `matchesQuery(title, description, query)` — title+description 토큰 분리 매칭, 대소문자 무시
 - YouTube kill switches: `YOUTUBE_CIRCUIT_BREAKER_ENABLED`, `YOUTUBE_PROBE_ENABLED` (`false`로 즉시 비활성화)
+- YouTube cookies: `.youtube.com` 도메인만 필터링 (Railway 32KB 제한 — `.google.com` 포함 시 초과)
 
 ## TDD 필수
 
