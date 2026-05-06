@@ -2,7 +2,7 @@
 
 | Spec | Status | Description |
 |------|--------|-------------|
-| *(none yet)* | | |
+| [algrow-mcp-feasibility.md](algrow-mcp-feasibility.md) | review | Algrow MCP 스타일 비디오 분석 기능 적용 가능성 검토 (Option B 권고) |
 
 ## Supported API Targets (21)
 
