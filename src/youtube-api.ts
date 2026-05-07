@@ -191,8 +191,22 @@ export async function getTranscriptFallback(
 }
 
 /**
- * 단일 yt-dlp 시도. 성공 시 TranscriptResult, 실패(자막 파일 없음) 시 null.
- * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 429 / 자막 비활성)는 throw.
+ * tryYtDlpClient 결과 — 성공 시 TranscriptResult, 실패 시 cascade 사유 코드.
+ * 즉시 중단할 에러(yt-dlp 미설치 / 429 / 자막 비활성 / 지역 차단)는 throw로 우회.
+ */
+type CascadeReason =
+  | TranscriptErrorCode.PO_TOKEN_REQUIRED
+  | TranscriptErrorCode.COOKIE_EXPIRED
+  | TranscriptErrorCode.BOT_DETECTED
+  | TranscriptErrorCode.NO_SUBTITLES;
+
+type TryYtDlpOutcome =
+  | { kind: "success"; result: TranscriptResult }
+  | { kind: "cascade"; reason: CascadeReason };
+
+/**
+ * 단일 yt-dlp 시도. 성공 시 success outcome, 실패 시 cascade 사유 outcome.
+ * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 429 / 자막 비활성 / 지역차단)는 throw.
  */
 async function tryYtDlpClient(
   videoId: string,
@@ -202,7 +216,7 @@ async function tryYtDlpClient(
   browserCookies: string | undefined,
   cookieFile: string | null,
   tmpDir: string,
-): Promise<TranscriptResult | null> {
+): Promise<TryYtDlpOutcome> {
   const ytdlpArgs = [
     "--skip-download",
     "--write-sub",
@@ -217,8 +231,10 @@ async function tryYtDlpClient(
   ];
 
   let ytdlpError: Error | null = null;
+  let stdoutBody = "";
   try {
-    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 30_000 });
+    const { stdout } = await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 30_000 });
+    stdoutBody = typeof stdout === "string" ? stdout : "";
   } catch (e) {
     if (!(e instanceof Error)) throw e;
     const msg = e.message;
@@ -246,11 +262,14 @@ async function tryYtDlpClient(
       const segments = parseJson3Subtitles(json3, tryLang);
       if (segments.length === 0) continue;
       return {
-        videoId,
-        segments,
-        fullText: segments.map((s) => s.text).join(" "),
-        language: tryLang,
-        segmentCount: segments.length,
+        kind: "success",
+        result: {
+          videoId,
+          segments,
+          fullText: segments.map((s) => s.text).join(" "),
+          language: tryLang,
+          segmentCount: segments.length,
+        },
       };
     } catch {
       continue;
@@ -269,12 +288,12 @@ async function tryYtDlpClient(
       );
     }
     if (errLower.includes("po token") || errLower.includes("po_token")) {
-      // PO Token 요구 → 다음 클라이언트로 cascade 계속
-      return null;
+      // PO Token 요구 → cascade (사유 보존)
+      return { kind: "cascade", reason: TranscriptErrorCode.PO_TOKEN_REQUIRED };
     }
     if (errLower.includes("sign in") || errLower.includes("cookie")) {
-      // 쿠키 만료 → 다음 클라이언트로 cascade 계속
-      return null;
+      // 쿠키 만료 → cascade (사유 보존)
+      return { kind: "cascade", reason: TranscriptErrorCode.COOKIE_EXPIRED };
     }
     if (errLower.includes("not available in your country")) {
       throw new TranscriptError(
@@ -283,12 +302,45 @@ async function tryYtDlpClient(
         ytdlpError,
       );
     }
-    // DRM / 봇 감지 등 → 다음 클라이언트로
-    return null;
+    // DRM / 봇 감지 등 → cascade
+    return { kind: "cascade", reason: TranscriptErrorCode.BOT_DETECTED };
   }
 
-  // yt-dlp 성공했지만 자막 파일 0개 → 다음 클라이언트로
-  return null;
+  // yt-dlp가 exit 0으로 종료했지만 자막 파일 0개 — stdout에 PO Token 경고가 있는지 확인
+  // (web 클라이언트 자동자막의 전형적인 PO Token 차단 패턴)
+  const stdoutLower = stdoutBody.toLowerCase();
+  if (stdoutLower.includes("po token") && stdoutLower.includes("no subtitles")) {
+    return { kind: "cascade", reason: TranscriptErrorCode.PO_TOKEN_REQUIRED };
+  }
+
+  // 사유 미상 — 일반적인 NO_SUBTITLES로 cascade
+  return { kind: "cascade", reason: TranscriptErrorCode.NO_SUBTITLES };
+}
+
+/** cascade 사유 → 사용자 메시지 */
+function cascadeMessage(reason: CascadeReason): string {
+  switch (reason) {
+    case TranscriptErrorCode.PO_TOKEN_REQUIRED:
+      return "YouTube의 봇 차단 정책(PO Token)으로 자막을 추출할 수 없습니다. 영상에 자막은 존재하지만 현재 yt-dlp가 우회할 수 없는 상태입니다.";
+    case TranscriptErrorCode.COOKIE_EXPIRED:
+      return "YouTube 쿠키가 만료되었거나 로그인 인증이 필요합니다. 쿠키를 갱신한 후 다시 시도해주세요.";
+    case TranscriptErrorCode.BOT_DETECTED:
+      return "YouTube가 자동화된 요청을 감지하여 자막 추출이 차단되었습니다. 잠시 후 다시 시도해주세요.";
+    case TranscriptErrorCode.NO_SUBTITLES:
+    default:
+      return "자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.";
+  }
+}
+
+/** 두 cascade 사유 중 더 구체적인(우선순위 높은) 쪽을 선택 */
+function moreSpecificReason(a: CascadeReason, b: CascadeReason): CascadeReason {
+  const priority: Record<CascadeReason, number> = {
+    [TranscriptErrorCode.PO_TOKEN_REQUIRED]: 4,
+    [TranscriptErrorCode.COOKIE_EXPIRED]: 3,
+    [TranscriptErrorCode.BOT_DETECTED]: 2,
+    [TranscriptErrorCode.NO_SUBTITLES]: 1,
+  };
+  return priority[a] >= priority[b] ? a : b;
 }
 
 /**
@@ -352,18 +404,27 @@ export async function getTranscript(
   const clients = hasCookies ? ["tv", "web"] : ["android"];
 
   try {
+    // 캐스케이드 동안 가장 구체적인 차단 사유를 보존 (예: tv DRM = BOT_DETECTED, web PO Token = PO_TOKEN_REQUIRED → PO_TOKEN_REQUIRED 보존)
+    let lastCascadeReason: CascadeReason = TranscriptErrorCode.NO_SUBTITLES;
+    let cascadeOccurred = false;
+
     for (const playerClient of clients) {
       // 시도마다 별도 디렉터리: 이전 시도 잔여 파일이 다음 시도 결과를 오염시키지 않도록
       const dir = await mkdtemp(join(rootTmp, "attempt-"));
       try {
-        const result = await tryYtDlpClient(
+        const outcome = await tryYtDlpClient(
           videoId, langsToTry, subLangArg,
           playerClient, browserCookies, cookieFile, dir,
         );
-        if (result) {
+        if (outcome.kind === "success") {
           youtubeCircuitBreaker.recordSuccess();
-          return result;
+          return outcome.result;
         }
+        // cascade — 사유 누적
+        lastCascadeReason = cascadeOccurred
+          ? moreSpecificReason(lastCascadeReason, outcome.reason)
+          : outcome.reason;
+        cascadeOccurred = true;
       } catch (e) {
         if (e instanceof TranscriptError) {
           youtubeCircuitBreaker.recordFailure(e.code);
@@ -380,9 +441,15 @@ export async function getTranscript(
     try {
       return await getTranscriptFallback(videoId, primaryLang);
     } catch (fallbackErr) {
+      // fallback이 TranscriptError를 던졌다면 cascade 사유와 결합
+      // - cascade가 PO_TOKEN_REQUIRED 등 구체적 사유를 보유 → 그쪽으로 throw (정확한 운영 원인 노출)
+      // - cascade가 NO_SUBTITLES이거나 cascade 자체가 없었음 → fallback의 NO_SUBTITLES 그대로 노출
+      const finalReason: CascadeReason = cascadeOccurred
+        ? lastCascadeReason
+        : TranscriptErrorCode.NO_SUBTITLES;
       throw new TranscriptError(
-        "자막을 찾을 수 없습니다. 자막이 비활성화되었거나 없는 영상입니다.",
-        TranscriptErrorCode.NO_SUBTITLES,
+        cascadeMessage(finalReason),
+        finalReason,
         fallbackErr,
       );
     }

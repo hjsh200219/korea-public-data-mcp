@@ -785,13 +785,14 @@ describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
     expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
   });
 
-  it("yt-dlp stderr에 'PO Token' 포함 시 fallback 시도 후 NO_SUBTITLES (파일 없고 fallback 실패)", async () => {
+  it("yt-dlp stderr에 'PO Token' 포함 시 cascade 사유 보존 → PO_TOKEN_REQUIRED (fallback 실패)", async () => {
     mockYtDlpError("ERROR: Sign in to confirm you're not a bot. PO Token required.");
 
     const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
-    // PO Token → cascade → fallback 실패 → TranscriptError NO_SUBTITLES
+    // PO Token → cascade 사유 보존 → fallback 실패 → 마지막 cascade 사유로 throw
     expect(thrown).toBeInstanceOf(TranscriptError);
-    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.PO_TOKEN_REQUIRED);
+    expect((thrown as TranscriptError).message).toMatch(/PO Token|봇 차단/);
   });
 
   it("'No Subtitles' 대소문자 변형 — python fallback 미호출, NO_SUBTITLES 즉시 분류", async () => {
@@ -815,12 +816,96 @@ describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
     expect(python3Calls).toHaveLength(0);
   });
 
-  it("'po_token' 소문자도 cascade null 처리 (NO_SUBTITLES로 최종 귀결)", async () => {
+  it("'po_token' 소문자도 cascade 사유 보존 → PO_TOKEN_REQUIRED", async () => {
     mockYtDlpError("ERROR: This video requires a po_token to access.");
 
     const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
     expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.PO_TOKEN_REQUIRED);
+  });
+
+  it("yt-dlp stderr에 'sign in to confirm' 포함 시 COOKIE_EXPIRED (fallback 실패)", async () => {
+    mockYtDlpError("ERROR: Sign in to confirm your age. cookies may have expired.");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    // sign in / cookie 패턴은 PO Token 패턴이 함께 없으면 COOKIE_EXPIRED
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.COOKIE_EXPIRED);
+  });
+
+  it("web 클라이언트 stdout에 'no subtitles for the requested languages' + PO Token 경고 → PO_TOKEN_REQUIRED", async () => {
+    // web 클라이언트는 exit 0이지만 stdout에 PO Token 미제공 + no subtitles 메시지 출력
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
+
+    let attempt = 0;
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        attempt += 1;
+        const argsArr = args as string[];
+        if (argsArr.includes("youtube:player_client=tv")) {
+          // tv: DRM 에러
+          const err = new Error(
+            "ERROR: [youtube] gc297hx4F7o: Requested format is not available. drm protected.",
+          );
+          (cb as (err: Error | null, stdout: { stdout: string; stderr: string }) => void)(err, { stdout: "", stderr: "" });
+        } else {
+          // web: exit 0이지만 stdout에 "no subtitles" + "PO Token" 경고
+          // promisify(execFile)는 정상 시 {stdout, stderr} 객체 반환 — mock도 동일하게 객체 형태로
+          const stdoutText =
+            "WARNING: [youtube] Some web client subtitles require a PO Token which was not provided.\n" +
+            "[info] There are no subtitles for the requested languages\n";
+          (cb as (err: Error | null, value: { stdout: string; stderr: string }) => void)(null, { stdout: stdoutText, stderr: "" });
+        }
+      } else {
+        // python3 fallback도 실패
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.PO_TOKEN_REQUIRED);
+    expect(attempt).toBeGreaterThanOrEqual(2); // tv → web 캐스케이드 확인
+  });
+
+  it("python fallback이 TranscriptError throw 시 외부 catch가 마스킹하지 않고 재throw", async () => {
+    // yt-dlp 모든 시도 cascade null → python fallback ok:false (NO_SUBTITLES throw)
+    // 외부 catch가 cascade 사유 또는 fallback의 NO_SUBTITLES를 보존해야 함
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        // yt-dlp 성공이지만 파일 0개 → cascade
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      } else {
+        // python3 fallback: NO_SUBTITLES TranscriptError
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
     expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.NO_SUBTITLES);
+    // cause가 fallback의 TranscriptError여야 함 (래핑하지 말고 재throw)
+    // 또는 동일한 TranscriptError 인스턴스
+  });
+
+  it("회귀 방지: 쿠키 없음 + 429는 여전히 RATE_LIMITED (PO_TOKEN으로 강등 안 됨)", async () => {
+    mockYtDlpError("ERROR: HTTP Error 429: Too Many Requests");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.RATE_LIMITED);
   });
 
   it("'not available in your country' 대소문자 변형도 REGION_BLOCKED — yt-dlp 1회만 호출", async () => {
