@@ -1,98 +1,103 @@
 ---
-created: 2026-05-06T00:00:00+09:00
+created: 2026-05-07T00:00:00+09:00
 project: k-public-data-mcp
-summary: Algrow MCP 스타일 비디오 분석 기능 적용 가능성 검토 PRD 작성 (Option B 권고)
+summary: 자막 추출 cascade 차단 사유 보존 + android_vr 1순위 추가로 PO Token 우회
 ---
 
 ## Session Digest
 
-이번 세션은 코드 변경 없이 의사결정 보고서(PRD) 작성만 진행했다.
+사용자가 YouTube 영상 `Bgxsx8slDEA` 자막 추출 실패에 대해 캐시 재활성화를 요청한 것이 시작점이었으나, 진단 결과 "자막 비활성화"는 잘못된 메시지였고 실제 원인은 PO Token 요구로 인한 cascade 전체 차단이었다.
 
-YouTube 영상 [Pr0P4a-Ucok](https://www.youtube.com/watch?v=Pr0P4a-Ucok)에서 소개된 Algrow MCP(URL 입력 → YouTube/TikTok/Instagram 비디오 분석, 트렌드/경쟁자 분석)의 기능을 우리 K Public Data MCP에 적용 가능한지 검토했다.
+세 가지 작업을 완료했다: ① Algrow MCP PRD 폐기 (의사결정 결과 미채택), ② cascade 차단 사유를 정확한 에러 코드(PO_TOKEN_REQUIRED 등)로 분류해 보존, ③ yt-dlp cascade에 `android_vr` 클라이언트를 1순위로 추가해 PO Token 요구를 우회.
 
-갭 분석 결과: 핵심 기능(스크립트/요약/검색/메타데이터/댓글)은 이미 동등 수준으로 보유. 진짜 갭은 ① 트렌드/경쟁자 분석 합성 액션 ② TikTok/Instagram 멀티플랫폼이며, 4가지 옵션(A 보류 / B 트렌드+경쟁자 액션만 / C TikTok 추가 / D 풀스코프)을 제시하고 **Option B**를 권고했다.
+라이브 검증은 `dQw4w9WgXcQ`로 OK 확인. 원본 영상 `Bgxsx8slDEA`은 IP rate limit으로 로컬 미검증 — production 배포 후 재확인 필요.
 
 ## Progress
 
 ### 완료
-- ✅ PRD 작성: [docs/product-specs/algrow-mcp-feasibility.md](../docs/product-specs/algrow-mcp-feasibility.md)
-  - Algrow 기능 vs 현재 보유 기능 갭 매트릭스
-  - 4개 옵션 비교(A/B/C/D) + Option B 권고 근거
-  - Option B 적용 시 액션 2개(`trend_analysis`, `compare_channels`) 명세
-  - 비범위·리스크·선결조건 정리
-- ✅ [docs/product-specs/index.md](../docs/product-specs/index.md) 인덱스에 등록
-- ✅ `npm run verify-docs` 통과 (skills:17, routes:11, actions:124)
+- 936ebc0 — `chore: drop algrow MCP feasibility PRD` (Option 미채택 결정 → PRD 파일 + index 항목 제거, 17개 스킬 슬롯 영향 없음)
+- 2ab2af6 — `fix: 자막 추출 캐스케이드 차단 사유 보존` (PO_TOKEN_REQUIRED / RATE_LIMITED / BOT_CHECK / INFRA_ERROR 정확 분류, outcome 타입 도입으로 null 반환 시 타입 정보 손실 해결)
+- 3c83b1f — `fix: yt-dlp 캐스케이드에 android_vr 1순위 추가` (PO Token 미요구 클라이언트로 우회, bgutil 사이드카 불필요 결론 — 월 $1.50~$2.80 절약)
+
+### 검증
+- 58/58 youtube-api 테스트 통과
+- 882/887 전체 테스트 통과 (5개는 사전 무관 skip)
+- 라이브: `dQw4w9WgXcQ` → OK lang=en segs=61
+- `Bgxsx8slDEA` 자체는 IP rate limit으로 로컬 라이브 미검증 (production 추후 확인)
 
 ### 미완료 (인계)
-- 🔲 PRD 의사결정 (Option A/B/C/D 채택)
-- 🔲 (이전 세션부터 인계) HANDOFF #3/#4/#5 entangled refactor
+- 🔲 production 배포 후 PO_TOKEN_REQUIRED / RATE_LIMITED 빈도 모니터링 — `android_vr` 효과 정량 평가
+- 🔲 (이전 세션부터 누적) HANDOFF #3/#4/#5 entangled refactor 재평가
   - #3 클라이언트 캐스케이드 의도 검토 (쿠키 유무 → tv/web vs android)
   - #4 PO Token/bot 경로 null 반환 시 타입 정보 미보존
-  - #5 에러 시 markCurrentFailed() 미호출로 쿠키 풀 미동기
-- 🔲 Smithery 마켓플레이스 승인 + awesome-mcp-servers PR 상태 확인
+  - #5 에러 시 `markCurrentFailed()` 미호출로 쿠키 풀 미동기
+  - **재평가 사유**: 본 세션의 outcome 타입 도입(#4)과 cascade 변경(#3)으로 일부 자연 해결 가능성. 다음 세션에서 잔여분 식별 필요
+- 🔲 9-lang `FALLBACK_LANGS` 좁히기 PRD (RATE_LIMITED 빈도가 운영 데이터로 높게 나올 경우)
+- 🔲 per-language 분할 호출 검토 (위와 동일 트리거)
+- 🔲 (이전 세션부터 누적) Smithery 마켓플레이스 승인 + awesome-mcp-servers PR 상태 확인
 
-## Next Steps
+## Next Steps (우선순위 순)
 
-1. **PRD 검토 + 의사결정**: Option A/B/C/D 중 선택
-   - 권고: **Option B** (트렌드/경쟁자 분석 액션만, YouTube 한정)
-2. **(Option B 채택 시) 선결: #3/#4/#5 정리** — 멀티 액션 추가 전 쿠키 풀 안정화
-3. **(선결 완료 시) `/ralplan`** 으로 Option B 합의 플랜 생성
-   - 신규 액션 2개: `trend_analysis`, `compare_channels`
-   - 기존 `youtube` 스킬에 액션 추가 (신규 스킬 도구 만들지 않음)
-   - Data API v3 쿼터 보호 + 채널 24h 캐시
-4. Smithery·awesome-mcp-servers 상태 점검 (이전 세션부터 누적)
+1. **production 배포 + 모니터링** — PO_TOKEN_REQUIRED / RATE_LIMITED / BOT_CHECK 빈도 추적, `android_vr` 1순위 효과 측정 (최소 1주 데이터)
+2. **HANDOFF #3/#4/#5 재평가** — 본 세션의 cascade 변경 + outcome 타입 도입으로 일부 해결됐을 가능성. 코드 정독 후 잔여 항목만 추려서 entangled refactor 진행
+3. **(필요 시) 9-lang RATE_LIMITED 빈도가 높으면** `FALLBACK_LANGS` 좁히기 또는 per-language 분할 호출 PRD 작성
+4. **Smithery / awesome-mcp-servers 상태 점검** — 누적 중인 외부 등록 작업 마감
 
 ## Blockers
 
-- **선결 의존성**: Option B 진행 시 HANDOFF #3/#4/#5 정리가 선행되어야 함 (쿠키 풀 동기화 안정화)
-- **의사결정 대기**: PRD 채택 옵션이 결정되어야 후속 ralplan 가능
+- production 배포 + 운영 데이터 누적 전엔 `android_vr` 효과 정량 평가 불가 (Next Step #1 선행 필요)
+- IP rate limit (로컬 테스트로 동일 영상 반복 시 발생) — 라이브 검증 시 영상 다양화 권장
 
 ## Watch Out
 
-### PRD 등록·문서 일관성
-- `docs/product-specs/index.md` 표에 신규 PRD 등록됨. 다음 PRD 추가 시 동일 패턴 사용
-- `verify-docs.ts` EXPECTED는 변경 없음 (액션·스킬 수 동일)
-- product-specs는 의사결정 단계 산출물 — 채택되면 `docs/exec-plans/active/`로 실행 플랜 분리
+### Cascade / 에러 코드 변경 시 동기화 포인트
+- `src/youtube-api.ts:404-408` cascade 순서 변경 시 → `src/youtube-api.test.ts`의 cascade 순서 테스트 5건 함께 갱신
+- `TranscriptError` 코드 분류 변경 시 → `src/youtube-circuit-breaker.ts`의 `INFRA_ERRORS` 동기화
+- `docs/runbook-youtube.md`에 6개 에러 코드 표 + cascade 표 신규 추가됨 → cascade/에러 코드 변경 시 표도 같이 갱신 필수
 
-### Algrow 광고 vs 실제 우리 위치
-- 영상은 마케팅성 콘텐츠(Nova AI Daily, 조회수 99) — 광고 주장은 보수적으로 해석
-- 우리는 이미 기본기(스크립트/검색/요약) 동등. "Algrow 따라잡기"가 아니라 "우리 페르소나(법률·공공데이터·기업분석)에 맞는 보강"이 핵심
-- TikTok/Instagram은 yt-dlp 정책상 운영 부담 큼 — 별도 PRD에서 ROI 입증 후 검토
+### bgutil 사이드카 결론
+- 본 세션 결론: `android_vr` 우회로 충분 → bgutil 불필요 (월 $1.50~$2.80 절약)
+- **재검토 트리거**: yt-dlp가 `android_vr`도 막거나 PO Token 요구를 확장하는 경우
 
-### 미해결 인계 사항 (이전 세션부터)
-- yt-dlp 에러 매칭은 toLowerCase() 적용 완료 (2761d4f)
-- `--write-auto-subs` 복수형 적용 완료 (d955eab)
-- 쿠키 풀 / circuit breaker / probe 인프라는 정상 동작 중
+### 일반
+- `verify-docs.ts` EXPECTED 카운트는 본 세션 변경 없음 (스킬·액션 개수 불변)
+- 9-lang FALLBACK_LANGS는 현재 유지 — 운영 데이터 보고 좁힐지 결정
 
 ## Files Touched
 
 | 파일 | 변경 사항 | 상태 |
 |------|---------|------|
-| `docs/product-specs/algrow-mcp-feasibility.md` | 신규 PRD (8KB) | 신규 |
-| `docs/product-specs/index.md` | 인덱스에 PRD 1건 등록 | 수정 |
+| `src/youtube-api.ts` | cascade에 `android_vr` 1순위 추가 + outcome 타입 + cascadeMessage 보존 | 수정 |
+| `src/youtube-api.test.ts` | 테스트 6건 변경/추가 (cascade 순서 + outcome 분류) | 수정 |
+| `docs/runbook-youtube.md` | 6개 에러 코드 표 + cascade 표 신규 | 수정 |
+| `docs/product-specs/index.md` | Algrow 항목 제거 | 수정 |
+| `docs/product-specs/algrow-mcp-feasibility.md` | 삭제 (PRD 폐기) | 삭제 |
+| `.gitignore` | `.claude/` 추가 | 수정 |
 | `.claude-project/HANDOFF.md` | 본 인계서 갱신 | 수정 |
 
 ## Session Timeline
 
-1. **PRD 요청** — YouTube 영상 Pr0P4a-Ucok의 Algrow MCP 기능 적용 가능성 검토 요청
-2. **정찰** — Explore 에이전트로 youtube 스킬·yt-dlp·circuit breaker·cookie pool·17개 스킬 슬롯 매핑
-3. **갭 분석** — Algrow 7개 기능 vs 우리 보유 기능 매트릭스
-4. **옵션 설계** — A(보류) / B(트렌드·경쟁자만) / C(+TikTok) / D(+Instagram)
-5. **PRD 저장** — `docs/product-specs/algrow-mcp-feasibility.md`
-6. **인덱스 등록 + verify-docs OK**
+1. **요청** — `Bgxsx8slDEA` 자막 추출 실패 + 캐시 재활성화 요청
+2. **진단** — "자막 비활성화" 메시지가 실제 원인을 가리고 있음을 발견. 실제는 cascade 전체가 PO Token 요구로 차단
+3. **PRD 폐기** — Algrow PRD 미채택 결정 → 파일/인덱스 제거 (936ebc0)
+4. **차단 사유 보존** — outcome 타입 도입으로 PO_TOKEN_REQUIRED 등 정확 분류 (2ab2af6)
+5. **android_vr 우회** — cascade 1순위에 추가, bgutil 사이드카 불필요 결론 (3c83b1f)
+6. **검증** — 58/58 youtube-api, 882/887 전체, 라이브 `dQw4w9WgXcQ` OK
 7. **Pack** — 본 인계서 작성
 
 ## Decision Log
 
-- **Option B 권고**: 핵심 기능 이미 동등 + 우리 페르소나(법률·공공데이터)에 마케팅·크리에이터 페르소나 어긋남 + 멀티플랫폼은 운영 부담 큼
-- **신규 스킬 도구 만들지 않음**: 17개 스킬 슬롯 유지, 기존 `youtube` 스킬에 액션 추가 방식 채택 (verify-docs EXPECTED 동기화 부담 회피)
-- **선결 조건 명시**: Option B 진행은 HANDOFF #3/#4/#5 정리 후로 연기 (쿠키 풀 안정성 우선)
-- **TikTok/Instagram 별도 PRD**: yt-dlp 정책 불안정 + 로그인 요구 + 운영 부담 → 본 PRD에서는 비범위로 분리
+- **Algrow PRD 폐기**: 핵심 기능 이미 동등 + 우리 페르소나에 어긋남 + 운영 부담 → Option 미채택 확정
+- **android_vr 우선**: PO Token 미요구 클라이언트로 우회. bgutil 사이드카(월 $1.50~$2.80) 추가 운영 부담 회피
+- **outcome 타입 도입**: null 반환 시 타입 정보 손실 문제 구조적 해결 — HANDOFF #4 자연 해결 가능성
+- **runbook 표 신규**: 6개 에러 코드 + cascade 표를 운영 가시성용으로 추가 — 변경 시 동기화 룰 명시
 
 ---
 
-**다음 세션 시작 시**:
-1. `docs/product-specs/algrow-mcp-feasibility.md` 의사결정 (Option A/B/C/D)
-2. (B 채택 시) HANDOFF #3/#4/#5 entangled refactor 우선 처리
-3. 그 후 `/ralplan` 으로 trend_analysis + compare_channels 합의 플랜
-4. 누적 미완료: Smithery 마켓플레이스 / awesome-mcp-servers PR 상태 확인
+**다음 세션 시작 시 권장 순서**:
+
+1. `git log --oneline -5`로 본 세션 커밋 3건(936ebc0/2ab2af6/3c83b1f) 확인
+2. production 배포 상태 + 운영 로그에서 PO_TOKEN_REQUIRED·RATE_LIMITED·BOT_CHECK 빈도 점검 (`android_vr` 효과 측정)
+3. `src/youtube-api.ts` + `src/youtube-circuit-breaker.ts` 정독 후 HANDOFF #3/#4/#5 잔여 항목만 추려서 entangled refactor 범위 확정
+4. (운영 데이터에 따라) 9-lang FALLBACK_LANGS 좁히기 PRD 또는 per-language 분할 호출 검토
+5. Smithery / awesome-mcp-servers 상태 점검 마감

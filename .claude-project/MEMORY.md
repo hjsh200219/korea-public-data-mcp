@@ -19,7 +19,11 @@
 - [skill-tool-count-16-with-tourism](memory/skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 수 16개 기준점 및 전체 목록 (tourism 추가 후)
 - [tdd-api-plus-skill-test-split](memory/tdd-api-plus-skill-test-split.md) — API client 테스트와 skill 테스트를 파일 분리하는 패턴 (tourism: 21 + 22개)
 - [youtube-transcript-api-v1-migration](memory/youtube-transcript-api-v1-migration.md) — youtube-transcript-api v1.0+ API 변경 (정적 메서드 → 인스턴스 메서드)
-- [youtube-yt-dlp-client-selection](memory/youtube-yt-dlp-client-selection.md) — yt-dlp YouTube 자동자막 우회를 위한 클라이언트 캐스케이드 (tv → web w/ cookies, android w/o)
+- [bgutil-pot-provider-not-needed](memory/bgutil-pot-provider-not-needed.md) — PO Token 우회는 android_vr 캐스케이드로 충분 — bgutil 사이드카 도입 불필요 (월 $1.50~$2.80 절감)
+- [youtube-data-api-v3-captions-constraints](memory/youtube-data-api-v3-captions-constraints.md) — YouTube Data API v3 captions.download은 owner-only OAuth — 제3자 자막 수집 대안 없음
+- [youtube-fallback-langs-rate-limit-risk](memory/youtube-fallback-langs-rate-limit-risk.md) — 9-lang FALLBACK 일괄 요청은 timedtext 429 빈도 증가 리스크 — 운영 모니터 후 좁히기 검토
+- [youtube-transcript-error-code-priority](memory/youtube-transcript-error-code-priority.md) — TranscriptError cascade 사유 보존 우선순위 (PO_TOKEN > COOKIE > BOT > NO_SUBS) + CB INFRA_ERRORS 정책
+- [youtube-yt-dlp-client-selection](memory/youtube-yt-dlp-client-selection.md) — yt-dlp YouTube 자동자막 우회 클라이언트 캐스케이드 (android_vr → tv → web w/ cookies, android_vr → android w/o)
 - [yt-dlp-cookies-file-quirks](memory/yt-dlp-cookies-file-quirks.md) — yt-dlp --cookies 파일/URL 사용 시 함정 두 가지
 - [yt-dlp-cookies-from-browser-leakage](memory/yt-dlp-cookies-from-browser-leakage.md) — yt-dlp --cookies-from-browser는 모든 사이트 쿠키 추출 — 도메인 필터 필수
 - [yt-dlp-partial-write-on-exit1](memory/yt-dlp-partial-write-on-exit1.md) — yt-dlp exits 1 on multi-lang 429 but may have already written subtitle files — read before throwing
