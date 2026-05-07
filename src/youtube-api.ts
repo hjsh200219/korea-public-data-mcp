@@ -354,9 +354,10 @@ function moreSpecificReason(a: CascadeReason, b: CascadeReason): CascadeReason {
  *      → 환경변수에 텍스트로 주입 (Railway 등 서버 배포 권장)
  *
  * 클라이언트 캐스케이드:
- *   - 쿠키 있음: tv → web (자동자막 PO Token 우회는 tv가 가장 안정적,
- *     단 tv는 일부 영상 DRM 표시로 실패할 수 있어 web fallback)
- *   - 쿠키 없음: android (자동자막 PO Token 우회 가능성, 본질적으로 한계 있음)
+ *   - 쿠키 있음: android_vr → tv → web
+ *   - 쿠키 없음: android_vr → android
+ *   - android_vr가 1순위인 이유: 자막 PO Token 미요구 + 쿠키 무관 동작.
+ *     단 "made for kids" 영상은 거부되므로 fallback으로 tv/web/android 유지.
  *   - 모두 실패: youtube-transcript-api Python fallback
  */
 export async function getTranscript(
@@ -401,7 +402,11 @@ export async function getTranscript(
     }
   }
   const hasCookies = Boolean(browserCookies) || Boolean(cookieFile);
-  const clients = hasCookies ? ["tv", "web"] : ["android"];
+  // android_vr를 1순위로: 자막 PO Token 미요구, 쿠키 무관 동작, 실측 본 영상에서 정상 추출
+  // (단, "made for kids" 영상은 android_vr 거부 → tv/web 또는 android로 fallback)
+  const clients = hasCookies
+    ? ["android_vr", "tv", "web"]
+    : ["android_vr", "android"];
 
   try {
     // 캐스케이드 동안 가장 구체적인 차단 사유를 보존 (예: tv DRM = BOT_DETECTED, web PO Token = PO_TOKEN_REQUIRED → PO_TOKEN_REQUIRED 보존)

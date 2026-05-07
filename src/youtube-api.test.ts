@@ -363,7 +363,7 @@ describe("getTranscript (yt-dlp)", () => {
     return { allCalls };
   }
 
-  it("쿠키 있을 때 첫 시도는 tv 클라이언트", async () => {
+  it("쿠키 있을 때 첫 시도는 android_vr 클라이언트 (자막 PO Token 우회 1순위)", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
     vi.stubEnv("YOUTUBE_COOKIES", "");
 
@@ -371,24 +371,25 @@ describe("getTranscript (yt-dlp)", () => {
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(allCalls[0]).toContain("youtube:player_client=tv");
+    expect(allCalls[0]).toContain("youtube:player_client=android_vr");
     expect(allCalls[0]).toContain("--cookies-from-browser");
     expect(allCalls[0]).not.toContain("--cookies");
 
     vi.unstubAllEnvs();
   });
 
-  it("쿠키 있고 tv 시도 실패 시 web 클라이언트로 fallback", async () => {
+  it("쿠키 있고 android_vr 실패 시 tv → web 순서로 fallback", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
 
-    const { allCalls } = setupClientCascade(2);
+    const { allCalls } = setupClientCascade(3);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(allCalls).toHaveLength(2);
-    expect(allCalls[0]).toContain("youtube:player_client=tv");
-    expect(allCalls[1]).toContain("youtube:player_client=web");
-    expect(allCalls[1]).toContain("--cookies-from-browser");
+    expect(allCalls).toHaveLength(3);
+    expect(allCalls[0]).toContain("youtube:player_client=android_vr");
+    expect(allCalls[1]).toContain("youtube:player_client=tv");
+    expect(allCalls[2]).toContain("youtube:player_client=web");
+    expect(allCalls[2]).toContain("--cookies-from-browser");
 
     vi.unstubAllEnvs();
   });
@@ -440,19 +441,20 @@ describe("getTranscript (yt-dlp)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("YOUTUBE_COOKIES (파일 쿠키)도 tv → web 캐스케이드 사용", async () => {
+  it("YOUTUBE_COOKIES (파일 쿠키)도 android_vr → tv → web 캐스케이드 사용", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
     vi.stubEnv("YOUTUBE_COOKIES", "# Netscape HTTP Cookie File\nfake");
 
-    const { allCalls } = setupClientCascade(2);
+    const { allCalls } = setupClientCascade(3);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(allCalls).toHaveLength(2);
-    expect(allCalls[0]).toContain("youtube:player_client=tv");
+    expect(allCalls).toHaveLength(3);
+    expect(allCalls[0]).toContain("youtube:player_client=android_vr");
     expect(allCalls[0]).toContain("--cookies");
     expect(allCalls[0]).not.toContain("--cookies-from-browser");
-    expect(allCalls[1]).toContain("youtube:player_client=web");
+    expect(allCalls[1]).toContain("youtube:player_client=tv");
+    expect(allCalls[2]).toContain("youtube:player_client=web");
 
     vi.unstubAllEnvs();
   });
@@ -471,7 +473,7 @@ describe("getTranscript (yt-dlp)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("쿠키 환경변수 없을 때는 android 클라이언트 단독 시도 (PO Token 우회)", async () => {
+  it("쿠키 환경변수 없을 때는 android_vr → android 캐스케이드 (자막 PO Token 우회)", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
     vi.stubEnv("YOUTUBE_COOKIES", "");
 
@@ -479,10 +481,26 @@ describe("getTranscript (yt-dlp)", () => {
 
     await getTranscript("gc297hx4F7o", "ko");
 
+    // 첫 시도가 android_vr이고 성공하면 안드로이드 시도 없이 종료
     expect(allCalls).toHaveLength(1);
-    expect(allCalls[0]).toContain("youtube:player_client=android");
+    expect(allCalls[0]).toContain("youtube:player_client=android_vr");
     expect(allCalls[0]).not.toContain("--cookies-from-browser");
     expect(allCalls[0]).not.toContain("--cookies");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("쿠키 없음 + android_vr 실패 시 android로 fallback", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+
+    const { allCalls } = setupClientCascade(2);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    expect(allCalls).toHaveLength(2);
+    expect(allCalls[0]).toContain("youtube:player_client=android_vr");
+    expect(allCalls[1]).toContain("youtube:player_client=android");
 
     vi.unstubAllEnvs();
   });
@@ -515,8 +533,8 @@ describe("getTranscript (yt-dlp)", () => {
 
     const result = await getTranscript("gc297hx4F7o", "ko");
 
-    expect(allCalls.length).toBeGreaterThanOrEqual(2); // tv + web
-    expect(allCalls[0]).toContain("youtube:player_client=tv");
+    expect(allCalls.length).toBeGreaterThanOrEqual(3); // android_vr + tv + web
+    expect(allCalls[0]).toContain("youtube:player_client=android_vr");
     expect(result.segments[0].text).toBe("py fallback");
 
     vi.unstubAllEnvs();

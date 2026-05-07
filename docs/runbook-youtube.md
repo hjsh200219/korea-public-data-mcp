@@ -44,3 +44,18 @@ railway variables unset YOUTUBE_COOKIES_POOL
 | `NO_SUBTITLES` | 영상에 자막이 실제로 없음 | 영상 단위 이슈, 조치 불필요 |
 
 위 6개 코드(NO_SUBTITLES 제외)는 모두 서킷 브레이커 INFRA_ERRORS에 포함되어 연속 7회 시 60초간 차단.
+
+## 클라이언트 캐스케이드 순서 (yt-dlp player_client)
+
+| 환경 | 캐스케이드 |
+|------|-----------|
+| 쿠키 있음 (production) | `android_vr` → `tv` → `web` |
+| 쿠키 없음 (local stdio) | `android_vr` → `android` |
+
+`android_vr`는 자막 PO Token 미요구 + 쿠키 무관 동작이라 1순위. 단 "made for kids" 영상은 거부되므로 fallback 유지.
+
+### 알려진 한계
+- 동일 영상에 대해 여러 언어 자막을 한 호출에 요청(`FALLBACK_LANGS` 8개 + 요청 언어)하면
+  연속 timedtext API 호출이 발생하여 **`RATE_LIMITED`(HTTP 429) 빈도 증가** 가능.
+  운영 중 PO_TOKEN_REQUIRED/RATE_LIMITED가 잦으면 `FALLBACK_LANGS` 좁히기 또는
+  per-언어 분할 호출을 검토 (현재는 미구현 — 후속 PRD).
