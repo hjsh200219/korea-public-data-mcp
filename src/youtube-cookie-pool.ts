@@ -148,7 +148,13 @@ export class YoutubeCookiePool {
       if (e.expiresAt) {
         const days = Math.floor((e.expiresAt - now) / (24 * 60 * 60 * 1000));
         info.expiresIn = `${days}d`;
-        if (days <= 7) info.warning = "expires_soon";
+        if (e.expiresAt < now) {
+          // 이미 만료: status를 expired로 노출 (operational visibility)
+          info.status = "expired";
+          info.warning = "expired";
+        } else if (days <= 7) {
+          info.warning = "expires_soon";
+        }
       }
       return info;
     });

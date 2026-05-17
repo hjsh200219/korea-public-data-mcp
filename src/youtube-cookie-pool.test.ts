@@ -211,6 +211,24 @@ describe("YoutubeCookiePool", () => {
 
       expect(health[0].expiresIn).toBeUndefined();
     });
+
+    it("이미 만료된 쿠키(expiresAt < now)는 status='expired', warning='expired'", () => {
+      const now = Date.now();
+      // 12일 전 만료 (음수 days)
+      const expirySeconds = Math.floor((now - 12 * 24 * 60 * 60 * 1000) / 1000);
+      const cookie = makeCookieLine(expirySeconds);
+
+      vi.stubEnv("YOUTUBE_COOKIES_POOL", JSON.stringify([cookie]));
+      vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+
+      const pool = new YoutubeCookiePool();
+      const health = pool.getHealthInfo();
+
+      expect(health[0].status).toBe("expired");
+      expect(health[0].warning).toBe("expired");
+      // expiresIn은 음수 days (-12d 또는 floor 효과로 -13d) — "음수 d" 포맷만 검증
+      expect(health[0].expiresIn).toMatch(/^-\d+d$/);
+    });
   });
 
   // ── 5. 모든 쿠키가 같은 주(7일 이내) 만료 시 allExpiringSoon 경고 ──
