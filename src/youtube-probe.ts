@@ -51,7 +51,7 @@ export class YoutubeProbe {
       this._push({ success: true, timestamp: Date.now() });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      this._push({ success: false, errorCode: msg.slice(0, 50), timestamp: Date.now() });
+      this._push({ success: false, errorCode: msg.slice(0, 200), timestamp: Date.now() });
     }
     this._checkConsecutiveFailures();
   }

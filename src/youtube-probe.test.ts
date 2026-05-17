@@ -84,6 +84,27 @@ describe("YoutubeProbe", () => {
     expect(data.status).toBe("down");
   });
 
+  it("_runProbe 실패 시 errorCode 200자 슬라이스 (50자 truncate 회귀 방지)", async () => {
+    const longMsg = "Command failed: yt-dlp --dump-json -- jNQXAC9IVRw\nERROR: [youtube] jNQXAC9IVRw: Sign in to confirm you're not a bot. Use --cookies-from-browser or --cookies for the authentication. See https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp for how to manually pass cookies.";
+    // _runProbe 안의 slice 길이를 정적으로 검증: 50자로 회귀하면 통과 안 함
+    const probeSource = (await import("node:fs")).readFileSync(
+      new URL("./youtube-probe.ts", import.meta.url),
+      "utf-8",
+    );
+    expect(probeSource).toMatch(/msg\.slice\(0,\s*200\)/);
+
+    // 추가: ring buffer가 200자급 메시지를 그대로 보존하는지 확인
+    (probe as unknown as { _push: (r: unknown) => void })._push({
+      success: false,
+      errorCode: longMsg.slice(0, 200),
+      timestamp: Date.now(),
+    });
+    const data = probe.getHealthData([], "closed") as Record<string, unknown>;
+    const code = data.lastErrorCode as string;
+    expect(code.length).toBeGreaterThan(50);
+    expect(code).toContain("Sign in to confirm");
+  });
+
   it("status: 실패 있지만 3회 미만이면 'degraded'", () => {
     (probe as unknown as { _push: (r: unknown) => void })._push({
       success: true,
