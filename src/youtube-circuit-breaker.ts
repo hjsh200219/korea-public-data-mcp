@@ -27,19 +27,18 @@ export class YoutubeCircuitBreaker {
   }
 
   get state(): BreakerState {
+    // open 시간 경과 시 half-open으로 lazy 전환 — getter에서도 시간을 반영해
+    // health endpoint(state 직접 조회)가 stale "open"을 노출하지 않도록 한다.
+    if (this._state === "open" && Date.now() - this._openedAt >= OPEN_DURATION_MS) {
+      this._state = "half-open";
+    }
     return this._state;
   }
 
   isOpen(): boolean {
     if (!this._enabled) return false;
-    if (this._state === "open") {
-      if (Date.now() - this._openedAt >= OPEN_DURATION_MS) {
-        this._state = "half-open";
-        return false;
-      }
-      return true;
-    }
-    return false;
+    // state getter가 시간 경과 시 half-open 전환을 수행하므로 결과를 그대로 사용
+    return this.state === "open";
   }
 
   recordSuccess(): void {

@@ -67,6 +67,24 @@ describe("YoutubeCircuitBreaker", () => {
     expect(breaker.state).toBe("open");
   });
 
+  it("state getter는 isOpen() 호출 없이도 시간 경과 시 half-open 반영 (health endpoint stale 방지)", () => {
+    // 시나리오: breaker가 open된 후 60초 경과. 운영자가 /health/youtube 조회 → state getter만 호출.
+    // 기존 버그: isOpen()이 호출되지 않으면 _state는 "open"으로 정체 → 헬스 응답에 stale 노출.
+    breaker["_state"] = "open";
+    breaker["_openedAt"] = Date.now();
+    expect(breaker.state).toBe("open");
+    vi.advanceTimersByTime(60_000);
+    // isOpen() 호출 없이 state getter만 조회
+    expect(breaker.state).toBe("half-open");
+  });
+
+  it("state getter는 open 시간 미경과 시 open 유지", () => {
+    breaker["_state"] = "open";
+    breaker["_openedAt"] = Date.now();
+    vi.advanceTimersByTime(30_000); // 60초 미만
+    expect(breaker.state).toBe("open");
+  });
+
   it("YOUTUBE_CIRCUIT_BREAKER_ENABLED=false 시 항상 closed", () => {
     vi.stubEnv("YOUTUBE_CIRCUIT_BREAKER_ENABLED", "false");
     const disabledBreaker = new YoutubeCircuitBreaker();
