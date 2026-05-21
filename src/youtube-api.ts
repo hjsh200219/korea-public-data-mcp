@@ -444,7 +444,11 @@ export async function getTranscript(
 
     // 모든 yt-dlp 시도 실패 → Python fallback
     try {
-      return await getTranscriptFallback(videoId, primaryLang);
+      const result = await getTranscriptFallback(videoId, primaryLang);
+      // half-open 상태에서 fallback이 성공해도 breaker가 닫히도록 명시적 리셋
+      // (누락 시 다음 인프라 실패 1건에 즉시 재오픈 — 회복 메커니즘 차단)
+      youtubeCircuitBreaker.recordSuccess();
+      return result;
     } catch (fallbackErr) {
       // fallback이 TranscriptError를 던졌다면 cascade 사유와 결합
       // - cascade가 PO_TOKEN_REQUIRED 등 구체적 사유를 보유 → 그쪽으로 throw (정확한 운영 원인 노출)
