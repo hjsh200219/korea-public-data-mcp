@@ -364,4 +364,168 @@ describe("public_data 스킬", () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Network timeout");
   });
+
+  // --- 지역 필터 클라이언트 사이드 재필터 (원격 API가 Q0/Q1/sidoCdNm/sgguCdNm 무시 시) ---
+
+  it("search_pharmacy_Q0지정_시도명불일치는제외", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [
+        { yadmNm: "강남약국", addr: "a", telno: "t", sidoCdNm: "서울", sgguCdNm: "강남구", emdongNm: "역삼동" },
+        { yadmNm: "부산약국", addr: "a", telno: "t", sidoCdNm: "부산", sgguCdNm: "해운대구", emdongNm: "우동" },
+      ],
+      totalCount: 25746,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    const r = await handler({ action: "search_pharmacy", Q0: "서울" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("강남약국");
+    expect(r.content[0].text).not.toContain("부산약국");
+    expect(r.content[0].text).toContain("필터");
+  });
+
+  it("search_pharmacy_Q1지정_시군구명불일치는제외", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [
+        { yadmNm: "하남A", addr: "a", telno: "t", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "신장동" },
+        { yadmNm: "성남B", addr: "a", telno: "t", sidoCdNm: "경기", sgguCdNm: "성남시", emdongNm: "분당동" },
+      ],
+      totalCount: 25746,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    const r = await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남" });
+    expect(r.content[0].text).toContain("하남A");
+    expect(r.content[0].text).not.toContain("성남B");
+  });
+
+  it("search_pharmacy_Q0지정_매칭없으면안내메시지", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [
+        { yadmNm: "부산약국", addr: "a", telno: "t", sidoCdNm: "부산", sgguCdNm: "해운대구", emdongNm: "우동" },
+      ],
+      totalCount: 25746,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    const r = await handler({ action: "search_pharmacy", Q0: "서울" });
+    expect(r.content[0].text).toContain("서울");
+    expect(r.content[0].text).toContain("필터");
+  });
+
+  it("search_hospital_sidoCdNm으로재필터", async () => {
+    vi.mocked(searchHospital).mockResolvedValue({
+      items: [
+        { yadmNm: "하남재활", clCdNm: "병원", addr: "a", telno: "t", dgsbjtCdNm: "재활", drTotCnt: 5, sidoCdNm: "경기", sgguCdNm: "하남시" },
+        { yadmNm: "서울재활", clCdNm: "병원", addr: "a", telno: "t", dgsbjtCdNm: "재활", drTotCnt: 5, sidoCdNm: "서울", sgguCdNm: "강남구" },
+      ],
+      totalCount: 99999,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    const r = await handler({ action: "search_hospital", Q0: "경기", Q1: "하남" });
+    expect(r.content[0].text).toContain("하남재활");
+    expect(r.content[0].text).not.toContain("서울재활");
+  });
+
+  // --- 자동 다중 페이지 수집 + numOfRows 기본 100 ---
+
+  it("search_pharmacy_Q0지정_numOfRows미지정_기본100", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [{ yadmNm: "p1", addr: "a", telno: "t", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "x" }],
+      totalCount: 100,
+      pageNo: 1,
+      numOfRows: 100,
+    } as any);
+    await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남" });
+    expect(searchPharmacy).toHaveBeenCalledWith(
+      MOCK_KEY,
+      expect.objectContaining({ numOfRows: 100 }),
+    );
+  });
+
+  it("search_pharmacy_Q0지정_pageNo미지정_다중페이지수집", async () => {
+    // 3페이지 분량 응답 — totalCount > pageNo*numOfRows이면 다음 페이지 호출
+    vi.mocked(searchPharmacy)
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 100 }, (_, i) => ({
+          yadmNm: `p1-${i}`, addr: "a", telno: "t",
+          sidoCdNm: i < 3 ? "경기" : "서울",
+          sgguCdNm: i < 3 ? "하남시" : "강남구",
+          emdongNm: "x",
+        })),
+        totalCount: 250,
+        pageNo: 1,
+        numOfRows: 100,
+      } as any)
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 100 }, (_, i) => ({
+          yadmNm: `p2-${i}`, addr: "a", telno: "t",
+          sidoCdNm: i < 2 ? "경기" : "부산",
+          sgguCdNm: i < 2 ? "하남시" : "해운대구",
+          emdongNm: "x",
+        })),
+        totalCount: 250,
+        pageNo: 2,
+        numOfRows: 100,
+      } as any)
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 50 }, (_, i) => ({
+          yadmNm: `p3-${i}`, addr: "a", telno: "t",
+          sidoCdNm: i < 1 ? "경기" : "대구",
+          sgguCdNm: i < 1 ? "하남시" : "중구",
+          emdongNm: "x",
+        })),
+        totalCount: 250,
+        pageNo: 3,
+        numOfRows: 100,
+      } as any);
+
+    const r = await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남" });
+    expect(searchPharmacy).toHaveBeenCalledTimes(3);
+    // 3 + 2 + 1 = 6건 매칭
+    expect(r.content[0].text).toContain("p1-0");
+    expect(r.content[0].text).toContain("p2-0");
+    expect(r.content[0].text).toContain("p3-0");
+    expect(r.content[0].text).not.toContain("p2-50");
+  });
+
+  it("search_pharmacy_pageNo명시_단일페이지만", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [{ yadmNm: "p", addr: "a", telno: "t", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "x" }],
+      totalCount: 250,
+      pageNo: 2,
+      numOfRows: 100,
+    } as any);
+    await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남", pageNo: 2 });
+    expect(searchPharmacy).toHaveBeenCalledTimes(1);
+    expect(searchPharmacy).toHaveBeenCalledWith(MOCK_KEY, expect.objectContaining({ pageNo: 2 }));
+  });
+
+  it("search_pharmacy_Q0Q1없음_단일페이지만", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [{ yadmNm: "p", addr: "a", telno: "t", sidoCdNm: "x", sgguCdNm: "y", emdongNm: "z" }],
+      totalCount: 99999,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    await handler({ action: "search_pharmacy" });
+    expect(searchPharmacy).toHaveBeenCalledTimes(1);
+  });
+
+  it("search_hospital_Q0지정_다중페이지수집_3페이지상한", async () => {
+    // 5페이지 분량 — 3페이지에서 멈춰야 함
+    vi.mocked(searchHospital).mockResolvedValue({
+      items: Array.from({ length: 100 }, (_, i) => ({
+        yadmNm: `h-${i}`, clCdNm: "병원", addr: "a", telno: "t",
+        dgsbjtCdNm: "내과", drTotCnt: 5,
+        sidoCdNm: "서울", sgguCdNm: "강남구",
+      })),
+      totalCount: 500,
+      pageNo: 1,
+      numOfRows: 100,
+    } as any);
+    await handler({ action: "search_hospital", Q0: "경기", Q1: "하남" });
+    expect(searchHospital).toHaveBeenCalledTimes(3);
+  });
 });

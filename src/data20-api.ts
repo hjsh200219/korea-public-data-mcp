@@ -21,7 +21,7 @@ import type {
   OnbidPbancListItem,
 } from "./data20-types.js";
 
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 30000;
 const MAX_RETRIES = 2;
 
 const xmlParser = new XMLParser({

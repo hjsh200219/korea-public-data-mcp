@@ -18,6 +18,7 @@ import {
   searchOnbidPbancCltrDetail,
   searchOnbidPbancList,
 } from "../../data20-api.js";
+import type { PharmacyItem, HospitalItem } from "../../data20-types.js";
 import { errorResponse, truncate } from "../../shared.js";
 import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
 
@@ -71,15 +72,121 @@ function s(val: unknown): string {
 
 const STATUS_MAP: Record<string, string> = { "01": "계속사업자", "02": "휴업자", "03": "폐업자" };
 
+/**
+ * HIRA 약국/병원 API가 Q0/Q1을 무시하고 전국 결과를 반환하는 경우가 잦아,
+ * 응답의 sidoCdNm/sgguCdNm 한글 텍스트로 클라이언트 사이드에서 부분일치 재필터.
+ */
+function filterByRegion<T extends { sidoCdNm?: string; sgguCdNm?: string }>(
+  items: T[],
+  sido?: string,
+  sggu?: string,
+): T[] {
+  const sd = sido?.trim();
+  const sg = sggu?.trim();
+  if (!sd && !sg) return items;
+  return items.filter((it) => {
+    if (sd && !String(it.sidoCdNm ?? "").includes(sd)) return false;
+    if (sg && !String(it.sgguCdNm ?? "").includes(sg)) return false;
+    return true;
+  });
+}
+
+/** Q0/Q1 입력 시 최대 페이지 수 (원격 HIRA 부하 방지) */
+const REGION_FILTER_MAX_PAGES = 3;
+/** Q0/Q1 입력 시 페이지당 기본 행 수 (재필터 후 충분한 매칭 확보) */
+const REGION_FILTER_NUM_ROWS = 100;
+
+/**
+ * Q0/Q1 입력 + pageNo 미지정 시 자동으로 최대 N페이지 수집.
+ * 원격 totalCount가 한 페이지로 충분하거나 pageNo 명시 시 단일 호출.
+ */
+async function collectPagesPharmacy(
+  serviceKey: string,
+  p: PublicDataParams,
+): Promise<{ items: PharmacyItem[]; totalCount: number; pageNo: number; pagesFetched: number }> {
+  const hasRegion = Boolean(p.Q0 || p.Q1);
+  const numRows = p.numOfRows ?? (hasRegion ? REGION_FILTER_NUM_ROWS : 10);
+  const startPage = p.pageNo ?? 1;
+  const first = await searchPharmacy(serviceKey, { ...p, numOfRows: numRows, pageNo: startPage });
+  if (!hasRegion || p.pageNo !== undefined) {
+    return { items: first.items, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: 1 };
+  }
+  const totalPages = Math.ceil(first.totalCount / numRows);
+  const maxPages = Math.min(REGION_FILTER_MAX_PAGES, totalPages);
+  const aggregated = [...first.items];
+  for (let pg = 2; pg <= maxPages; pg++) {
+    const more = await searchPharmacy(serviceKey, { ...p, numOfRows: numRows, pageNo: pg });
+    aggregated.push(...more.items);
+  }
+  return { items: aggregated, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: maxPages };
+}
+
+async function collectPagesHospital(
+  serviceKey: string,
+  p: PublicDataParams,
+): Promise<{ items: HospitalItem[]; totalCount: number; pageNo: number; pagesFetched: number }> {
+  const hasRegion = Boolean(p.Q0 || p.Q1);
+  const numRows = p.numOfRows ?? (hasRegion ? REGION_FILTER_NUM_ROWS : 10);
+  const startPage = p.pageNo ?? 1;
+  const first = await searchHospital(serviceKey, { ...p, numOfRows: numRows, pageNo: startPage });
+  if (!hasRegion || p.pageNo !== undefined) {
+    return { items: first.items, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: 1 };
+  }
+  const totalPages = Math.ceil(first.totalCount / numRows);
+  const maxPages = Math.min(REGION_FILTER_MAX_PAGES, totalPages);
+  const aggregated = [...first.items];
+  for (let pg = 2; pg <= maxPages; pg++) {
+    const more = await searchHospital(serviceKey, { ...p, numOfRows: numRows, pageNo: pg });
+    aggregated.push(...more.items);
+  }
+  return { items: aggregated, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: maxPages };
+}
+
+function regionFilterNote(
+  filtered: number,
+  rawLen: number,
+  totalCount: number,
+  sido?: string,
+  sggu?: string,
+): string {
+  const label = [sido, sggu].filter(Boolean).join(" ");
+  if (!label) return "";
+  if (filtered < rawLen) {
+    return `※ 원격 API가 지역 필터(${label})를 무시한 응답으로 보여, 시도/시군구 명칭이 일치하는 ${filtered}건만 표시합니다 (원격 totalCount=${totalCount}).\n\n`;
+  }
+  if (totalCount > 1000) {
+    return `※ totalCount=${totalCount}이 비정상적으로 큽니다. 원격 API가 지역 필터(${label})를 반영하지 않았을 수 있습니다.\n\n`;
+  }
+  return "";
+}
+
 function handleSearchPharmacy(serviceKey: string) {
   return async (p: PublicDataParams): Promise<SkillResult> => {
     try {
-      const result = await searchPharmacy(serviceKey, p);
+      const result = await collectPagesPharmacy(serviceKey, p);
       if (result.items.length === 0) {
         return { content: [{ type: "text", text: "검색 결과가 없습니다." }] };
       }
-      const header = `약국 검색결과 — 총 ${result.totalCount}건 (${result.pageNo}페이지)\n`;
-      const lines = result.items.map((ph) =>
+      const filtered = filterByRegion(result.items, p.Q0, p.Q1);
+      if (filtered.length === 0 && result.items.length > 0 && (p.Q0 || p.Q1)) {
+        const label = [p.Q0, p.Q1].filter(Boolean).join(" ");
+        return {
+          content: [{
+            type: "text",
+            text:
+              `「${label}」에 해당하는 약국이 응답에 없습니다. ` +
+              `원격 API는 ${result.pagesFetched}페이지(${result.items.length}건)를 반환했으나 시도/시군구 명칭 일치 항목이 없습니다 (원격 totalCount=${result.totalCount}). ` +
+              `Q0(시도명)·Q1(시군구명)에 한글 명칭을 정확히 입력했는지 확인하세요. HIRA getParmacyBasisList가 해당 파라미터를 무시하는 경우가 있어, 클라이언트에서 재필터합니다.`,
+          }],
+        };
+      }
+      const note = regionFilterNote(filtered.length, result.items.length, result.totalCount, p.Q0, p.Q1);
+      const displayTotal = (p.Q0 || p.Q1) ? filtered.length : result.totalCount;
+      const pageInfo = result.pagesFetched > 1
+        ? `${result.pagesFetched}페이지 수집`
+        : `${result.pageNo}페이지`;
+      const header = `${note}약국 검색결과 — 총 ${displayTotal}건 (${pageInfo})\n`;
+      const lines = filtered.map((ph) =>
         `• ${s(ph.yadmNm)}\n  주소: ${s(ph.addr)}\n  전화: ${s(ph.telno)}\n  지역: ${[ph.sidoCdNm, ph.sgguCdNm, ph.emdongNm].filter(Boolean).join(" ")}`,
       );
       return { content: [{ type: "text", text: truncate(header + "\n" + lines.join("\n\n")) }] };
@@ -92,12 +199,30 @@ function handleSearchPharmacy(serviceKey: string) {
 function handleSearchHospital(serviceKey: string) {
   return async (p: PublicDataParams): Promise<SkillResult> => {
     try {
-      const result = await searchHospital(serviceKey, p);
+      const result = await collectPagesHospital(serviceKey, p);
       if (result.items.length === 0) {
         return { content: [{ type: "text", text: "검색 결과가 없습니다." }] };
       }
-      const header = `병원 검색결과 — 총 ${result.totalCount}건 (${result.pageNo}페이지)\n`;
-      const lines = result.items.map((h) =>
+      const filtered = filterByRegion(result.items, p.Q0, p.Q1);
+      if (filtered.length === 0 && result.items.length > 0 && (p.Q0 || p.Q1)) {
+        const label = [p.Q0, p.Q1].filter(Boolean).join(" ");
+        return {
+          content: [{
+            type: "text",
+            text:
+              `「${label}」에 해당하는 병원이 응답에 없습니다. ` +
+              `원격 API는 ${result.pagesFetched}페이지(${result.items.length}건)를 반환했으나 시도/시군구 명칭 일치 항목이 없습니다 (원격 totalCount=${result.totalCount}). ` +
+              `Q0/Q1은 한글 시도·시군구명, sidoCd/sgguCd는 HIRA 자체 코드(행안부 법정동코드 아님)입니다. yadmNm(병원명) 또는 clCd(28=요양병원, 01=상급종합 등) 동시 지정도 권장합니다.`,
+          }],
+        };
+      }
+      const note = regionFilterNote(filtered.length, result.items.length, result.totalCount, p.Q0, p.Q1);
+      const displayTotal = (p.Q0 || p.Q1) ? filtered.length : result.totalCount;
+      const pageInfo = result.pagesFetched > 1
+        ? `${result.pagesFetched}페이지 수집`
+        : `${result.pageNo}페이지`;
+      const header = `${note}병원 검색결과 — 총 ${displayTotal}건 (${pageInfo})\n`;
+      const lines = filtered.map((h) =>
         `• ${s(h.yadmNm)} (${s(h.clCdNm)})\n  주소: ${s(h.addr)}\n  전화: ${s(h.telno)}\n  진료과목: ${s(h.dgsbjtCdNm)}\n  의사수: ${s(h.drTotCnt)}명`,
       );
       return { content: [{ type: "text", text: truncate(header + "\n" + lines.join("\n\n")) }] };
@@ -372,16 +497,28 @@ export function registerPublicData(
     description: "Public Data — pharmacies, hospitals, veterinary clinics, rare drugs, health foods, bioequivalence items, drug patents, OnBid auction listings, and business registration verification. / 공공데이터 — 약국, 병원, 동물병원, 희귀의약품, 건강식품, 생동성인정품목, 의약품 특허, 온비드 공고목록/공고물건상세, 사업자등록 진위확인/상태조회 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
-        "search_pharmacy=약국검색(Q0=시도명) | search_hospital=병원검색(yadmNm=병원명) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_list=온비드공고목록(선택:onbid_list_filters_json) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
+        "search_pharmacy=약국검색(Q0=시도명한글,Q1=시군구명한글) | search_hospital=병원검색(yadmNm=병원명, Q0/Q1=지역재필터) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_list=온비드공고목록(선택:onbid_list_filters_json) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
       ),
-      Q0: z.string().optional().describe("시도명 (search_pharmacy)"),
-      Q1: z.string().optional().describe("시군구명 (search_pharmacy)"),
+      Q0: z.string().optional().describe(
+        "시도명 한글 텍스트 (예: '서울', '경기'). search_pharmacy/search_hospital의 지역 필터. HIRA 원격 API가 무시하는 경우가 잦아 클라이언트에서 응답의 sidoCdNm으로 부분일치 재필터됨",
+      ),
+      Q1: z.string().optional().describe(
+        "시군구명 한글 텍스트 (예: '강남구', '하남'). search_pharmacy/search_hospital의 지역 필터. 클라이언트에서 응답의 sgguCdNm으로 부분일치 재필터됨",
+      ),
       QN: z.string().optional().describe("약국명 (search_pharmacy)"),
       yadmNm: z.string().optional().describe("기관명 (search_hospital, search_animal_hospital)"),
-      sidoCd: z.string().optional().describe("시도코드"),
-      sgguCd: z.string().optional().describe("시군구코드"),
-      clCd: z.string().optional().describe("종별코드"),
-      dgsbjtCd: z.string().optional().describe("진료과목코드"),
+      sidoCd: z.string().optional().describe(
+        "HIRA 자체 시도코드 (예: '110000' 서울, 행안부 법정동코드 아님). 코드를 모르면 Q0(시도명 한글) 사용 권장",
+      ),
+      sgguCd: z.string().optional().describe(
+        "HIRA 자체 시군구코드 (행안부 법정동코드 아님). 코드를 모르면 Q1(시군구명 한글) 사용 권장",
+      ),
+      clCd: z.string().optional().describe(
+        "HIRA 종별코드 — 01=상급종합병원, 11=종합병원, 21=병원, 28=요양병원, 31=의원, 41=치과병원, 51=치과의원, 71=한방병원, 81=한의원, 91=조산원, 92=보건소 등. clCd 미지정 시 응답이 매우 커서 타임아웃 가능",
+      ),
+      dgsbjtCd: z.string().optional().describe(
+        "HIRA 진료과목코드 — 01=내과, 02=신경과, 03=정신건강의학과, 04=외과, 05=정형외과, 14=재활의학과 등",
+      ),
       item_name: z.string().optional().describe("품목/제품명"),
       item_eng_name: z.string().optional().describe("품목 영문명"),
       entp_name: z.string().optional().describe("업체명"),
