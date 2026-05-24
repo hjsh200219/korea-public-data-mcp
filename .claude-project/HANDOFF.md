@@ -1,73 +1,62 @@
 ---
-created: 2026-05-23T22:58:00+09:00
+created: 2026-05-25T08:35:00+09:00
 project: k-public-data-mcp
-summary: HIRA search_hospital/search_pharmacy 지역 필터 무동작 → 원격 API가 Q0/Q1 무시함을 확인. 클라이언트 재필터 + 다중 페이지 수집 + 임계값 경고 + clCd 안내 TDD 구현. MCP 서버 매핑은 정상.
+summary: HIRA Q0/Q1 한글 → raw sidoCd/sgguCd 자동 매핑 (17 시도+254 시군구) — 하남 약국 1건→131건 정상화
 ---
 
 ## Session Digest
-
-사용자 보고: K-Data MCP의 `search_hospital` / `search_pharmacy` 지역 필터(Q0/Q1)가 실제 결과에 반영되지 않음. "MCP 서버 매핑 버그" 주장.
-
-진단 결과 매핑은 정상(`data20-api.filter-query-contract.test.ts` 그린). HIRA 원격 API 자체가 Q0(시도) / Q1(시군구) 파라미터를 받고도 무시하고 전국 결과를 반환하는 동작 확인. clCd(요양기관종별)도 미지정 시 전체 종별이 섞여 일부 종별이 누락되는 현상 함께 노출.
-
-TDD로 다음 4가지 보강:
-1. **클라이언트 측 재필터** — 원격 응답을 Q0/Q1 기준으로 한 번 더 좁힘
-2. **다중 페이지 수집** — 지역 매칭 결과가 적을 때 후속 페이지까지 끌어와 정확도 확보
-3. **임계값 경고** — 수집/필터 결과가 기대보다 적으면 응답에 warning 추가
-4. **description 강화 + clCd 안내** — 사용자에게 clCd 지정 권장 문구 명시
-
-E2E 검증:
-- 하남 약국: 1건 정확 매칭
-- 하남 요양병원 (`clCd=28`): 2건 → 4건 (다중 페이지 효과 입증)
-
-추가로 `numOfRows` 기본 100, REQUEST_TIMEOUT_MS 30s 상향.
+HIRA 약국/병원 API의 Q0/Q1(한글) 무시 문제를 정적 매핑 테이블(17 시도 + 254 시군구)로 우회 해결. 하남시 약국 검색 1건 → 131건 정상화. 이전 메모리 노트(`sidoCd/sgguCd도 무시`)는 잘못된 가정이었음을 production 검증으로 확정 — 실제로는 한글 Q0/Q1만 무시되고 raw 6자리 코드는 서버측 필터 정상 동작.
 
 ## Progress
 
 ### 완료 (이번 세션)
-- HIRA `search_hospital` / `search_pharmacy` 클라이언트 재필터(Q0/Q1) TDD 구현
-- 다중 페이지 수집 로직 (지역 매칭 부족 시 후속 페이지)
-- 결과 부족 시 warning 필드 추가
-- `description` 문구에 clCd 권장 안내 추가
-- `numOfRows` 기본 100 / `REQUEST_TIMEOUT_MS` 30s 적용
-- `data20-api.filter-query-contract.test.ts` 그린으로 매핑 정상 확정
-- E2E 검증: 하남 약국 (1건), 하남 요양병원 clCd=28 (2→4건)
+- 근본 원인 확정 (production curl 검증): HIRA `getParmacyBasisList`/`getHospBasisList`가 Q0/Q1(한글)을 무시하지만 raw `sidoCd`/`sgguCd` (6자리 HIRA 코드)는 서버측 필터 정상 동작
+  - 무필터 25744 → sidoCd=310000(경기) 6044 → +sgguCd=311300(하남시) 131
+- `src/hira-region-codes.ts` 신규: 17 시도 + 254 시군구 매핑 (자치구 분리 보존: 수원 4구, 부산 16구/군, 대구 9구/군, 인천 10구/군, 광주 5구, 대전 5구, 울산 5구/군, 창원 5구, 화성 4구, 청주 4구, 천안 2구, 전주 2구, 포항 2구, 고양 3구, 부천 3구, 성남 3구, 안산 2구, 안양 2구, 용인 3구)
+- `resolveHiraRegionCode()` + `applyRegionCodeMapping()`: 한글 → raw 코드 변환. 매핑 성공 시 raw 주입+Q0/Q1 비움+단일 페이지, 실패 시 기존 다중 페이지+클라이언트 재필터 폴백. 사용자가 raw 코드 직접 입력 시 매핑 skip
+- `scripts/harvest-hira-region-codes.ts` 신규: 재사용 가능 코드 수집기 (rate-limit-safe 5s 딜레이, DRY_RUN, CLI 가드)
+- 부분명 자동 보강: "하남" → "하남시" suffix 시/군/구 자동 시도
+- TDD: 신규 23건 (resolver 17 + handler 6), 기존 stale 테스트 3건 부산/해운대구로 변경 (자치구 분리 미스로 폴백 경로 검증)
+- 검증: 918 pass / 5 skip, lint/type/build/verify-docs 모두 OK
+- 메모리 정정: `hira-region-filter-server-side-ignored.md` (Q0/Q1만 무시, raw 동작 명시)
+- Memory 신규 5건: encoding pattern / static-mapping / harvester pattern / resolve-fallback / region investigation checklist
+- CLAUDE.md(AGENTS.md): HIRA 매핑 컨벤션 + 자동 생성 파일 직접 수정 금지 항목 추가
+- Commit 649ca94 master 푸시 완료
 
 ### 이전 세션 누적 (계속 미해결)
 - 🔲 **IP 차단 PRD 작성** (YouTube Railway egress RATE_LIMITED — proxy/residential IP / per-instance 분산 / throttle)
-- 🔲 HANDOFF #3/#4/#5 entangled refactor 재평가 (cascade 의도 + null 타입 손실 + 쿠키 풀 미동기)
+- 🔲 HANDOFF #3/#4/#5 entangled refactor 재평가
 - 🔲 9-lang `FALLBACK_LANGS` 좁히기 PRD
 - 🔲 per-language 분할 호출 검토
 - 🔲 쿠키 만료 자동화 PRD (현재 30일 수동)
 - 🔲 운영 알람 분기에 `expired` 상태 반영
 - 🔲 Smithery 마켓플레이스 승인 + awesome-mcp-servers PR 상태 확인
 - 🔲 production 배포 후 `android_vr` 효과 정량 평가 (1주 데이터 누적 필요)
+- 🔲 clCd 검색 헬퍼/enum hint 설계 검토 (HIRA 종별코드 사용자 인지 보조)
 
-## Next Steps (우선순위 순)
+## Next Steps (우선순위)
 
-1. **본 세션 패치 배포 + production 검증** — 하남 약국/요양병원 동일 쿼리 재시도, warning 필드 동작 확인
-2. **IP 차단 PRD 작성** (YouTube, 별건) — Railway egress IP RATE_LIMITED 구조적 한계 해소 설계
-3. **HIRA API 한계 운영 문서화** — 원격 API가 Q0/Q1을 무시하는 사실 + clCd 미지정 시 권장값 표 (docs/ 또는 runbook)
-4. **clCd 검색 헬퍼 검토** — 사용자가 종별코드를 모를 때 인지 가능한 키워드(요양병원/한의원/약국 등)로 변환하는 헬퍼 또는 enum hint
-5. **다중 페이지 수집 상한선 모니터링** — 페이지 N 초과 시 비용/지연 측정 후 cap 조정
-6. **HANDOFF #3/#4/#5 entangled refactor 잔여 항목 식별**
-7. **쿠키 자동화 PRD + Smithery / awesome-mcp-servers 마감**
+1. **Production 재배포 (Railway) 후 MCP E2E 검증** — 하남시 + 추가 3~5개 시군구 샘플 (부산해운대구, 대구중구, 수원영통구, 광주광산구, 천안서북구). `search_pharmacy`/`search_hospital` 둘 다 raw 매핑 동작 확인
+2. **`handleSearchAnimalHospital` 매핑 적용 검토** — 별도 경로로 분기되어 현재 미적용. 동물병원도 같은 HIRA Q0/Q1 무시 가능성. raw curl로 재현 확인 후 결정
+3. **`package.json` 스크립트 추가**: `"harvest:hira-region-codes": "tsx scripts/harvest-hira-region-codes.ts"` (재생성 표준화), Quick Start에 노출
+4. **다른 지역검색 도메인 점검** — 한국관광공사 KorService2, 조달처 나라장터 등도 Q0/Q1 무시 패턴 의심. 진단 우선순위는 `[[user-bug-report-region-keyword-investigation-checklist]]`
+5. **신규 시군구 대응 가이드 문서화** — `docs/runbook-hira.md` 신설 또는 `src/hira-region-codes.ts` 상단 주석에 절차 명시 (harvest 재실행 → 빌드 → 테스트)
+6. **HIRA clCd 헬퍼/enum hint 설계** (이전 세션 누적)
+7. **IP 차단 PRD 작성** (YouTube 별건)
+8. **HANDOFF #3/#4/#5 entangled refactor 잔여 식별, 쿠키 자동화 + Smithery 마감**
 
 ## Blockers
-
-- **HIRA 원격 API 자체 한계** — Q0/Q1 파라미터를 받고도 무시하고 전국 반환. 클라이언트 재필터로 보강했으나 데이터 정확도는 HIRA 응답에 의존
-- **clCd 미지정 시 결과 혼재** — 사용자가 종별을 모르면 의도한 결과를 얻기 어려움. description 안내로 완화했으나 UX 한계 잔존
-- **Railway egress IP RATE_LIMITED** (YouTube, 이전 세션) — 본 세션과 무관하나 별건 PRD 필요
+없음.
 
 ## Watch Out
 
-### HIRA API 동작 특성 (본 세션 핵심)
-- **Q0 / Q1 파라미터는 원격에서 무시됨** — 클라이언트 재필터가 유일한 필터링 수단. 신규 HIRA 엔드포인트 추가 시 동일 패턴 적용 필요
-- **clCd 미지정 시 종별 혼재** — 전국 + 전 종별이 numOfRows 한도 내에서 잘림 → 의도한 종별이 페이지 후순위로 밀려 누락 가능
-- **다중 페이지 수집 트리거 조건** — 지역 매칭 결과가 기대치 미만일 때 후속 페이지 요청. 비용/지연 trade-off 모니터링 필요
-- **`REQUEST_TIMEOUT_MS` 30s 영향 범위** — HIRA 외 다른 데이터20 호출에도 적용됨. 다중 페이지 합산 시간 고려한 값
-- **`numOfRows` 100 상향** — 응답 크기 증가 → MCP truncate 8000자 + 페이지네이션 영향 검토
-- **warning 필드 추가** — 결과가 임계값 미만이면 응답에 포함. 소비측(클라이언트) 파싱 호환성 검증 필요
+### HIRA 매핑 (본 세션 핵심)
+- HIRA `sidoCd`/`sgguCd`는 **HIRA 자체 6자리 코드** — 행안부 법정동코드(10자리)와 절대 혼동 금지 (메모리 `hira-sido-sggu-code-encoding-pattern`)
+- 일반구/광역시 자치구는 prefix 결합 (성남수정 ≠ 수정, 부산해운대구 ≠ 해운대구) — 단순 "해운대구" Q1 입력은 매핑 안 됨 (suffix 자동 보강은 시/군/구 추가만 시도)
+- `handleSearchAnimalHospital`은 현재 별도 경로로 매핑 미적용 — Q0/Q1 입력 시 같은 버그 재현 가능성
+- harvest 스크립트는 rate-limit 보호되어 있으나 운영 시간 대량 호출 시 일시 차단 가능 — 야간/저트래픽 시간대 권장
+- 매핑 테이블이 정적 → 신규 시군구 발생 시 harvest 재실행 + 빌드 + 테스트 필요 (verify-docs EXPECTED는 영향 없음)
+- MCP 응답 8000자 truncate 유지 — 131건 약국도 `truncateWindow()` 페이지네이션으로 노출됨, E2E 시 offset 순회 확인
 
 ### 운영 (이전 세션 잔존)
 - Railway egress IP RATE_LIMITED — YouTube 자막 실패 시 우선 의심
@@ -75,7 +64,7 @@ E2E 검증:
 - Railway `YOUTUBE_COOKIES` 32KB 제한 — `.youtube.com` 도메인만 필터링
 - `YOUTUBE_CIRCUIT_BREAKER_ENABLED`, `YOUTUBE_PROBE_ENABLED` kill switch
 - Circuit Breaker `state` getter는 lazy 전이 포함 — 외부에서 `_state` 직접 접근 금지
-- Python fallback 성공 시 `recordSuccess()` 명시 호출 — 신규 fallback 경로 추가 시 동일 처리
+- Python fallback 성공 시 `recordSuccess()` 명시 호출
 - 429 시 yt-dlp player_client cascade 변경 **금지** (동일 IP egress 무효)
 - `src/youtube-cookie-pool.ts` getHealthInfo 상태 분류 변경 시 → /health/youtube 스키마 동기화
 - `src/youtube-probe.ts` errorCode 길이 (200자) 변경 시 → 로그/알람 임계값 재확인
@@ -87,44 +76,51 @@ E2E 검증:
 
 | 파일 | 변경 사항 | 상태 |
 |------|---------|------|
-| `src/tools/data20-api.ts` | search_hospital / search_pharmacy 클라이언트 재필터 + 다중 페이지 수집 + warning | 수정 |
-| `src/tools/data20-api.filter-query-contract.test.ts` | 매핑 정상 회귀 테스트 (그린으로 매핑 버그 부정) | 검증 |
-| `src/tools/data20-api.test.ts` | 재필터 / 다중 페이지 / warning TDD 케이스 추가 | 수정 |
-| (tool 등록부) | `description` 강화 + clCd 권장 안내 + `numOfRows` 기본 100 | 수정 |
-| (config/env) | `REQUEST_TIMEOUT_MS` 30s 상향 | 수정 |
-| `.claude-project/HANDOFF.md` | 본 인계서 (2026-05-23) | 수정 |
+| `src/hira-region-codes.ts` | 17 시도 + 254 시군구 매핑 + resolveHiraRegionCode() | 신규 (자동 생성) |
+| `src/hira-region-codes.test.ts` | resolver 단위 테스트 17건 | 신규 |
+| `src/tools/skills/public-data.ts` | applyRegionCodeMapping() 통합, 매핑 성공 시 단일 페이지 + Q0/Q1 비움 | 수정 |
+| `src/tools/skills/public-data.test.ts` | handler 매핑 경로 6건 추가, 기존 폴백 3건 부산/해운대구로 갱신 | 수정 |
+| `scripts/harvest-hira-region-codes.ts` | rate-limit-safe 수집기 (DRY_RUN, CLI 가드) | 신규 |
+| `AGENTS.md` (CLAUDE.md 심볼릭) | HIRA 매핑 + 자동 생성 파일 규칙 2건 추가 | 수정 |
+| `~/.claude/projects/.../memory/MEMORY.md` | 5건 신규 + 1건 갱신 | 수정 |
+| `.claude-project/HANDOFF.md` | 본 인계서 (2026-05-25) | 수정 |
 
 ## Session Timeline
 
-1. **보고** — 사용자: K-Data MCP `search_hospital` / `search_pharmacy` 지역 필터 미작동, "MCP 매핑 버그" 주장
-2. **진단 #1** — `data20-api.filter-query-contract.test.ts` 그린 확인 → 매핑 정상
-3. **진단 #2** — HIRA 원격 API 직접 호출 → Q0/Q1 명시해도 전국 결과 반환 확정
-4. **진단 #3** — clCd 미지정 시 종별 혼재로 의도한 종별이 페이지 후순위로 밀림 확인
-5. **TDD #1** — 클라이언트 재필터 Red → Green
-6. **TDD #2** — 다중 페이지 수집 Red → Green
-7. **TDD #3** — 임계값 경고(warning) Red → Green
-8. **개선** — description에 clCd 권장 안내, numOfRows 100, REQUEST_TIMEOUT_MS 30s
-9. **E2E** — 하남 약국 (1건 정확) / 하남 요양병원 clCd=28 (2→4건, 다중 페이지 효과)
-10. **본 HANDOFF 작성** — HIRA API 한계 + 보강 4종 + 운영 주의사항 정리
+1. **보고** — 사용자: "하남 약국 검색" → 이전 세션 코드(클라이언트 재필터)로 1건만 나옴
+2. **메모리 확인** — `hira-region-filter-server-side-ignored.md`에 "sidoCd/sgguCd도 무시" 기록 발견 → 의심 보류
+3. **옵션 분석** — 4가지 (페이지 상한 상향, raw sgguCd 검증, 매핑 테이블, 다른 API) → "raw 검증" 추천 (메모리 미검증 가정)
+4. **production curl 검증** — sidoCd=310000 단독 → 25744→6044 (경기) / +sgguCd=311300 → 131 (하남시). **메모리 노트 오류 확정**
+5. **하남시 sgguCd 확보** — 경기도 페이징 스캔으로 311300 발견
+6. **advisor 호출** — 정적 매핑 vs 동적 학습 결정. 정적 권장 + 사용자에게 즉시 답변 + 코드 fix 병행
+7. **메모리 정정** — Q0/Q1만 무시, raw 동작 명시
+8. **TDD RED** — `src/hira-region-codes.test.ts` 17건 + handler 매핑 6건 (RED 확인)
+9. **TDD GREEN** — `src/hira-region-codes.ts` 신규 + handler `applyRegionCodeMapping()` 통합
+10. **기존 stale 테스트 갱신** — 폴백 검증을 부산/해운대구(매핑 안 됨)로 변경
+11. **harvester 스크립트 작성** — DRY_RUN smoke (경기 1분, 47 sggu) → 풀 harvest (17 시도, 254 sggu)
+12. **자동 생성 매핑 통합** — `src/hira-region-codes.ts` 자동 덮어쓰기, 기존 seed 테스트 모두 유효
+13. **최종 검증** — 918 pass / lint / type / build / verify-docs 모두 OK
+14. **commit 649ca94** — master 푸시
+15. **Pack** — 5 에이전트 병렬 분석, Memory 5건 신규 + HANDOFF + AGENTS.md 컨벤션 추가
 
 ## Decision Log
 
-- **매핑 버그 주장 기각** — `filter-query-contract.test.ts` 그린이 매핑 정상의 결정적 증거. HIRA 원격 동작이 근본 원인
-- **클라이언트 재필터 채택** — HIRA가 Q0/Q1을 받고도 무시하므로 응답 데이터에 한해 재필터링이 유일한 정확도 보강 수단
-- **다중 페이지 수집** — 단일 페이지에서 지역 매칭이 부족하면 응답 빈약. 후속 페이지까지 끌어와 사용자 의도 충족
-- **warning 필드 신규 추가** — silently 빈 결과 반환 대신 명시적 신호. 운영/디버깅 시 HIRA 한계 즉시 파악 가능
-- **clCd 안내는 description으로** — 별도 enum 강제는 과한 변경. 사용자 선택권 유지하면서 권장값 제시
-- **`numOfRows` 100 / `REQUEST_TIMEOUT_MS` 30s** — 다중 페이지 수집 + 재필터 비용 흡수 위한 여유. 기존 도메인 영향 모니터링 항목으로 등록
+- **메모리 노트 의심 보류 → production 검증** — 메모리 신뢰성보다 raw 데이터 검증 우선. 결과적으로 메모리 오류 발견 및 정정
+- **정적 매핑 채택 (advisor 권장)** — 런타임 학습은 (a) cold-start (b) 캐시 무효화 복잡 (c) 외부 호출 부담. HIRA 코드는 변동성 거의 없음 → 정적이 정답
+- **부분명 자동 보강만 도입 ("하남" → "하남시")** — 풀 퍼지 매칭은 안 함 (예측 가능성 우선)
+- **매핑 실패 시 기존 폴백 유지** — 100% 매핑 보장 어려운 도메인에서 graceful degradation 확보 ([[resolve-then-fallback-translation-pattern]])
+- **자치구 분리 보존** — 성남수정/성남중원/성남분당 별개 코드 그대로 (HIRA 명세 그대로). 사용자가 "성남" 검색 시 매핑 실패 → 폴백으로 클라이언트 재필터에서 흡수
+- **harvester를 별도 스크립트로 분리** — 운영 호출 경로와 격리, rate-limit-safe + 재현 가능성 확보
+- **자동 생성 파일 직접 수정 금지를 AGENTS.md 컨벤션에 명시** — 다음 harvest 시 손실 방지
 
 ---
 
 **다음 세션 시작 시 권장 순서**:
 
-1. `git log --oneline -8`로 본 세션 커밋 확인
-2. production 배포 후 하남 약국/요양병원 동일 쿼리 재검증 (warning 필드 동작 포함)
-3. HIRA API 한계 + clCd 권장값 표를 `docs/` 또는 runbook에 정리
-4. clCd 검색 헬퍼/enum hint 설계 검토
-5. 다중 페이지 수집 비용/지연 측정 후 cap 결정
-6. IP 차단 PRD (YouTube, 별건) 초안 작성
-7. HANDOFF #3/#4/#5 entangled refactor 잔여 항목 식별
-8. 쿠키 자동화 + Smithery 마감 항목 점검
+1. `git log --oneline -10`으로 본 세션 커밋(649ca94) 확인
+2. Railway production 재배포 후 MCP `search_pharmacy`/`search_hospital` E2E (하남시 + 3~5 시군구 샘플)
+3. `handleSearchAnimalHospital` raw 매핑 적용 검토 (curl 재현 우선)
+4. `package.json`에 `harvest:hira-region-codes` 스크립트 등록
+5. 다른 지역검색 도메인 (관광공사 KorService2, 나라장터) 동일 패턴 점검
+6. HIRA clCd 헬퍼/enum hint 설계
+7. IP 차단 PRD + entangled refactor + 쿠키 자동화 + Smithery 잔여 항목

@@ -53,6 +53,8 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - CLI scripts (`scripts/*.ts`): `main()`은 `process.argv[1]` 가드로 보호 — import 시 자동 실행 방지 (test:coverage 부작용)
 - Dead-code (Knip): 내부 전용 심볼은 `export` 제거, 외부 참조 없는 타입은 삭제
 - `verify-docs.ts` EXPECTED 카운트: 파일 추가/삭제 시 `npm run verify-docs`로 동기화 필수
+- HIRA 지역 코드: 한글 시도/시군구명(Q0/Q1)은 `src/hira-region-codes.ts` 매핑으로 raw `sidoCd`/`sgguCd` 자동 해석 후 호출 — 매칭 실패 시에만 클라이언트 재필터 폴백 (HIRA가 Q0/Q1 무시)
+- 자동 생성 매핑 파일(`hira-region-codes.ts` 등): 직접 수정 금지 — `scripts/harvest-*.ts` 재실행으로만 갱신 (rate-limit-safe delay 내장)
 
 ## TDD 필수
 
