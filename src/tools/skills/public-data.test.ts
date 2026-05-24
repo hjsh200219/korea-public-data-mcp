@@ -55,7 +55,8 @@ describe("public_data 스킬", () => {
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain("약국 검색결과");
     expect(result.content[0].text).toContain("건강약국");
-    expect(searchPharmacy).toHaveBeenCalledWith(MOCK_KEY, expect.objectContaining({ Q0: "서울" }));
+    // 서울은 seed에 있으므로 raw sidoCd=110000으로 매핑되고 Q0은 비워서 전달
+    expect(searchPharmacy).toHaveBeenCalledWith(MOCK_KEY, expect.objectContaining({ sidoCd: "110000", Q0: "" }));
   });
 
   it("search_hospital_유효한결과_포맷팅반환", async () => {
@@ -430,28 +431,29 @@ describe("public_data 스킬", () => {
 
   // --- 자동 다중 페이지 수집 + numOfRows 기본 100 ---
 
-  it("search_pharmacy_Q0지정_numOfRows미지정_기본100", async () => {
+  it("search_pharmacy_매핑실패시_numOfRows기본100_폴백경로", async () => {
+    // 부산/해운대구는 seed에 없음 → 매핑 실패 → 기존 다중페이지 + numOfRows=100 폴백 경로
     vi.mocked(searchPharmacy).mockResolvedValue({
-      items: [{ yadmNm: "p1", addr: "a", telno: "t", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "x" }],
+      items: [{ yadmNm: "p1", addr: "a", telno: "t", sidoCdNm: "부산", sgguCdNm: "해운대구", emdongNm: "x" }],
       totalCount: 100,
       pageNo: 1,
       numOfRows: 100,
     } as any);
-    await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남" });
+    await handler({ action: "search_pharmacy", Q0: "부산", Q1: "해운대구" });
     expect(searchPharmacy).toHaveBeenCalledWith(
       MOCK_KEY,
       expect.objectContaining({ numOfRows: 100 }),
     );
   });
 
-  it("search_pharmacy_Q0지정_pageNo미지정_다중페이지수집", async () => {
-    // 3페이지 분량 응답 — totalCount > pageNo*numOfRows이면 다음 페이지 호출
+  it("search_pharmacy_매핑실패시_다중페이지수집_폴백경로", async () => {
+    // 부산/해운대구 미매핑 → 3페이지 폴백 수집
     vi.mocked(searchPharmacy)
       .mockResolvedValueOnce({
         items: Array.from({ length: 100 }, (_, i) => ({
           yadmNm: `p1-${i}`, addr: "a", telno: "t",
-          sidoCdNm: i < 3 ? "경기" : "서울",
-          sgguCdNm: i < 3 ? "하남시" : "강남구",
+          sidoCdNm: i < 3 ? "부산" : "서울",
+          sgguCdNm: i < 3 ? "해운대구" : "강남구",
           emdongNm: "x",
         })),
         totalCount: 250,
@@ -461,8 +463,8 @@ describe("public_data 스킬", () => {
       .mockResolvedValueOnce({
         items: Array.from({ length: 100 }, (_, i) => ({
           yadmNm: `p2-${i}`, addr: "a", telno: "t",
-          sidoCdNm: i < 2 ? "경기" : "부산",
-          sgguCdNm: i < 2 ? "하남시" : "해운대구",
+          sidoCdNm: i < 2 ? "부산" : "경기",
+          sgguCdNm: i < 2 ? "해운대구" : "성남시",
           emdongNm: "x",
         })),
         totalCount: 250,
@@ -472,8 +474,8 @@ describe("public_data 스킬", () => {
       .mockResolvedValueOnce({
         items: Array.from({ length: 50 }, (_, i) => ({
           yadmNm: `p3-${i}`, addr: "a", telno: "t",
-          sidoCdNm: i < 1 ? "경기" : "대구",
-          sgguCdNm: i < 1 ? "하남시" : "중구",
+          sidoCdNm: i < 1 ? "부산" : "대구",
+          sgguCdNm: i < 1 ? "해운대구" : "중구",
           emdongNm: "x",
         })),
         totalCount: 250,
@@ -481,9 +483,8 @@ describe("public_data 스킬", () => {
         numOfRows: 100,
       } as any);
 
-    const r = await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남" });
+    const r = await handler({ action: "search_pharmacy", Q0: "부산", Q1: "해운대구" });
     expect(searchPharmacy).toHaveBeenCalledTimes(3);
-    // 3 + 2 + 1 = 6건 매칭
     expect(r.content[0].text).toContain("p1-0");
     expect(r.content[0].text).toContain("p2-0");
     expect(r.content[0].text).toContain("p3-0");
@@ -513,8 +514,8 @@ describe("public_data 스킬", () => {
     expect(searchPharmacy).toHaveBeenCalledTimes(1);
   });
 
-  it("search_hospital_Q0지정_다중페이지수집_3페이지상한", async () => {
-    // 5페이지 분량 — 3페이지에서 멈춰야 함
+  it("search_hospital_매핑실패시_다중페이지_3페이지상한_폴백", async () => {
+    // 부산/해운대구 미매핑 → 5페이지 분량 → 3페이지에서 멈춤
     vi.mocked(searchHospital).mockResolvedValue({
       items: Array.from({ length: 100 }, (_, i) => ({
         yadmNm: `h-${i}`, clCdNm: "병원", addr: "a", telno: "t",
@@ -525,7 +526,105 @@ describe("public_data 스킬", () => {
       pageNo: 1,
       numOfRows: 100,
     } as any);
-    await handler({ action: "search_hospital", Q0: "경기", Q1: "하남" });
+    await handler({ action: "search_hospital", Q0: "부산", Q1: "해운대구" });
     expect(searchHospital).toHaveBeenCalledTimes(3);
+  });
+
+  // --- HIRA raw 코드 매핑 (Q0/Q1 → sidoCd/sgguCd 서버측 필터) ---
+
+  it("search_pharmacy_Q0Q1매핑성공_raw코드전달_단일페이지", async () => {
+    // 매핑 성공 시 서버측 필터로 깨끗 → 다중페이지 불필요
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [{ yadmNm: "감일로약국", addr: "경기 하남시", telno: "02-477-2081", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "감이동" }],
+      totalCount: 131,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    const r = await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남시" });
+    expect(r.isError).toBeUndefined();
+    expect(r.content[0].text).toContain("감일로약국");
+    expect(searchPharmacy).toHaveBeenCalledTimes(1);
+    expect(searchPharmacy).toHaveBeenCalledWith(
+      MOCK_KEY,
+      expect.objectContaining({ sidoCd: "310000", sgguCd: "311300" }),
+    );
+  });
+
+  it("search_pharmacy_Q1_부분명_하남_매핑성공", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [{ yadmNm: "감일로약국", addr: "경기 하남시", telno: "02-477-2081", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "감이동" }],
+      totalCount: 131,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남" });
+    expect(searchPharmacy).toHaveBeenCalledWith(
+      MOCK_KEY,
+      expect.objectContaining({ sidoCd: "310000", sgguCd: "311300" }),
+    );
+  });
+
+  it("search_pharmacy_매핑실패시_기존클라이언트필터폴백", async () => {
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [
+        { yadmNm: "외계A", addr: "a", telno: "t", sidoCdNm: "외계", sgguCdNm: "외계동", emdongNm: "x" },
+      ],
+      totalCount: 25746,
+      pageNo: 1,
+      numOfRows: 100,
+    } as any);
+    await handler({ action: "search_pharmacy", Q0: "외계행성", Q1: "외계동" });
+    // 매핑 실패 → 다중페이지(폴백) 수집 시도
+    expect(searchPharmacy).toHaveBeenCalledWith(
+      MOCK_KEY,
+      expect.not.objectContaining({ sidoCd: expect.any(String) }),
+    );
+  });
+
+  it("search_hospital_Q0Q1매핑성공_raw코드전달", async () => {
+    vi.mocked(searchHospital).mockResolvedValue({
+      items: [{ yadmNm: "하남요양", clCdNm: "요양병원", addr: "경기 하남시", telno: "t", dgsbjtCdNm: "내과", drTotCnt: 10, sidoCdNm: "경기", sgguCdNm: "하남시" }],
+      totalCount: 4,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    await handler({ action: "search_hospital", Q0: "경기", Q1: "하남시", clCd: "28" });
+    expect(searchHospital).toHaveBeenCalledTimes(1);
+    expect(searchHospital).toHaveBeenCalledWith(
+      MOCK_KEY,
+      expect.objectContaining({ sidoCd: "310000", sgguCd: "311300", clCd: "28" }),
+    );
+  });
+
+  it("search_pharmacy_매핑성공시_원래Q0Q1은제거", async () => {
+    // 매핑이 raw 코드로 변환되면 Q0/Q1은 더이상 필요 없음 (서버측 무시되니까)
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [{ yadmNm: "a", addr: "a", telno: "t", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "x" }],
+      totalCount: 131,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    await handler({ action: "search_pharmacy", Q0: "경기", Q1: "하남시" });
+    const callArgs = vi.mocked(searchPharmacy).mock.calls[0][1] as Record<string, unknown>;
+    expect(callArgs.sidoCd).toBe("310000");
+    expect(callArgs.sgguCd).toBe("311300");
+    // Q0/Q1 비워서 보내 — HIRA가 빈문자열로 처리하도록
+    expect(callArgs.Q0 ?? "").toBe("");
+    expect(callArgs.Q1 ?? "").toBe("");
+  });
+
+  it("search_pharmacy_raw코드_사용자가직접지정시_매핑skip", async () => {
+    // 사용자가 sidoCd/sgguCd raw 직접 입력 → 매핑 안 하고 그대로 사용
+    vi.mocked(searchPharmacy).mockResolvedValue({
+      items: [{ yadmNm: "a", addr: "a", telno: "t", sidoCdNm: "경기", sgguCdNm: "하남시", emdongNm: "x" }],
+      totalCount: 131,
+      pageNo: 1,
+      numOfRows: 10,
+    } as any);
+    await handler({ action: "search_pharmacy", sidoCd: "310000", sgguCd: "311300" });
+    expect(searchPharmacy).toHaveBeenCalledWith(
+      MOCK_KEY,
+      expect.objectContaining({ sidoCd: "310000", sgguCd: "311300" }),
+    );
   });
 });

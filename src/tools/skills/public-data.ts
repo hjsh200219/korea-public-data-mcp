@@ -20,6 +20,7 @@ import {
 } from "../../data20-api.js";
 import type { PharmacyItem, HospitalItem } from "../../data20-types.js";
 import { errorResponse, truncate } from "../../shared.js";
+import { resolveHiraRegionCode } from "../../hira-region-codes.js";
 import { createDispatcher, requireParam, registerSkillTool, type SkillResult } from "./_shared.js";
 
 const ACTIONS = [
@@ -97,19 +98,39 @@ const REGION_FILTER_MAX_PAGES = 3;
 const REGION_FILTER_NUM_ROWS = 100;
 
 /**
+ * Q0/Q1 → HIRA raw sidoCd/sgguCd 매핑 시도. 매핑 성공 시:
+ * - raw 코드 주입
+ * - Q0/Q1 비움 (HIRA가 한글 파라미터를 무시하므로 함께 보내도 무관하지만 명시적 제거)
+ * - 사용자가 이미 raw 코드 직접 지정 시 매핑 skip
+ */
+function applyRegionCodeMapping(p: PublicDataParams): { params: PublicDataParams; mapped: boolean } {
+  const userProvidedRawCode = Boolean(p.sidoCd || p.sgguCd);
+  if (userProvidedRawCode) return { params: p, mapped: false };
+  const r = resolveHiraRegionCode({ Q0: p.Q0, Q1: p.Q1 });
+  if (!r.matched) return { params: p, mapped: false };
+  const next: PublicDataParams = { ...p, Q0: "", Q1: "" };
+  if (r.sidoCd) next.sidoCd = r.sidoCd;
+  if (r.sgguCd) next.sgguCd = r.sgguCd;
+  return { params: next, mapped: true };
+}
+
+/**
  * Q0/Q1 입력 + pageNo 미지정 시 자동으로 최대 N페이지 수집.
  * 원격 totalCount가 한 페이지로 충분하거나 pageNo 명시 시 단일 호출.
+ * raw 코드 매핑 성공 시 서버측 필터가 동작하므로 다중 페이지 수집 skip.
  */
 async function collectPagesPharmacy(
   serviceKey: string,
-  p: PublicDataParams,
-): Promise<{ items: PharmacyItem[]; totalCount: number; pageNo: number; pagesFetched: number }> {
-  const hasRegion = Boolean(p.Q0 || p.Q1);
-  const numRows = p.numOfRows ?? (hasRegion ? REGION_FILTER_NUM_ROWS : 10);
+  raw: PublicDataParams,
+): Promise<{ items: PharmacyItem[]; totalCount: number; pageNo: number; pagesFetched: number; rawCodeMapped: boolean }> {
+  const { params: p, mapped } = applyRegionCodeMapping(raw);
+  const hasRegion = Boolean(raw.Q0 || raw.Q1);
+  // 매핑 성공 시 서버측 필터 동작 → 큰 페이지 불필요 (10이면 충분), 다중페이지도 불필요
+  const numRows = p.numOfRows ?? (hasRegion && !mapped ? REGION_FILTER_NUM_ROWS : 10);
   const startPage = p.pageNo ?? 1;
   const first = await searchPharmacy(serviceKey, { ...p, numOfRows: numRows, pageNo: startPage });
-  if (!hasRegion || p.pageNo !== undefined) {
-    return { items: first.items, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: 1 };
+  if (!hasRegion || mapped || p.pageNo !== undefined) {
+    return { items: first.items, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: 1, rawCodeMapped: mapped };
   }
   const totalPages = Math.ceil(first.totalCount / numRows);
   const maxPages = Math.min(REGION_FILTER_MAX_PAGES, totalPages);
@@ -118,19 +139,20 @@ async function collectPagesPharmacy(
     const more = await searchPharmacy(serviceKey, { ...p, numOfRows: numRows, pageNo: pg });
     aggregated.push(...more.items);
   }
-  return { items: aggregated, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: maxPages };
+  return { items: aggregated, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: maxPages, rawCodeMapped: mapped };
 }
 
 async function collectPagesHospital(
   serviceKey: string,
-  p: PublicDataParams,
-): Promise<{ items: HospitalItem[]; totalCount: number; pageNo: number; pagesFetched: number }> {
-  const hasRegion = Boolean(p.Q0 || p.Q1);
-  const numRows = p.numOfRows ?? (hasRegion ? REGION_FILTER_NUM_ROWS : 10);
+  raw: PublicDataParams,
+): Promise<{ items: HospitalItem[]; totalCount: number; pageNo: number; pagesFetched: number; rawCodeMapped: boolean }> {
+  const { params: p, mapped } = applyRegionCodeMapping(raw);
+  const hasRegion = Boolean(raw.Q0 || raw.Q1);
+  const numRows = p.numOfRows ?? (hasRegion && !mapped ? REGION_FILTER_NUM_ROWS : 10);
   const startPage = p.pageNo ?? 1;
   const first = await searchHospital(serviceKey, { ...p, numOfRows: numRows, pageNo: startPage });
-  if (!hasRegion || p.pageNo !== undefined) {
-    return { items: first.items, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: 1 };
+  if (!hasRegion || mapped || p.pageNo !== undefined) {
+    return { items: first.items, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: 1, rawCodeMapped: mapped };
   }
   const totalPages = Math.ceil(first.totalCount / numRows);
   const maxPages = Math.min(REGION_FILTER_MAX_PAGES, totalPages);
@@ -139,7 +161,7 @@ async function collectPagesHospital(
     const more = await searchHospital(serviceKey, { ...p, numOfRows: numRows, pageNo: pg });
     aggregated.push(...more.items);
   }
-  return { items: aggregated, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: maxPages };
+  return { items: aggregated, totalCount: first.totalCount, pageNo: first.pageNo, pagesFetched: maxPages, rawCodeMapped: mapped };
 }
 
 function regionFilterNote(
