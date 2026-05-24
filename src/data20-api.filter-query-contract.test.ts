@@ -83,6 +83,16 @@ describe("data20-api 검색 필터 → 요청 URL 쿼리 계약", () => {
     expect(u.searchParams.get("QT")).toBe("2");
   });
 
+  it("searchPharmacy_raw_sidoCd_sgguCd_전달", async () => {
+    fetchWithRetry.mockResolvedValueOnce(
+      xmlOk("<item><yadmNm>a</yadmNm><addr>x</addr><telno>t</telno><sidoCdNm>경기</sidoCdNm><sgguCdNm>하남시</sgguCdNm><emdongNm>e</emdongNm><postNo>p</postNo><clCdNm>c</clCdNm><XPos>1</XPos><YPos>2</YPos></item>"),
+    );
+    await searchPharmacy(KEY, { sidoCd: "310000", sgguCd: "311300" });
+    const u = firstUrl();
+    expect(u.searchParams.get("sidoCd")).toBe("310000");
+    expect(u.searchParams.get("sgguCd")).toBe("311300");
+  });
+
   it("searchHospital_지역·기관명_전달", async () => {
     fetchWithRetry.mockResolvedValueOnce(
       xmlOk("<item><yadmNm>h</yadmNm><addr>a</addr><telno>t</telno><clCdNm>c</clCdNm><dgsbjtCdNm>d</dgsbjtCdNm><drTotCnt>1</drTotCnt></item>"),

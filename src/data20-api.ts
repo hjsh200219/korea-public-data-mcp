@@ -147,7 +147,11 @@ async function fetchJson<T>(
 
 export async function searchPharmacy(
   serviceKey: string,
-  params: { Q0?: string; Q1?: string; QN?: string; QT?: string; pageNo?: number; numOfRows?: number },
+  params: {
+    Q0?: string; Q1?: string; QN?: string; QT?: string;
+    sidoCd?: string; sgguCd?: string;
+    pageNo?: number; numOfRows?: number;
+  },
 ): Promise<DataGoKrResult<PharmacyItem>> {
   return fetchXml<PharmacyItem>(
     "http://apis.data.go.kr/B551182/pharmacyInfoService/getParmacyBasisList",
@@ -157,6 +161,8 @@ export async function searchPharmacy(
       Q1: params.Q1 || "",
       QN: params.QN || "",
       QT: params.QT || "1",
+      sidoCd: params.sidoCd || "",
+      sgguCd: params.sgguCd || "",
       pageNo: String(params.pageNo || 1),
       numOfRows: String(params.numOfRows || 10),
     },
