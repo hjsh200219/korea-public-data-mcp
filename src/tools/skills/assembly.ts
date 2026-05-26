@@ -83,6 +83,7 @@ const ACTIONS = [
   "plenary_processed_law",
   "plenary_processed_budget",
   "plenary_processed_etc",
+  "plenary_processed_settlement",
   "vote_by_bill",
   "member_votes",
   // 회의록/일정
@@ -126,6 +127,8 @@ interface AssemblyParams {
   vote_date?: string;
   // vote_by_bill 처리결과 필터
   proc_result_cd?: string;
+  // 대수 (BILLRCPV2/BILLJUDGE)
+  eraco?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -503,13 +506,16 @@ export function createAssemblyHandler(apiKey: string) {
   const scheduleKeys = { unit_cd: "UNIT_CD", title: "TITLE" };
   const voteByBillKeys = { bill_name: "BILL_NAME", proc_result_cd: "PROC_RESULT_CD" };
 
-  // client-side 필터 매핑 (서버가 무시하는 필터 — fetch 후 row 부분매칭)
-  const pendingClientFilters = { bill_name: "BILL_NM", proposer: "PPSR_NM" };
-  const billNameClientFilter = { bill_name: "BILL_NM" };
-  const billNameAltClientFilter = { bill_name: "BILL_NAME" };
+  // bill_pending/bill_committee_alt/processed* spec 재확인 결과 server-side 필터 (BILL_NAME/PROPOSER) 작동.
+  // 잘못된 BILL_NM/PPSR_NM 매핑이 무시되었던 것이므로 server extraKeys로 이동.
+  const billNameProposerKeys = { bill_name: "BILL_NAME", proposer: "PROPOSER", bill_id: "BILL_ID" };
+  // VCONFBILLLIST는 spec 미확인 — 보수적으로 client filter 유지
   const voteListClientFilters = { bill_name: "BILL_NM", era_co: "ERACO", sess: "SESS", dgr: "DGR" };
-  const minutesClientFilters = { title: "TITLE", class_name: "CLASS_NAME", comm_name: "COMM_NAME" };
-  const memberCommitteeClientFilter = { committee_nm: "CMIT_NM" };
+  // 회의록 dataset (nzbyfwhwaoanttzje/ncwgseseafwbuheph)은 spec에 TITLE/CLASS_NAME 명시 — server-side
+  const plenaryMinutesKeys = { dae_num: "DAE_NUM", conf_date: "CONF_DATE", title: "TITLE", class_name: "CLASS_NAME" };
+  const committeeMinutesKeys = { dae_num: "DAE_NUM", conf_date: "CONF_DATE", title: "TITLE", class_name: "CLASS_NAME", comm_name: "COMM_NAME" };
+  // member_current: 위원회 필터 = CMITS (spec) — server-side OK, client-filter 불요
+  const memberCurrentWithCommittee = { hg_nm: "HG_NM", poly_nm: "POLY_NM", orig_nm: "ORIG_NM", committee_nm: "CMITS" };
 
   return createDispatcher<AssemblyParams>("assembly", {
     // 의안/법률안
@@ -519,11 +525,12 @@ export function createAssemblyHandler(apiKey: string) {
     bill_search_extended: buildHandler<BillSearchRow>(apiKey, {
       domain: "의안 검색 (확장)", emoji: "📋", fetcher: searchBillsExtended, render: renderBillSearchRow, extraKeys: billSearchKeys, defaultAge: 22,
     }),
+    // 주의: bill_processing은 plenary_processed_law와 동일 dataset (nwbpacrgavhjryiph) — backward-compat alias
     bill_processing: buildHandler<BillProcessingRow>(apiKey, {
-      domain: "법률안 처리현황", emoji: "⚖️", fetcher: getBillProcessing, render: renderBillProcessingRow, extraKeys: billProcessingKeys,
+      domain: "본회의 처리안건_법률안 (= plenary_processed_law)", emoji: "⚖️", fetcher: getBillProcessing, render: renderBillProcessingRow, extraKeys: billProcessingKeys,
     }),
     bill_pending: buildHandler<PendingBillRow>(apiKey, {
-      domain: "계류의안", emoji: "⏳", fetcher: getPendingBills, render: renderPendingBillRow, extraKeys: {}, clientFilters: pendingClientFilters,
+      domain: "계류의안", emoji: "⏳", fetcher: getPendingBills, render: renderPendingBillRow, extraKeys: billNameProposerKeys,
     }),
     bill_processed: buildHandler<BillSearchRow>(apiKey, {
       domain: "처리의안", emoji: "✅", fetcher: getProcessedBills, render: renderBillSearchRow, extraKeys: billSearchKeys,
@@ -535,13 +542,14 @@ export function createAssemblyHandler(apiKey: string) {
       domain: "본회의부의안건", emoji: "📥", fetcher: getPlenaryReferredBills, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
     bill_committee_alt: buildHandler<BillSearchRow>(apiKey, {
-      domain: "위원회안·대안", emoji: "🧩", fetcher: getCommitteeAlternativeBills, render: renderBillSearchRow, extraKeys: {}, clientFilters: billNameAltClientFilter,
+      domain: "위원회안·대안", emoji: "🧩", fetcher: getCommitteeAlternativeBills, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
+    // BILLRCPV2가 spec 정식 ID지만 BILL_ID 필수 — 기존 BILLRCP (호환성 동작 확인됨) 유지
     bill_receipts: buildHandler<BillReceiptRow>(apiKey, {
-      domain: "의안 접수목록", emoji: "📥", fetcher: getBillReceipts, render: renderBillReceiptRow, extraKeys: {}, clientFilters: billNameClientFilter,
+      domain: "의안 접수목록", emoji: "📥", fetcher: getBillReceipts, render: renderBillReceiptRow, extraKeys: { eraco: "ERACO" },
     }),
     bill_judge: buildHandler<BillJudgeRow>(apiKey, {
-      domain: "위원회 심사정보", emoji: "🔍", fetcher: getBillJudge, render: renderBillJudgeRow, extraKeys: {}, clientFilters: billNameClientFilter,
+      domain: "위원회 심사정보 (예결산 제외)", emoji: "🔍", fetcher: getBillJudge, render: renderBillJudgeRow, extraKeys: { eraco: "ERACO" },
     }),
     bill_detail: buildHandler<BillDetailRow>(apiKey, {
       domain: "의안 상세", emoji: "📖", fetcher: getBillDetail, render: renderBillDetailRow,
@@ -555,14 +563,22 @@ export function createAssemblyHandler(apiKey: string) {
     plenary_vote_bills: buildHandler<PlenaryVoteBillRow>(apiKey, {
       domain: "본회의 의결안건", emoji: "🗳️", fetcher: getPlenaryVoteBills, render: renderPlenaryVoteRow, extraKeys: {}, clientFilters: voteListClientFilters,
     }),
-    plenary_processed_law: buildHandler<BillSearchRow>(apiKey, {
-      domain: "본회의 처리안건_법률안", emoji: "🏛️", fetcher: getPlenaryProcessedV1, render: renderBillSearchRow, extraKeys: billSearchKeys,
+    // 정정: portal spec 확인 결과 v1/v2/v3 → settlement/etc/budget 매핑 (이전 추측 잘못)
+    // nwbpacrgavhjryiph = 본회의 처리안건_법률안 (이전 "법률안 처리현황" 라벨)
+    plenary_processed_law: buildHandler<BillProcessingRow>(apiKey, {
+      domain: "본회의 처리안건_법률안", emoji: "🏛️", fetcher: getBillProcessing, render: renderBillProcessingRow, extraKeys: billProcessingKeys,
     }),
+    // nzgjnvnraowulzqwl = 예산안 (이전 etc로 매핑)
     plenary_processed_budget: buildHandler<BillSearchRow>(apiKey, {
-      domain: "본회의 처리안건_예산안", emoji: "🏛️", fetcher: getPlenaryProcessedV2, render: renderBillSearchRow, extraKeys: {}, clientFilters: billNameAltClientFilter,
+      domain: "본회의 처리안건_예산안", emoji: "🏛️", fetcher: getPlenaryProcessedV3, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
+    // nbslryaradshbpbpm = 기타 (이전 budget으로 매핑)
     plenary_processed_etc: buildHandler<BillSearchRow>(apiKey, {
-      domain: "본회의 처리안건_기타", emoji: "🏛️", fetcher: getPlenaryProcessedV3, render: renderBillSearchRow, extraKeys: billSearchKeys,
+      domain: "본회의 처리안건_기타", emoji: "🏛️", fetcher: getPlenaryProcessedV2, render: renderBillSearchRow, extraKeys: billSearchKeys,
+    }),
+    // nkalemivaqmoibxro = 결산 (이전 v1=law로 매핑)
+    plenary_processed_settlement: buildHandler<BillSearchRow>(apiKey, {
+      domain: "본회의 처리안건_결산", emoji: "🏛️", fetcher: getPlenaryProcessedV1, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
     vote_by_bill: buildHandler<VoteByBillRow>(apiKey, {
       domain: "의안별 표결현황", emoji: "🗳️", fetcher: getVoteByBill, render: renderVoteByBillRow, extraKeys: voteByBillKeys,
@@ -574,11 +590,11 @@ export function createAssemblyHandler(apiKey: string) {
     // 회의록/일정
     plenary_minutes: buildHandler<MinutesRow>(apiKey, {
       domain: "본회의 회의록", emoji: "📜", fetcher: getPlenaryMinutes, render: renderMinutesRow,
-      extraKeys: minutesDateKeys, clientFilters: minutesClientFilters, requiredParams: ["dae_num", "conf_date"],
+      extraKeys: plenaryMinutesKeys, requiredParams: ["dae_num", "conf_date"],
     }),
     committee_minutes: buildHandler<MinutesRow>(apiKey, {
       domain: "위원회 회의록", emoji: "📜", fetcher: getCommitteeMinutes, render: renderMinutesRow,
-      extraKeys: minutesDateKeys, clientFilters: minutesClientFilters, requiredParams: ["dae_num", "conf_date"],
+      extraKeys: committeeMinutesKeys, requiredParams: ["dae_num", "conf_date"],
     }),
     plenary_schedule: buildHandler<PlenaryScheduleRow>(apiKey, {
       domain: "본회의 일정", emoji: "📅", fetcher: getPlenarySchedule, render: renderPlenaryScheduleRow,
@@ -590,7 +606,7 @@ export function createAssemblyHandler(apiKey: string) {
     }),
     // 국회의원
     member_current: buildHandler<MemberCurrentRow>(apiKey, {
-      domain: "현직 국회의원 (22대)", emoji: "👤", fetcher: getCurrentMembers, render: renderMemberCurrentRow, extraKeys: memberCurrentKeys, clientFilters: memberCommitteeClientFilter,
+      domain: "현직 국회의원 (22대)", emoji: "👤", fetcher: getCurrentMembers, render: renderMemberCurrentRow, extraKeys: memberCurrentWithCommittee,
     }),
     member_history: buildHandler<MemberHistoryRow>(apiKey, {
       domain: "역대 국회의원", emoji: "📜", fetcher: getMemberHistory, render: renderMemberHistoryRow, extraKeys: memberHistoryKeys,
@@ -638,6 +654,7 @@ export function registerAssembly(server: McpServer, apiKey: string): void {
       member_no: z.string().optional().describe("의원번호 (member_votes)"),
       vote_date: z.string().optional().describe("의결일자 (member_votes, 예: '11-NOV-21')"),
       proc_result_cd: z.string().optional().describe("처리결과 필터 (vote_by_bill, 예: '원안가결')"),
+      eraco: z.string().optional().describe("대수 (bill_receipts/bill_judge, 예: '제22대')"),
     },
     callback: async (params) => handler(params as AssemblyParams),
   });
