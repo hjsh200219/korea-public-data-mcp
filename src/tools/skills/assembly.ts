@@ -124,6 +124,8 @@ interface AssemblyParams {
   // 의원별 표결
   member_no?: string;
   vote_date?: string;
+  // vote_by_bill 처리결과 필터
+  proc_result_cd?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +407,13 @@ interface HandlerConfig<TRow> {
   requiredParams?: ReadonlyArray<keyof AssemblyParams>;
   /** AGE 미지정 시 자동 적용 — dataset이 AGE를 필수로 요구할 때 사용 */
   defaultAge?: string | number;
+  /**
+   * 서버가 무시하는 필터 — fetch 후 client-side로 row 필터링.
+   * 키: skill param 이름 (예: "committee_nm")
+   * 값: row 객체의 필드명 (예: "CMIT_NM") — substring 매칭
+   * 매핑된 param은 서버에 전송하지 않고 client에서 처리.
+   */
+  clientFilters?: Record<string, string>;
 }
 
 function buildHandler<TRow>(apiKey: string, cfg: HandlerConfig<TRow>) {
@@ -426,16 +435,46 @@ function buildHandler<TRow>(apiKey: string, cfg: HandlerConfig<TRow>) {
     }
     try {
       const opts = toOptions(p, cfg.extraKeys, cfg.defaultAge);
+      // client-filter 활성 여부 — server가 무시하는 필터가 사용자 인자에 있으면 활성
+      const record = p as unknown as Record<string, unknown>;
+      const activeClientFilters: Array<[string, string]> = [];
+      if (cfg.clientFilters) {
+        for (const [paramKey, rowField] of Object.entries(cfg.clientFilters)) {
+          const v = record[paramKey];
+          if (typeof v === "string" && v !== "") activeClientFilters.push([rowField, v]);
+        }
+      }
+      // client-filter 활성 시 1페이지 최대 1000건 fetch (필터 효과 극대화)
+      if (activeClientFilters.length > 0) {
+        opts.pSize = Math.max(opts.pSize ?? 0, 1000);
+        opts.pIndex = 1;
+      }
       const result = await cfg.fetcher(apiKey, opts);
-      if (result.rows.length === 0) {
+      let rows = result.rows;
+      let clientFilterNote = "";
+      if (activeClientFilters.length > 0) {
+        const before = rows.length;
+        rows = rows.filter((row) => {
+          const r = row as unknown as Record<string, unknown>;
+          return activeClientFilters.every(([field, val]) => {
+            const fv = r[field];
+            return typeof fv === "string" && fv.includes(val);
+          });
+        });
+        const filterDesc = activeClientFilters.map(([f, v]) => `${f}=${v}`).join(", ");
+        clientFilterNote = `\n\n_⚠️ 서버가 ${filterDesc} 필터를 무시하므로 client-side 필터 적용 — ${before}건 중 ${rows.length}건 매칭 (1페이지 ${opts.pSize}건 한정)_`;
+      }
+      if (rows.length === 0) {
         return emptyResultMessage(cfg.domain, {
           age: p.age != null ? String(p.age) : undefined,
           page: p.page != null ? String(p.page) : undefined,
         });
       }
       const header = `## ${cfg.emoji} ${cfg.domain}`;
-      const body = result.rows.map(cfg.render).join("\n\n");
-      const footer = fmtFooter(p.page ?? 1, p.size ?? 10, result.totalCount);
+      const body = rows.map(cfg.render).join("\n\n");
+      const footer = activeClientFilters.length > 0
+        ? `\n\n_총 ${rows.length}건 매칭 (서버 응답 ${result.totalCount.toLocaleString()}건)_${clientFilterNote}`
+        : fmtFooter(p.page ?? 1, p.size ?? 10, result.totalCount);
       return {
         content: [{ type: "text", text: truncate(`${header}\n\n${body}${footer}`) }],
       };
@@ -450,11 +489,9 @@ function buildHandler<TRow>(apiKey: string, cfg: HandlerConfig<TRow>) {
 // ---------------------------------------------------------------------------
 
 export function createAssemblyHandler(apiKey: string) {
-  // 공통 extra-key 매핑
+  // server-supported extra-key 매핑 (실API 매트릭스 검증)
   const billSearchKeys = { bill_name: "BILL_NAME", proposer: "PROPOSER", bill_id: "BILL_ID" };
   const billProcessingKeys = { bill_name: "BILL_NM", proposer: "PROPOSER", committee_nm: "COMMITTEE_NM" };
-  const pendingKeys = { bill_name: "BILL_NM", proposer: "PPSR_NM" };
-  const voteKeys = { era_co: "ERACO", sess: "SESS", dgr: "DGR", bill_name: "BILL_NM" };
   const memberCurrentKeys = { hg_nm: "HG_NM", poly_nm: "POLY_NM", orig_nm: "ORIG_NM" };
   const memberHistoryKeys = { hg_nm: "NAAS_NM", poly_nm: "PLPT_NM" };
   const billByIdKeys = { bill_id: "BILL_ID" };
@@ -462,14 +499,17 @@ export function createAssemblyHandler(apiKey: string) {
     bill_id: "BILL_ID", hg_nm: "HG_NM", poly_nm: "POLY_NM", member_no: "MEMBER_NO",
     vote_date: "VOTE_DATE", bill_no: "BILL_NO", bill_name: "BILL_NAME",
   };
-  const minutesKeys = {
-    dae_num: "DAE_NUM", conf_date: "CONF_DATE", title: "TITLE",
-    class_name: "CLASS_NAME", comm_name: "COMM_NAME",
-  };
-  const scheduleKeys = {
-    unit_cd: "UNIT_CD", title: "TITLE", meetting_date: "MEETTING_DATE",
-  };
-  const receiptKeys = { bill_name: "BILL_NM" };
+  const minutesDateKeys = { dae_num: "DAE_NUM", conf_date: "CONF_DATE" };
+  const scheduleKeys = { unit_cd: "UNIT_CD", title: "TITLE" };
+  const voteByBillKeys = { bill_name: "BILL_NAME", proc_result_cd: "PROC_RESULT_CD" };
+
+  // client-side 필터 매핑 (서버가 무시하는 필터 — fetch 후 row 부분매칭)
+  const pendingClientFilters = { bill_name: "BILL_NM", proposer: "PPSR_NM" };
+  const billNameClientFilter = { bill_name: "BILL_NM" };
+  const billNameAltClientFilter = { bill_name: "BILL_NAME" };
+  const voteListClientFilters = { bill_name: "BILL_NM", era_co: "ERACO", sess: "SESS", dgr: "DGR" };
+  const minutesClientFilters = { title: "TITLE", class_name: "CLASS_NAME", comm_name: "COMM_NAME" };
+  const memberCommitteeClientFilter = { committee_nm: "CMIT_NM" };
 
   return createDispatcher<AssemblyParams>("assembly", {
     // 의안/법률안
@@ -483,7 +523,7 @@ export function createAssemblyHandler(apiKey: string) {
       domain: "법률안 처리현황", emoji: "⚖️", fetcher: getBillProcessing, render: renderBillProcessingRow, extraKeys: billProcessingKeys,
     }),
     bill_pending: buildHandler<PendingBillRow>(apiKey, {
-      domain: "계류의안", emoji: "⏳", fetcher: getPendingBills, render: renderPendingBillRow, extraKeys: pendingKeys,
+      domain: "계류의안", emoji: "⏳", fetcher: getPendingBills, render: renderPendingBillRow, extraKeys: {}, clientFilters: pendingClientFilters,
     }),
     bill_processed: buildHandler<BillSearchRow>(apiKey, {
       domain: "처리의안", emoji: "✅", fetcher: getProcessedBills, render: renderBillSearchRow, extraKeys: billSearchKeys,
@@ -495,13 +535,13 @@ export function createAssemblyHandler(apiKey: string) {
       domain: "본회의부의안건", emoji: "📥", fetcher: getPlenaryReferredBills, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
     bill_committee_alt: buildHandler<BillSearchRow>(apiKey, {
-      domain: "위원회안·대안", emoji: "🧩", fetcher: getCommitteeAlternativeBills, render: renderBillSearchRow, extraKeys: billSearchKeys,
+      domain: "위원회안·대안", emoji: "🧩", fetcher: getCommitteeAlternativeBills, render: renderBillSearchRow, extraKeys: {}, clientFilters: billNameAltClientFilter,
     }),
     bill_receipts: buildHandler<BillReceiptRow>(apiKey, {
-      domain: "의안 접수목록", emoji: "📥", fetcher: getBillReceipts, render: renderBillReceiptRow, extraKeys: receiptKeys,
+      domain: "의안 접수목록", emoji: "📥", fetcher: getBillReceipts, render: renderBillReceiptRow, extraKeys: {}, clientFilters: billNameClientFilter,
     }),
     bill_judge: buildHandler<BillJudgeRow>(apiKey, {
-      domain: "위원회 심사정보", emoji: "🔍", fetcher: getBillJudge, render: renderBillJudgeRow, extraKeys: receiptKeys,
+      domain: "위원회 심사정보", emoji: "🔍", fetcher: getBillJudge, render: renderBillJudgeRow, extraKeys: {}, clientFilters: billNameClientFilter,
     }),
     bill_detail: buildHandler<BillDetailRow>(apiKey, {
       domain: "의안 상세", emoji: "📖", fetcher: getBillDetail, render: renderBillDetailRow,
@@ -513,19 +553,19 @@ export function createAssemblyHandler(apiKey: string) {
     }),
     // 본회의/표결
     plenary_vote_bills: buildHandler<PlenaryVoteBillRow>(apiKey, {
-      domain: "본회의 의결안건", emoji: "🗳️", fetcher: getPlenaryVoteBills, render: renderPlenaryVoteRow, extraKeys: voteKeys,
+      domain: "본회의 의결안건", emoji: "🗳️", fetcher: getPlenaryVoteBills, render: renderPlenaryVoteRow, extraKeys: {}, clientFilters: voteListClientFilters,
     }),
     plenary_processed_law: buildHandler<BillSearchRow>(apiKey, {
       domain: "본회의 처리안건_법률안", emoji: "🏛️", fetcher: getPlenaryProcessedV1, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
     plenary_processed_budget: buildHandler<BillSearchRow>(apiKey, {
-      domain: "본회의 처리안건_예산안", emoji: "🏛️", fetcher: getPlenaryProcessedV2, render: renderBillSearchRow, extraKeys: billSearchKeys,
+      domain: "본회의 처리안건_예산안", emoji: "🏛️", fetcher: getPlenaryProcessedV2, render: renderBillSearchRow, extraKeys: {}, clientFilters: billNameAltClientFilter,
     }),
     plenary_processed_etc: buildHandler<BillSearchRow>(apiKey, {
       domain: "본회의 처리안건_기타", emoji: "🏛️", fetcher: getPlenaryProcessedV3, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
     vote_by_bill: buildHandler<VoteByBillRow>(apiKey, {
-      domain: "의안별 표결현황", emoji: "🗳️", fetcher: getVoteByBill, render: renderVoteByBillRow, extraKeys: billSearchKeys,
+      domain: "의안별 표결현황", emoji: "🗳️", fetcher: getVoteByBill, render: renderVoteByBillRow, extraKeys: voteByBillKeys,
     }),
     member_votes: buildHandler<MemberVoteRow>(apiKey, {
       domain: "국회의원 본회의 표결정보", emoji: "🙋", fetcher: getMemberVotes, render: renderMemberVoteRow,
@@ -534,11 +574,11 @@ export function createAssemblyHandler(apiKey: string) {
     // 회의록/일정
     plenary_minutes: buildHandler<MinutesRow>(apiKey, {
       domain: "본회의 회의록", emoji: "📜", fetcher: getPlenaryMinutes, render: renderMinutesRow,
-      extraKeys: minutesKeys, requiredParams: ["dae_num", "conf_date"],
+      extraKeys: minutesDateKeys, clientFilters: minutesClientFilters, requiredParams: ["dae_num", "conf_date"],
     }),
     committee_minutes: buildHandler<MinutesRow>(apiKey, {
       domain: "위원회 회의록", emoji: "📜", fetcher: getCommitteeMinutes, render: renderMinutesRow,
-      extraKeys: minutesKeys, requiredParams: ["dae_num", "conf_date"],
+      extraKeys: minutesDateKeys, clientFilters: minutesClientFilters, requiredParams: ["dae_num", "conf_date"],
     }),
     plenary_schedule: buildHandler<PlenaryScheduleRow>(apiKey, {
       domain: "본회의 일정", emoji: "📅", fetcher: getPlenarySchedule, render: renderPlenaryScheduleRow,
@@ -550,7 +590,7 @@ export function createAssemblyHandler(apiKey: string) {
     }),
     // 국회의원
     member_current: buildHandler<MemberCurrentRow>(apiKey, {
-      domain: "현직 국회의원 (22대)", emoji: "👤", fetcher: getCurrentMembers, render: renderMemberCurrentRow, extraKeys: memberCurrentKeys,
+      domain: "현직 국회의원 (22대)", emoji: "👤", fetcher: getCurrentMembers, render: renderMemberCurrentRow, extraKeys: memberCurrentKeys, clientFilters: memberCommitteeClientFilter,
     }),
     member_history: buildHandler<MemberHistoryRow>(apiKey, {
       domain: "역대 국회의원", emoji: "📜", fetcher: getMemberHistory, render: renderMemberHistoryRow, extraKeys: memberHistoryKeys,
@@ -597,6 +637,7 @@ export function registerAssembly(server: McpServer, apiKey: string): void {
       meetting_date: z.string().optional().describe("일자 (plenary_schedule, 예: '2021-11-11')"),
       member_no: z.string().optional().describe("의원번호 (member_votes)"),
       vote_date: z.string().optional().describe("의결일자 (member_votes, 예: '11-NOV-21')"),
+      proc_result_cd: z.string().optional().describe("처리결과 필터 (vote_by_bill, 예: '원안가결')"),
     },
     callback: async (params) => handler(params as AssemblyParams),
   });

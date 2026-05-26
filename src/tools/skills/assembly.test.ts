@@ -426,3 +426,68 @@ describe("assembly — 전 렌더러 커버리지", () => {
     }
   });
 });
+
+describe("assembly — client-side filter (server 무시 필터)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("member_current + committee_nm: server 무시 → client-side 필터링", async () => {
+    // server는 286건 전체 반환 (필터 무시), client에서 CMIT_NM 부분매칭
+    mockFetchPayload(successEnv("nwvrqwxyaytdsfvhu", [
+      { HG_NM: "곽규택", CMIT_NM: "법제사법위원회, 국회운영위원회", POLY_NM: "국민의힘" },
+      { HG_NM: "강경숙", CMIT_NM: "교육위원회", POLY_NM: "조국혁신당" },
+      { HG_NM: "김기표", CMIT_NM: "법제사법위원회, 국회운영위원회", POLY_NM: "더불어민주당" },
+    ], 286));
+    const r = await createAssemblyHandler(TEST_KEY)({ action: "member_current", committee_nm: "법제사법", age: 22 });
+    const t = r.content[0].text;
+    expect(t).toContain("곽규택");
+    expect(t).toContain("김기표");
+    expect(t).not.toContain("강경숙"); // 교육위, 매칭 안 됨
+    expect(t).toContain("client-side 필터 적용");
+    expect(t).toContain("3건 중 2건 매칭");
+  });
+
+  it("member_current + committee_nm: server에 CMIT_NM 안 보냄 (extraKeys 제외)", async () => {
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify(successEnv("nwvrqwxyaytdsfvhu", [])), { status: 200 }),
+    );
+    await createAssemblyHandler(TEST_KEY)({ action: "member_current", committee_nm: "법사위", age: 22 });
+    const url = spy.mock.calls[0]?.[0] as string;
+    expect(url).not.toContain("CMIT_NM");
+    expect(url).toContain("pSize=1000"); // 활성 시 1페이지 max
+  });
+
+  it("plenary_vote_bills + bill_name: client filter (server 무시)", async () => {
+    mockFetchPayload(successEnv("VCONFBILLLIST", [
+      { BILL_NM: "교원 지위법", ERACO: "제22대", RESULT_VOTE_MOD: "가결" },
+      { BILL_NM: "민법 일부개정안", ERACO: "제22대", RESULT_VOTE_MOD: "가결" },
+    ], 201911));
+    const r = await createAssemblyHandler(TEST_KEY)({ action: "plenary_vote_bills", bill_name: "교원" });
+    const t = r.content[0].text;
+    expect(t).toContain("교원 지위법");
+    expect(t).not.toContain("민법");
+    expect(t).toContain("client-side 필터 적용");
+  });
+
+  it("bill_pending + bill_name: client filter (server 무시)", async () => {
+    mockFetchPayload(successEnv("nwbqublzajtcqpdae", [
+      { BILL_NM: "농수산물 품질관리법", BILL_NO: "2200001" },
+      { BILL_NM: "교원지위법", BILL_NO: "2200002" },
+    ], 13152));
+    const r = await createAssemblyHandler(TEST_KEY)({ action: "bill_pending", bill_name: "교원" });
+    const t = r.content[0].text;
+    expect(t).toContain("교원지위법");
+    expect(t).not.toContain("농수산물");
+  });
+
+  it("client filter 없을 시 일반 페이지 footer 유지", async () => {
+    mockFetchPayload(successEnv("nwvrqwxyaytdsfvhu", [
+      { HG_NM: "강경숙", CMIT_NM: "교육위", POLY_NM: "조국혁신당" },
+    ], 286));
+    const r = await createAssemblyHandler(TEST_KEY)({ action: "member_current", page: 1, size: 10 });
+    const t = r.content[0].text;
+    expect(t).not.toContain("client-side 필터");
+    expect(t).toContain("총 286건 / 페이지 1/29");
+  });
+});
