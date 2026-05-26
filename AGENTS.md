@@ -37,7 +37,8 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 ## Conventions
 
 - Korean comments for domain-specific logic
-- 스킬 도구: 17개 의도 기반, `action` enum으로 세부 동작 선택
+- 스킬 도구: 18개 의도 기반, `action` enum으로 세부 동작 선택
+- Contract tests (`*.contract.test.ts`): 도메인별 env var (`ASSEMBLY_API_KEY` 등) 있을 때만 실행 — `describe.skipIf(!process.env.X)` 패턴으로 CI baseline 영향 0
 - 스킬 등록: `server.tool()` 대신 `registerSkillTool()` (`tools/skills/_shared.ts`) 사용
 - 스킬 도구 `title`/`description`: 이중 언어 형식 — `"English / 한글"` (title), `"English desc. / 한글 설명"` (description)
 - REST routes: `kebab-case`
