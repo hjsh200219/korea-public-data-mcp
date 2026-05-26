@@ -1,7 +1,7 @@
 ---
-created: 2026-05-26T19:30:00+09:00
+created: 2026-05-26T20:15:00+09:00
 project: k-public-data-mcp
-summary: 국회 Open API 24 dataset 통합 — assembly 스킬 신설, contract test 24/24 GREEN, master push
+summary: 국회 Open API 24 dataset 통합 + CI coverage fix (79.66%→84.07%) — GitHub Actions degraded로 새 CI 실행 보류 중
 ---
 
 ## Session Digest
@@ -21,8 +21,11 @@ summary: 국회 Open API 24 dataset 통합 — assembly 스킬 신설, contract 
 - [x] AGENTS.md: 17→18 + contract test convention 추가
 - [x] Memory 5건 신규 저장
 - [x] Commit `e7ab21e` push 완료
+- [x] **CI coverage fix** — assembly.ts 29.74%→~85%로 12 renderer 테스트 보강. statements 79.66%→84.07% (threshold 80% 통과). Commit `34808c3` push.
+- [x] Pack 메타 커밋 `5d76dfd` + empty trigger `e6370e9` push 완료
 
 ## Next Steps
+0. **CI 상태 확인** — GitHub Actions degraded로 `34808c3`/`e6370e9` 새 run 미트리거 (10:36 UTC 이후). 회복 시 자동 실행 예상. 확인: `gh api repos/hjsh200219/korea-public-data-mcp/actions/runs --jq '.workflow_runs[0]'`
 1. **Railway 환경변수 추가** — `ASSEMBLY_API_KEY=1b173892dd7a48b5a926b347fe3565de` 등록 후 production 재배포, MCP stdio E2E 검증
 2. **v3 dataset 발굴** — 277 dataset 중 ~150 미해결 (회의록 detail, 상임위 분석/검토보고서, NABO/NARS 발간물, 청문회 회의록). [[assembly-api-dataset-id-discovery]] 패턴 따라 Playwright 자동화 스크립트 작성
 3. **REST/OpenAPI surface** — `src/routes/assembly-routes.ts` + `src/openapi/assembly-paths.ts` 추가 (verify-docs routeDomainFiles 11→12, openapiPathModules 11→12)
@@ -39,6 +42,7 @@ summary: 국회 Open API 24 dataset 통합 — assembly 스킬 신설, contract 
 - **vote_by_bill (ncocpgfiaoituanbr) schema** — vote count 필드 (MEMBER_TCNT/YES_TCNT/NO_TCNT/BLANK_TCNT). BillSearchRow 재사용 금지 — 별도 `VoteByBillRow` 사용.
 - **Velog/티스토리 dataset 라벨 신뢰 금지** — `nwbpacrgavhjryiph` velog="결산" but 실제="법률안 처리현황(위원회별)". 항상 live row schema로 검증. [[community-catalog-verify-via-live-api]]
 - **verify-docs EXPECTED 카운트** — 파일 추가/제거 시 `npm run verify-docs`로 동기화 필수.
+- **Coverage threshold trap** — vitest.config.ts statements 80%/branches 65%/functions 90%/lines 85%. 신규 도메인 추가 시 renderer/handler 미커버하면 통과 임박치(80% 근접)에서 떨어짐. 로컬 `npm run test:coverage` 필수 — `npm test`로는 미감지.
 - **HIRA 지역 매핑 자동 생성 파일** (`src/hira-region-codes.ts`) 직접 수정 금지 — `scripts/harvest-hira-region-codes.ts` 재실행.
 
 ## Files Touched
