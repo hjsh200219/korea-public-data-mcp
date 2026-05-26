@@ -449,4 +449,26 @@ describe("insurance 스킬", () => {
     expect(result.content[0].text).toContain("실손보험정보 조회 오류");
     expect(result.content[0].text).toContain("API rate limit");
   });
+
+  it("medical_reimbursement + like_prd_nm: 서버 무시 → 클라이언트 prdNm 필터 폴백", async () => {
+    // 서버는 likePrdNm 무시 (실API 검증) — 클라이언트가 prdNm includes(like_prd_nm)로 재필터
+    vi.mocked(searchMedicalReimbursementInsurance).mockResolvedValue({
+      totalCount: 3,
+      pageNo: 1,
+      numOfRows: 100,
+      items: [
+        { cmpyNm: "삼성생명", prdNm: "실손의료비보험" } as never,
+        { cmpyNm: "한화생명", prdNm: "암보험" } as never,
+        { cmpyNm: "교보생명", prdNm: "실손종합보험" } as never,
+      ],
+    });
+
+    const result = await handler({ action: "medical_reimbursement", like_prd_nm: "실손" });
+    expect(result.isError).toBeUndefined();
+    const t = result.content[0].text;
+    expect(t).toContain("실손의료비보험");
+    expect(t).toContain("실손종합보험");
+    expect(t).not.toContain("암보험");
+    expect(t).toContain("client-side 필터");
+  });
 });

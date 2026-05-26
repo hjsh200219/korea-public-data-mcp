@@ -403,7 +403,7 @@ describe("assembly — 전 렌더러 커버리지", () => {
     expect(t).toContain("생 1932-04-06");
   });
 
-  it("bill_search 변형 actions — plenary_processed_law/budget/etc + bill_processed/recent/referred/committee_alt 렌더", async () => {
+  it("bill_search 변형 actions — bill_processed/recent/referred/committee_alt/budget/settlement 렌더", async () => {
     const handler = createAssemblyHandler(TEST_KEY);
     const variants: Array<[string, string]> = [
       ["bill_processed", "nzpltgfqabtcpsmai"],
@@ -411,7 +411,6 @@ describe("assembly — 전 렌더러 커버리지", () => {
       ["bill_plenary_referred", "nayjnliqaexiioauy"],
       ["bill_committee_alt", "nxtkyptyaolzcbfwl"],
       ["plenary_processed_budget", "nzgjnvnraowulzqwl"],
-      ["plenary_processed_etc", "nbslryaradshbpbpm"],
       ["plenary_processed_settlement", "nkalemivaqmoibxro"],
       ["bill_search_extended", "TVBPMBILL11"],
     ];
@@ -425,6 +424,19 @@ describe("assembly — 전 렌더러 커버리지", () => {
       expect(r.content[0].text).toContain("테스트");
       expect(r.content[0].text).toContain("https://x.kr");
     }
+  });
+
+  it("plenary_processed_etc 렌더 — BILL_NM/LINK_URL/COMMITTEE_NM (processing row schema)", async () => {
+    vi.restoreAllMocks();
+    mockFetchPayload(successEnv("nbslryaradshbpbpm", [
+      { BILL_NO: "2200002", BILL_NM: "기타 안건 테스트", PROPOSER: "홍길동", COMMITTEE_NM: "법제사법위원회", PROC_RESULT_CD: "원안가결", LINK_URL: "https://etc.kr" },
+    ], 50));
+    const r = await createAssemblyHandler(TEST_KEY)({ action: "plenary_processed_etc", age: 22 });
+    expect(r.isError).toBeUndefined();
+    const t = r.content[0].text;
+    expect(t).toContain("기타 안건 테스트");
+    expect(t).toContain("법제사법위원회");
+    expect(t).toContain("https://etc.kr");
   });
 });
 
@@ -463,6 +475,25 @@ describe("assembly — client-side filter (server 무시 필터)", () => {
     const url = spy.mock.calls[0]?.[0] as string;
     expect(url).toContain("BILL_NAME=%EA%B5%90%EC%9B%90");
     expect(url).not.toContain("BILL_NM"); // 잘못된 옛 매핑
+  });
+
+  it("plenary_processed_etc + bill_name: server-side BILL_NM 전달 (nbslryaradshbpbpm spec)", async () => {
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify(successEnv("nbslryaradshbpbpm", [])), { status: 200 }),
+    );
+    await createAssemblyHandler(TEST_KEY)({ action: "plenary_processed_etc", bill_name: "교육", age: 22 });
+    const url = spy.mock.calls[0]?.[0] as string;
+    expect(url).toContain("BILL_NM=%EA%B5%90%EC%9C%A1");
+    expect(url).not.toContain("BILL_NAME="); // 이 dataset만 BILL_NM 사용 (server-side LIKE 검증됨)
+  });
+
+  it("plenary_processed_etc + committee_nm: server-side COMMITTEE_NM 전달", async () => {
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify(successEnv("nbslryaradshbpbpm", [])), { status: 200 }),
+    );
+    await createAssemblyHandler(TEST_KEY)({ action: "plenary_processed_etc", committee_nm: "법제사법위원회", age: 22 });
+    const url = spy.mock.calls[0]?.[0] as string;
+    expect(url).toContain("COMMITTEE_NM=%EB%B2%95%EC%A0%9C%EC%82%AC%EB%B2%95%EC%9C%84%EC%9B%90%ED%9A%8C");
   });
 
   it("client filter 없을 시 일반 페이지 footer 유지", async () => {

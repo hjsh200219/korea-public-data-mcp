@@ -495,20 +495,20 @@ export function createAssemblyHandler(apiKey: string) {
   // server-supported extra-key 매핑 (실API 매트릭스 검증)
   const billSearchKeys = { bill_name: "BILL_NAME", proposer: "PROPOSER", bill_id: "BILL_ID" };
   const billProcessingKeys = { bill_name: "BILL_NM", proposer: "PROPOSER", committee_nm: "COMMITTEE_NM" };
-  const memberCurrentKeys = { hg_nm: "HG_NM", poly_nm: "POLY_NM", orig_nm: "ORIG_NM" };
   const memberHistoryKeys = { hg_nm: "NAAS_NM", poly_nm: "PLPT_NM" };
   const billByIdKeys = { bill_id: "BILL_ID" };
   const memberVoteKeys = {
     bill_id: "BILL_ID", hg_nm: "HG_NM", poly_nm: "POLY_NM", member_no: "MEMBER_NO",
     vote_date: "VOTE_DATE", bill_no: "BILL_NO", bill_name: "BILL_NAME",
   };
-  const minutesDateKeys = { dae_num: "DAE_NUM", conf_date: "CONF_DATE" };
   const scheduleKeys = { unit_cd: "UNIT_CD", title: "TITLE" };
   const voteByBillKeys = { bill_name: "BILL_NAME", proc_result_cd: "PROC_RESULT_CD" };
 
   // bill_pending/bill_committee_alt/processed* spec 재확인 결과 server-side 필터 (BILL_NAME/PROPOSER) 작동.
   // 잘못된 BILL_NM/PPSR_NM 매핑이 무시되었던 것이므로 server extraKeys로 이동.
   const billNameProposerKeys = { bill_name: "BILL_NAME", proposer: "PROPOSER", bill_id: "BILL_ID" };
+  // nbslryaradshbpbpm (plenary_processed_etc) row field가 BILL_NM 이며 BILL_NAME server-side 무시 — BILL_NM/COMMITTEE_NM 사용
+  const etcProcessingKeys = { bill_name: "BILL_NM", proposer: "PROPOSER", committee_nm: "COMMITTEE_NM" };
   // VCONFBILLLIST는 spec 미확인 — 보수적으로 client filter 유지
   const voteListClientFilters = { bill_name: "BILL_NM", era_co: "ERACO", sess: "SESS", dgr: "DGR" };
   // 회의록 dataset (nzbyfwhwaoanttzje/ncwgseseafwbuheph)은 spec에 TITLE/CLASS_NAME 명시 — server-side
@@ -572,9 +572,9 @@ export function createAssemblyHandler(apiKey: string) {
     plenary_processed_budget: buildHandler<BillSearchRow>(apiKey, {
       domain: "본회의 처리안건_예산안", emoji: "🏛️", fetcher: getPlenaryProcessedV3, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
-    // nbslryaradshbpbpm = 기타 (이전 budget으로 매핑)
-    plenary_processed_etc: buildHandler<BillSearchRow>(apiKey, {
-      domain: "본회의 처리안건_기타", emoji: "🏛️", fetcher: getPlenaryProcessedV2, render: renderBillSearchRow, extraKeys: billSearchKeys,
+    // nbslryaradshbpbpm = 기타 (row field가 BILL_NM/COMMITTEE_NM이라 etcProcessingKeys + processing renderer 사용)
+    plenary_processed_etc: buildHandler<BillProcessingRow>(apiKey, {
+      domain: "본회의 처리안건_기타", emoji: "🏛️", fetcher: getPlenaryProcessedV2 as never, render: renderBillProcessingRow, extraKeys: etcProcessingKeys,
     }),
     // nkalemivaqmoibxro = 결산 (이전 v1=law로 매핑)
     plenary_processed_settlement: buildHandler<BillSearchRow>(apiKey, {

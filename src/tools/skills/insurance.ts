@@ -151,6 +151,9 @@ function renderMedicalReimbursement(item: MedicalReimbursementItem): string {
 function handleMedicalReimbursement(serviceKey: string) {
   return async (p: InsuranceParams): Promise<SkillResult> => {
     try {
+      // 서버가 likePrdNm를 무시 (실API 검증) — like_prd_nm 사용 시 numOfRows를 키워 가져온 뒤
+      // 클라이언트에서 prdNm includes 폴백 필터 적용.
+      const hasLikePrd = Boolean(p.like_prd_nm);
       const result = await searchMedicalReimbursementInsurance(serviceKey, {
         basDt: p.bas_dt,
         beginBasDt: p.begin_bas_dt,
@@ -164,9 +167,15 @@ function handleMedicalReimbursement(serviceKey: string) {
         age: p.age,
         ofrInstNm: p.ofr_inst_nm,
         pageNo: p.page_no,
-        numOfRows: p.num_of_rows,
+        numOfRows: hasLikePrd ? 1000 : p.num_of_rows,
       });
-      if (result.items.length === 0) {
+      const filteredItems = hasLikePrd
+        ? result.items.filter((it) => {
+            const name = it.prdNm ?? "";
+            return name.includes(p.like_prd_nm!);
+          })
+        : result.items;
+      if (filteredItems.length === 0) {
         return emptyResultMessage("실손보험정보", {
           cmpy_nm: p.cmpy_nm,
           prd_nm: p.prd_nm,
@@ -174,9 +183,11 @@ function handleMedicalReimbursement(serviceKey: string) {
           bas_dt: p.bas_dt,
         });
       }
-      const blocks = result.items.map(renderMedicalReimbursement);
+      const blocks = filteredItems.map(renderMedicalReimbursement);
       const header = "## 실손보험정보 (금융위원회)";
-      const footer = fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
+      const footer = hasLikePrd
+        ? `\n\n_총 ${filteredItems.length}건 (client-side 필터 적용, 원본 ${result.totalCount}건 중)_`
+        : fmtFooter(result.pageNo, result.numOfRows, result.totalCount);
       return {
         content: [{
           type: "text",
