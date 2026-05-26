@@ -233,8 +233,9 @@ export function getPlenaryProcessedV1(apiKey: string, options?: AssemblyFetchOpt
   return fetchAssembly<BillSearchRow>("nkalemivaqmoibxro", apiKey, options);
 }
 
-export function getPlenaryProcessedV2(apiKey: string, options?: AssemblyFetchOptions): Promise<AssemblyParsedResult<BillSearchRow>> {
-  return fetchAssembly<BillSearchRow>("nbslryaradshbpbpm", apiKey, options);
+// 주의: nbslryaradshbpbpm row schema는 BillProcessingRow (BILL_NM/COMMITTEE_NM/LINK_URL)
+export function getPlenaryProcessedV2(apiKey: string, options?: AssemblyFetchOptions): Promise<AssemblyParsedResult<BillProcessingRow>> {
+  return fetchAssembly<BillProcessingRow>("nbslryaradshbpbpm", apiKey, options);
 }
 
 export function getPlenaryProcessedV3(apiKey: string, options?: AssemblyFetchOptions): Promise<AssemblyParsedResult<BillSearchRow>> {

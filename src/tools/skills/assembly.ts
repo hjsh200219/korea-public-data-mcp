@@ -544,12 +544,14 @@ export function createAssemblyHandler(apiKey: string) {
     bill_committee_alt: buildHandler<BillSearchRow>(apiKey, {
       domain: "위원회안·대안", emoji: "🧩", fetcher: getCommitteeAlternativeBills, render: renderBillSearchRow, extraKeys: billSearchKeys,
     }),
-    // BILLRCPV2가 spec 정식 ID지만 BILL_ID 필수 — 기존 BILLRCP (호환성 동작 확인됨) 유지
+    // BILLRCP/BILLJUDGE는 BILL_NAME/BILL_NM 모두 server-side 무시 — client-side BILL_NM includes 폴백
     bill_receipts: buildHandler<BillReceiptRow>(apiKey, {
-      domain: "의안 접수목록", emoji: "📥", fetcher: getBillReceipts, render: renderBillReceiptRow, extraKeys: { eraco: "ERACO" },
+      domain: "의안 접수목록", emoji: "📥", fetcher: getBillReceipts, render: renderBillReceiptRow,
+      extraKeys: { eraco: "ERACO" }, clientFilters: { bill_name: "BILL_NM" },
     }),
     bill_judge: buildHandler<BillJudgeRow>(apiKey, {
-      domain: "위원회 심사정보 (예결산 제외)", emoji: "🔍", fetcher: getBillJudge, render: renderBillJudgeRow, extraKeys: { eraco: "ERACO" },
+      domain: "위원회 심사정보 (예결산 제외)", emoji: "🔍", fetcher: getBillJudge, render: renderBillJudgeRow,
+      extraKeys: { eraco: "ERACO" }, clientFilters: { bill_name: "BILL_NM" },
     }),
     bill_detail: buildHandler<BillDetailRow>(apiKey, {
       domain: "의안 상세", emoji: "📖", fetcher: getBillDetail, render: renderBillDetailRow,
@@ -574,7 +576,7 @@ export function createAssemblyHandler(apiKey: string) {
     }),
     // nbslryaradshbpbpm = 기타 (row field가 BILL_NM/COMMITTEE_NM이라 etcProcessingKeys + processing renderer 사용)
     plenary_processed_etc: buildHandler<BillProcessingRow>(apiKey, {
-      domain: "본회의 처리안건_기타", emoji: "🏛️", fetcher: getPlenaryProcessedV2 as never, render: renderBillProcessingRow, extraKeys: etcProcessingKeys,
+      domain: "본회의 처리안건_기타", emoji: "🏛️", fetcher: getPlenaryProcessedV2, render: renderBillProcessingRow, extraKeys: etcProcessingKeys,
     }),
     // nkalemivaqmoibxro = 결산 (이전 v1=law로 매핑)
     plenary_processed_settlement: buildHandler<BillSearchRow>(apiKey, {
@@ -628,7 +630,7 @@ export function registerAssembly(server: McpServer, apiKey: string): void {
       "Search bills, plenary votes, members from the Korean National Assembly. / 의안·법률안 처리현황·본회의 의결·국회의원 정보를 국회 Open API (open.assembly.go.kr)에서 조회합니다.",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
-        "[의안] bill_search/bill_search_extended/bill_processing/bill_pending/bill_processed/bill_recent_plenary/bill_plenary_referred/bill_committee_alt/bill_receipts/bill_judge | [상세, BILL_ID 필수] bill_detail/bill_proposers | [본회의/표결] plenary_vote_bills/plenary_processed_law/plenary_processed_budget/plenary_processed_etc/vote_by_bill | [의원별표결, BILL_ID 필수] member_votes | [회의록, DAE_NUM+CONF_DATE 필수] plenary_minutes/committee_minutes | [일정, UNIT_CD 필수] plenary_schedule | [위원회회의, BILL_ID 필수] bill_committee_conferences | [의원] member_current/member_history",
+        "[의안] bill_search/bill_search_extended/bill_processing/bill_pending/bill_processed/bill_recent_plenary/bill_plenary_referred/bill_committee_alt/bill_receipts/bill_judge | [상세, BILL_ID 필수] bill_detail/bill_proposers | [본회의/표결] plenary_vote_bills/plenary_processed_law/plenary_processed_budget/plenary_processed_etc/plenary_processed_settlement/vote_by_bill | [의원별표결, BILL_ID 필수] member_votes | [회의록, DAE_NUM+CONF_DATE 필수] plenary_minutes/committee_minutes | [일정, UNIT_CD 필수] plenary_schedule | [위원회회의, BILL_ID 필수] bill_committee_conferences | [의원] member_current/member_history",
       ),
       page: z.number().int().min(1).optional().describe("페이지 번호 (1-base, 기본 1)"),
       size: z.number().int().min(1).max(1000).optional().describe("페이지당 결과 수 (기본 10, 최대 1000)"),

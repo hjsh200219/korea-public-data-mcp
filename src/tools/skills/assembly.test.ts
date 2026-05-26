@@ -496,6 +496,30 @@ describe("assembly — client-side filter (server 무시 필터)", () => {
     expect(url).toContain("COMMITTEE_NM=%EB%B2%95%EC%A0%9C%EC%82%AC%EB%B2%95%EC%9C%84%EC%9B%90%ED%9A%8C");
   });
 
+  it("bill_receipts + bill_name: BILLRCP 무시 → client-side BILL_NM 폴백", async () => {
+    mockFetchPayload(successEnv("BILLRCP", [
+      { BILL_NM: "교육 관련 안건", BILL_NO: "2200001", ERACO: "제22대" },
+      { BILL_NM: "환경 관련 안건", BILL_NO: "2200002", ERACO: "제22대" },
+    ], 5753));
+    const r = await createAssemblyHandler(TEST_KEY)({ action: "bill_receipts", bill_name: "교육" });
+    const t = r.content[0].text;
+    expect(t).toContain("교육 관련 안건");
+    expect(t).not.toContain("환경 관련 안건");
+    expect(t).toContain("client-side 필터 적용");
+  });
+
+  it("bill_judge + bill_name: BILLJUDGE 무시 → client-side BILL_NM 폴백", async () => {
+    mockFetchPayload(successEnv("BILLJUDGE", [
+      { BILL_NM: "교육 관련 안건", BILL_NO: "2200001", ERACO: "제22대" },
+      { BILL_NM: "환경 관련 안건", BILL_NO: "2200002", ERACO: "제22대" },
+    ], 4663));
+    const r = await createAssemblyHandler(TEST_KEY)({ action: "bill_judge", bill_name: "교육" });
+    const t = r.content[0].text;
+    expect(t).toContain("교육 관련 안건");
+    expect(t).not.toContain("환경 관련 안건");
+    expect(t).toContain("client-side 필터 적용");
+  });
+
   it("client filter 없을 시 일반 페이지 footer 유지", async () => {
     mockFetchPayload(successEnv("nwvrqwxyaytdsfvhu", [
       { HG_NM: "강경숙", CMIT_NM: "교육위", POLY_NM: "조국혁신당" },
