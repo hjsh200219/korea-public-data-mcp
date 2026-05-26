@@ -311,7 +311,7 @@ function lookupSggu(name?: string): string | undefined {
   return undefined;
 }
 
-export interface HiraRegionResolution {
+interface HiraRegionResolution {
   sidoCd?: string;
   sgguCd?: string;
   matched: boolean;
