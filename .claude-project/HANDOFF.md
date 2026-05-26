@@ -1,7 +1,7 @@
 ---
-created: 2026-05-26T20:15:00+09:00
+created: 2026-05-26T21:30:00+09:00
 project: k-public-data-mcp
-summary: 국회 Open API 24 dataset 통합 + CI coverage fix (79.66%→84.07%) — GitHub Actions degraded로 새 CI 실행 보류 중
+summary: 국회 Open API 24 dataset 통합 + Production E2E 검증 + CI coverage/action 버전 fix — GitHub Actions degraded로 CI 통과 대기 중
 ---
 
 ## Session Digest
@@ -23,10 +23,14 @@ summary: 국회 Open API 24 dataset 통합 + CI coverage fix (79.66%→84.07%) �
 - [x] Commit `e7ab21e` push 완료
 - [x] **CI coverage fix** — assembly.ts 29.74%→~85%로 12 renderer 테스트 보강. statements 79.66%→84.07% (threshold 80% 통과). Commit `34808c3` push.
 - [x] Pack 메타 커밋 `5d76dfd` + empty trigger `e6370e9` push 완료
+- [x] **Railway 환경변수 ASSEMBLY_API_KEY 등록** + production 재배포 (uptime 2s 확인)
+- [x] **Production MCP HTTP E2E 검증** — Streamable HTTP 핸드셰이크 + 4 action 호출 (bill_search 17,286건, plenary_minutes 본회의 회의록, vote_by_bill 항공안전법 표결, member_current 조국혁신당 12명) ALL GREEN
+- [x] **CI action 버전 bump** — actions/checkout + setup-node v4→v5 (`feb39ab`)
+- [x] Pack 메타 `fcdfa8c` push 완료
 
 ## Next Steps
-0. **CI 상태 확인** — GitHub Actions degraded로 `34808c3`/`e6370e9` 새 run 미트리거 (10:36 UTC 이후). 회복 시 자동 실행 예상. 확인: `gh api repos/hjsh200219/korea-public-data-mcp/actions/runs --jq '.workflow_runs[0]'`
-1. **Railway 환경변수 추가** — `ASSEMBLY_API_KEY=1b173892dd7a48b5a926b347fe3565de` 등록 후 production 재배포, MCP stdio E2E 검증
+0. **CI 통과 대기 — GitHub Actions degraded** (githubstatus.com 12:17 UTC~). `feb39ab` v5 action으로도 같은 403 fatal — runner-side 인프라 이슈, 코드 fix 불가. GH 회복 후 `gh run rerun <ID>` 또는 next push 자동 통과 예상. 모니터: `gh api repos/hjsh200219/korea-public-data-mcp/actions/runs --jq '.workflow_runs[0]'`
+1. ~~Railway 환경변수~~ ✅ 완료 (이번 세션)
 2. **v3 dataset 발굴** — 277 dataset 중 ~150 미해결 (회의록 detail, 상임위 분석/검토보고서, NABO/NARS 발간물, 청문회 회의록). [[assembly-api-dataset-id-discovery]] 패턴 따라 Playwright 자동화 스크립트 작성
 3. **REST/OpenAPI surface** — `src/routes/assembly-routes.ts` + `src/openapi/assembly-paths.ts` 추가 (verify-docs routeDomainFiles 11→12, openapiPathModules 11→12)
 4. **harvest:assembly-catalog 스크립트** — `selectInfsOpenApiListPaging.do` + Playwright batch 자동화 (rate-limit safety + dry-run)
