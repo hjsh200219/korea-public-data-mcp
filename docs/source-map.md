@@ -36,10 +36,11 @@ src/
 | `openlegaldata` | OpenLegalData (독일 판례) |
 | `tourism` | 한국관광공사 KorService2 |
 | `coupang` | 쿠팡 파트너스 |
+| `assembly` | 국회 Open API (open.assembly.go.kr) — 의안/법률안/표결/의원 |
 
 ## 스킬 도구 (tools/skills/)
 
-★ 17개 의도 기반 스킬 도구 + MCP Prompts (v6)
+★ 18개 의도 기반 스킬 도구 + MCP Prompts (v6)
 
 | 파일 | 설명 |
 |------|------|
@@ -63,15 +64,16 @@ src/
 | `foreign-case-research.ts` | 해외 판례 (4 actions, US cursor + DE page 페이지네이션) |
 | `tourism.ts` | 한국관광공사 KorService2 (7 actions) |
 | `product-review.ts` | 제품 리뷰 (3 actions, youtube.md 동적 채널) |
+| `assembly.ts` | 국회 Open API (24 actions, 의안/법률안/처리안건/표결/회의록/일정/의원) |
 
 ## Layer Rules
 
 ```
 Entrypoint → Protocol (server.ts → tools/skills/index.ts)
                       + HTTP Adapter (api-routes.ts, openapi.ts)
-           → Data Access ({domain}-api.ts × 14)
+           → Data Access ({domain}-api.ts × 15)
            → Shared (shared.ts, tools/skills/_shared.ts)
-           → Types ({domain}-types.ts × 14)
+           → Types ({domain}-types.ts × 15)
 ```
 
 - Dependencies flow downward only

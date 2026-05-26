@@ -17,4 +17,5 @@
 | `FOREIGN_CASE_ENABLED` | No | `true` 설정 시 토큰 없이도 독일 판례 활성화 |
 | `COUPANG_ACCESS_KEY` | No | 쿠팡 파트너스 Access Key |
 | `COUPANG_SECRET_KEY` | No | 쿠팡 파트너스 Secret Key |
+| `ASSEMBLY_API_KEY` | No | 국회 Open API key (open.assembly.go.kr) — 의안/법률안/표결/국회의원 조회 |
 | `PORT` | No | HTTP server port (default: 3000) |

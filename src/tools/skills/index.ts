@@ -1,9 +1,10 @@
 /**
- * 스킬 도구 오케스트레이터 — 17개 스킬 도구 + MCP Prompts 등록
+ * 스킬 도구 오케스트레이터 — 18개 스킬 도구 + MCP Prompts 등록
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServerConfig } from "../../config.js";
+import { registerAssembly } from "./assembly.js";
 import { registerLegalResearch } from "./legal-research.js";
 import { registerCaseResearch } from "./case-research.js";
 import { registerLawAmendment } from "./law-amendment.js";
@@ -72,6 +73,10 @@ export function registerSkillTools(
       enableUS: hasCourtListener,
       enableDE: hasOpenLegalData,
     });
+  }
+
+  if (config.assemblyApiKey) {
+    registerAssembly(server, config.assemblyApiKey);
   }
 
   registerSkillPrompts(server);

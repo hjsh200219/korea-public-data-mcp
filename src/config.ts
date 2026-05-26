@@ -19,6 +19,7 @@ export interface ServerConfig {
   foreignCaseEnabled?: boolean;
   coupangAccessKey?: string;
   coupangSecretKey?: string;
+  assemblyApiKey?: string;
 }
 
 function collectUnipassKeys(): Record<string, string> {
@@ -43,6 +44,7 @@ export function loadConfig(): ServerConfig {
   const foreignCaseEnabled = process.env.FOREIGN_CASE_ENABLED === "true";
   const coupangAccessKey = process.env.COUPANG_ACCESS_KEY || "";
   const coupangSecretKey = process.env.COUPANG_SECRET_KEY || "";
+  const assemblyApiKey = process.env.ASSEMBLY_API_KEY || "";
   const unipassKeys = collectUnipassKeys();
 
   if (!lawApiOc) {
@@ -90,6 +92,10 @@ export function loadConfig(): ServerConfig {
     console.warn("COUPANG_ACCESS_KEY/COUPANG_SECRET_KEY 미설정 — 쿠팡 상품 검색 비활성화");
   }
 
+  if (!assemblyApiKey) {
+    console.warn("ASSEMBLY_API_KEY 미설정 — 국회 Open API 도구 비활성화");
+  }
+
   return {
     lawApiOc,
     dartApiKey: dartApiKey || undefined,
@@ -104,5 +110,6 @@ export function loadConfig(): ServerConfig {
     foreignCaseEnabled: foreignCaseEnabled || undefined,
     coupangAccessKey: coupangAccessKey || undefined,
     coupangSecretKey: coupangSecretKey || undefined,
+    assemblyApiKey: assemblyApiKey || undefined,
   };
 }
