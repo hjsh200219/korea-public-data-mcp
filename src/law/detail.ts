@@ -239,29 +239,89 @@ export async function getLawArticleSub(
 
   const data = await fetchXml(url.toString());
 
-  // 루트 엘리먼트는 법령 또는 Law
+  // 루트: 법령(국문) / Law(영문)
   const root = (data["법령"] || data.Law || data.lawjosub) as Record<string, unknown> | undefined;
   if (!root) throw new Error("조항호목 정보를 찾을 수 없습니다");
 
+  const basic = (root["기본정보"] as Record<string, unknown>) || root;
+  const lawTypeNode = basic["법종구분"];
+  const lawTypeName = typeof lawTypeNode === "object" && lawTypeNode !== null
+    ? str((lawTypeNode as Record<string, unknown>)["#text"])
+    : str(lawTypeNode);
+  const lawTypeCode = typeof lawTypeNode === "object" && lawTypeNode !== null
+    ? str((lawTypeNode as Record<string, unknown>)["@_법종구분코드"])
+    : str(basic["법종구분코드"]);
+  const deptNode = basic["소관부처"];
+  const departmentName = typeof deptNode === "object" && deptNode !== null
+    ? str((deptNode as Record<string, unknown>)["#text"])
+    : str(deptNode);
+
+  const articleWrapper = ensureArray(root["조문"] as Record<string, unknown>[])[0] as Record<string, unknown> | undefined;
+  const units = articleWrapper
+    ? ensureArray(articleWrapper["조문단위"] as Record<string, unknown>[])
+    : [];
+
+  // 조문여부=조문 인 항목만 본문 대상. 없으면 첫 항목.
+  const bodyUnits = units.filter((u) => str(u["조문여부"]) === "조문");
+  const primary = (bodyUnits[0] || units[0] || {}) as Record<string, unknown>;
+
+  const articleNumber = str(primary["조문번호"]);
+  const articleTitle = stripHtmlTags(str(primary["조문제목"]));
+  const articleHeader = stripHtmlTags(str(primary["조문내용"]));
+
+  // 항번호/호번호/목번호는 통상 항내용/호내용/목내용 안에 마커가 이미 포함되어 있음.
+  // 마커가 본문에 누락된 경우에만 접두로 붙여 중복을 피한다.
+  const prefixIfMissing = (marker: string, content: string): string => {
+    const m = marker.trim();
+    if (!m) return content;
+    if (!content) return m;
+    return content.startsWith(m) ? content : `${m} ${content}`;
+  };
+
+  const paragraphs = ensureArray(primary["항"] as Record<string, unknown>[]);
+  const renderedParagraphs = paragraphs
+    .map((para) => {
+      const pNum = stripHtmlTags(str(para["항번호"]));
+      const pContent = stripHtmlTags(str(para["항내용"]));
+      const paraLine = prefixIfMissing(pNum, pContent);
+      const clauses = ensureArray(para["호"] as Record<string, unknown>[]);
+      const renderedClauses = clauses
+        .map((c) => {
+          const cNum = stripHtmlTags(str(c["호번호"]));
+          const cContent = stripHtmlTags(str(c["호내용"]));
+          const clauseLine = `  ${prefixIfMissing(cNum, cContent)}`.trimEnd();
+          const subclauses = ensureArray(c["목"] as Record<string, unknown>[]);
+          const renderedSubs = subclauses
+            .map((m) => {
+              const mNum = stripHtmlTags(str(m["목번호"]));
+              const mContent = stripHtmlTags(str(m["목내용"]));
+              return `    ${prefixIfMissing(mNum, mContent)}`.trimEnd();
+            })
+            .join("\n");
+          return [clauseLine, renderedSubs].filter(Boolean).join("\n");
+        })
+        .join("\n");
+      return [paraLine, renderedClauses].filter(Boolean).join("\n");
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  const articleContent = [articleHeader, renderedParagraphs].filter(Boolean).join("\n");
+
   return {
-    lawKey: str(root.법령키),
-    lawId: str(root.법령ID),
-    promulgationDate: str(root.공포일자),
-    promulgationNumber: str(root.공포번호),
-    language: str(root.언어),
-    lawNameKo: str(root["법령명_한글"]),
-    lawNameHanja: str(root["법령명_한자"]),
-    lawTypeCode: str(root.법종구분코드),
-    lawTypeName: str(root.법종구분명),
-    departmentName: str(root.소관부처),
-    enforcementDate: str(root.시행일자),
-    articleNumber: str(root.조문번호),
-    articleContent: stripHtmlTags(str(root.조문내용)),
-    paragraphNumber: str(root.항번호),
-    paragraphContent: stripHtmlTags(str(root.항내용)),
-    clauseNumber: str(root.호번호),
-    clauseContent: stripHtmlTags(str(root.호내용)),
-    subclauseNumber: str(root.목번호),
-    subclauseContent: stripHtmlTags(str(root.목내용)),
+    lawKey: str(root["@_법령키"]) || str(basic["법령키"]),
+    lawId: str(basic["법령ID"]),
+    promulgationDate: str(basic["공포일자"]),
+    promulgationNumber: str(basic["공포번호"]),
+    language: str(basic["언어"]),
+    lawNameKo: str(basic["법령명_한글"]),
+    lawNameHanja: str(basic["법령명_한자"]),
+    lawTypeCode,
+    lawTypeName,
+    departmentName,
+    enforcementDate: str(basic["시행일자"]),
+    articleNumber,
+    articleTitle,
+    articleContent,
   };
 }

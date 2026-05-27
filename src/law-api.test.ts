@@ -1346,33 +1346,94 @@ describe("searchLawChangeHistory", () => {
 });
 
 describe("getLawArticleSub", () => {
-  it("getLawArticleSub_정상XML_파싱", async () => {
+  it("getLawArticleSub_정상XML_파싱_본문과항", async () => {
     mockFetchXml(`
-      <법령>
-        <법령키>k1</법령키>
-        <법령ID>LAW_SUB</법령ID>
-        <공포일자>20200101</공포일자>
-        <공포번호>1</공포번호>
-        <언어>한글</언어>
-        <법령명_한글>테스트법</법령명_한글>
-        <법령명_한자>測試法</법령명_한자>
-        <법종구분코드>1</법종구분코드>
-        <법종구분명>법률</법종구분명>
-        <소관부처>법무부</소관부처>
-        <시행일자>20200201</시행일자>
-        <조문번호>000100</조문번호>
-        <조문내용>조문</조문내용>
-        <항번호>000100</항번호>
-        <항내용>항</항내용>
-        <호번호>000100</호번호>
-        <호내용>호</호내용>
-        <목번호>가</목번호>
-        <목내용>목</목내용>
+      <법령 법령키="0092902025013120733">
+        <기본정보>
+          <법령ID>009290</법령ID>
+          <공포일자>20250131</공포일자>
+          <공포번호>20733</공포번호>
+          <언어>한글</언어>
+          <법종구분 법종구분코드="A0002">법률</법종구분>
+          <법령명_한글>민사집행법</법령명_한글>
+          <법령명_한자>民事執行法</법령명_한자>
+          <소관부처 소관부처코드="1270000">법무부</소관부처>
+          <시행일자>20260201</시행일자>
+        </기본정보>
+        <조문>
+          <조문단위 조문키="0276000">
+            <조문번호>276</조문번호>
+            <조문여부>전문</조문여부>
+          </조문단위>
+          <조문단위 조문키="0276001">
+            <조문번호>276</조문번호>
+            <조문여부>조문</조문여부>
+            <조문제목>가압류의 목적</조문제목>
+            <조문내용>제276조(가압류의 목적)</조문내용>
+            <항>
+              <항번호>① </항번호>
+              <항내용>①가압류는 금전채권이나 금전으로 환산할 수 있는 채권에 대하여 동산 또는 부동산에 대한 강제집행을 보전하기 위하여 할 수 있다.</항내용>
+            </항>
+            <항>
+              <항번호>② </항번호>
+              <항내용>②제1항의 채권이 조건이 붙어 있는 것이거나 기한이 차지 아니한 것인 경우에도 가압류를 할 수 있다.</항내용>
+            </항>
+          </조문단위>
+        </조문>
       </법령>
     `);
-    const r = await getLawArticleSub(OC, { lawId: 1, jo: "000100" });
-    expect(r.lawNameKo).toBe("테스트법");
-    expect(r.articleContent).toBe("조문");
+    const r = await getLawArticleSub(OC, { lawId: 268837, jo: "027600" });
+    expect(r.lawNameKo).toBe("민사집행법");
+    expect(r.lawTypeName).toBe("법률");
+    expect(r.lawTypeCode).toBe("A0002");
+    expect(r.departmentName).toBe("법무부");
+    expect(r.articleNumber).toBe("276");
+    expect(r.articleTitle).toBe("가압류의 목적");
+    expect(r.articleContent).toContain("제276조(가압류의 목적)");
+    expect(r.articleContent).toContain("①가압류는 금전채권");
+    expect(r.articleContent).toContain("②제1항의 채권이 조건");
+  });
+
+  it("getLawArticleSub_호목중첩_파싱", async () => {
+    mockFetchXml(`
+      <법령 법령키="k1">
+        <기본정보>
+          <법령ID>L1</법령ID>
+          <법령명_한글>테스트법</법령명_한글>
+        </기본정보>
+        <조문>
+          <조문단위>
+            <조문번호>10</조문번호>
+            <조문여부>조문</조문여부>
+            <조문제목>예시</조문제목>
+            <조문내용>제10조(예시)</조문내용>
+            <항>
+              <항번호>① </항번호>
+              <항내용>① 다음 각 호의 경우 적용한다.</항내용>
+              <호>
+                <호번호>1.</호번호>
+                <호내용>1. 첫째 사유</호내용>
+                <목>
+                  <목번호>가.</목번호>
+                  <목내용>세부 가</목내용>
+                </목>
+              </호>
+              <호>
+                <호번호>2.</호번호>
+                <호내용>2. 둘째 사유</호내용>
+              </호>
+            </항>
+          </조문단위>
+        </조문>
+      </법령>
+    `);
+    const r = await getLawArticleSub(OC, { lawId: 1, jo: "001000" });
+    expect(r.articleContent).toContain("제10조(예시)");
+    expect(r.articleContent).toContain("다음 각 호의 경우");
+    expect(r.articleContent).toContain("1. 첫째 사유");
+    expect(r.articleContent).toContain("가.");
+    expect(r.articleContent).toContain("세부 가");
+    expect(r.articleContent).toContain("2. 둘째 사유");
   });
 });
 

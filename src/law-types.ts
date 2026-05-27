@@ -517,13 +517,8 @@ export interface LawArticleSubDetail {
   departmentName: string; // 소관부처
   enforcementDate: string; // 시행일자
   articleNumber: string; // 조문번호
-  articleContent: string; // 조문내용
-  paragraphNumber: string; // 항번호
-  paragraphContent: string; // 항내용
-  clauseNumber: string; // 호번호
-  clauseContent: string; // 호내용
-  subclauseNumber: string; // 목번호
-  subclauseContent: string; // 목내용
+  articleTitle: string; // 조문제목
+  articleContent: string; // 조문 본문 (조문내용 + 항/호/목 합본 텍스트)
 }
 
 export interface LawArticleSubParams {

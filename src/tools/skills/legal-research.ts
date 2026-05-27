@@ -58,6 +58,8 @@ type LegalParams = {
   paragraph?: string;
   clause?: string;
   subclause?: string;
+  article_start?: number;
+  article_end?: number;
 };
 
 function handleSearchLaws(oc: string) {
@@ -112,12 +114,24 @@ function handleGetLawDetail(oc: string) {
         `- **제개정구분**: ${d.amendmentType}`,
       ];
 
-      if (d.articles.length > 0) {
-        parts.push("", "### 조문");
-        for (const a of d.articles) {
+      const hasRange = p.article_start !== undefined || p.article_end !== undefined;
+      const rangeStart = p.article_start ?? Number.MIN_SAFE_INTEGER;
+      const rangeEnd = p.article_end ?? Number.MAX_SAFE_INTEGER;
+      const filtered = hasRange
+        ? d.articles.filter((a) => {
+            const n = parseInt(a.articleNumber, 10);
+            return Number.isFinite(n) && n >= rangeStart && n <= rangeEnd;
+          })
+        : d.articles;
+
+      if (filtered.length > 0) {
+        parts.push("", `### 조문 (${filtered.length}개${hasRange ? ` / 전체 ${d.articles.length}개` : ""})`);
+        for (const a of filtered) {
           const title = a.articleTitle ? ` (${a.articleTitle})` : "";
           parts.push("", `**제${a.articleNumber}조${title}**`, "", a.articleContent);
         }
+      } else if (hasRange) {
+        parts.push("", `### 조문\n\n범위 [${p.article_start ?? "-"}~${p.article_end ?? "-"}]에 해당하는 조문이 없습니다. 전체 ${d.articles.length}개 조문 중 article_start/article_end를 조정하세요.`);
       }
 
       return { content: [{ type: "text", text: truncate(parts.join("\n")) }] };
@@ -520,20 +534,15 @@ function handleGetLawArticleSub(oc: string) {
         `- **시행일자**: ${d.enforcementDate}`,
       ];
 
-      if (d.articleContent) {
-        parts.push("", `### 제${d.articleNumber}조`, "", d.articleContent);
-      }
-      if (d.paragraphContent) {
-        parts.push("", `#### 제${d.paragraphNumber}항`, "", d.paragraphContent);
-      }
-      if (d.clauseContent) {
-        parts.push("", `##### 제${d.clauseNumber}호`, "", d.clauseContent);
-      }
-      if (d.subclauseContent) {
-        parts.push("", `###### ${d.subclauseNumber}목`, "", d.subclauseContent);
+      if (d.articleContent || d.articleNumber) {
+        const heading = d.articleTitle
+          ? `### 제${d.articleNumber}조 (${d.articleTitle})`
+          : `### 제${d.articleNumber}조`;
+        parts.push("", heading);
+        if (d.articleContent) parts.push("", d.articleContent);
       }
 
-      return { content: [{ type: "text", text: parts.join("\n") }] };
+      return { content: [{ type: "text", text: truncate(parts.join("\n")) }] };
     } catch (error) {
       return errorResponse("조항호목 조회", error);
     }
@@ -654,10 +663,12 @@ export function registerLegalResearch(
       term_id: z.string().optional().describe("법령용어 ID (get_legal_term_detail에서 사용)"),
       form_type: z.enum(["all", "table", "form", "annex", "other", "unclassified"]).optional()
         .describe("별표서식 종류 (search_attached_forms에서 사용)"),
-      article: z.string().optional().describe("조번호 6자리 (get_law_article_sub에서 사용, 예: '000100'은 제1조)"),
+      article: z.string().optional().describe("조번호 6자리 (get_law_article_sub에서 사용, 예: '000100'은 제1조, '027600'은 제276조)"),
       paragraph: z.string().optional().describe("항번호 6자리 (get_law_article_sub에서 사용)"),
       clause: z.string().optional().describe("호번호 6자리 (get_law_article_sub에서 사용)"),
       subclause: z.string().optional().describe("목번호 (get_law_article_sub에서 사용, 예: '가')"),
+      article_start: z.number().int().optional().describe("조 시작번호 (get_law_detail에서 사용, 응답 truncation 회피용 범위 필터)"),
+      article_end: z.number().int().optional().describe("조 종료번호 (get_law_detail에서 사용, 응답 truncation 회피용 범위 필터)"),
     },
     callback: async (params) => handler(params as LegalParams),
   });
