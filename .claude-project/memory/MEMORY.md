@@ -42,3 +42,7 @@
 - [scripts-cli-guard-pattern](scripts-cli-guard-pattern.md) — scripts/*.ts main() 자동 실행 방지 — process.argv[1] 가드 필수
 - [yt-dlp-auto-subtitle-flag-plural](yt-dlp-auto-subtitle-flag-plural.md) — --write-auto-subs(복수형)만 유효, 단수형 --write-auto-sub은 존재하지 않음
 - [yt-dlp-error-msg-case-insensitive-matching](yt-dlp-error-msg-case-insensitive-matching.md) — yt-dlp stderr 에러 메시지 매칭은 toLowerCase() 후 수행 필수
+- [law-drf-xml-nested-structure](law-drf-xml-nested-structure.md) — 법제처 DRF 법령/조항호목 XML은 기본정보 + 조문>조문단위[]>{항/호/목} 중첩, 루트 직속 가정 금지
+- [law-drf-root-element-fallback](law-drf-root-element-fallback.md) — trty 양자/다자, admrulOldAndNew, lawjosub 등 root 분기. fallback chain 필수
+- [law-elaw-joyn-y-not-string](law-elaw-joyn-y-not-string.md) — 영문법령 joYn은 "Y"/"N" 코드, "조문" 한글 비교 시 항상 false
+- [fast-xml-parser-repeated-tag-array](fast-xml-parser-repeated-tag-array.md) — 반복 태그 자동 배열화, str() 코어션 금지 → ensureArray + join 패턴

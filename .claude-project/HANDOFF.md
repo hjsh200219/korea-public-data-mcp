@@ -1,52 +1,50 @@
 ---
-created: 2026-05-26T23:15:00+09:00
+created: 2026-05-27T00:00:00+09:00
 project: k-public-data-mcp
-summary: 전 도메인 API 필터 라이브 매트릭스 검증 + 4건 server-ignore 수정 (architect APPROVE)
+summary: law detail 21개 함수 XML 파싱 전수 수정 + get_law_detail 범위 필터 추가 (라이브 검증 100% 통과)
 ---
 
 ## Session Digest
 
-본 프로젝트 18개 스킬·100+ 액션의 모든 server-side 필터를 라이브 API로 매트릭스 검증.
-4건 server-ignore 패턴 발견 + 수정 + TDD 테스트 추가:
-1. assembly.plenary_processed_etc — BILL_NAME server-ignored → BILL_NM/COMMITTEE_NM 매핑
-2. insurance.medical_reimbursement.likePrdNm — server-ignored → client-side prdNm includes 폴백
-3. assembly.bill_receipts/bill_judge — BILL_NAME/BILL_NM 모두 ignored → client-side BILL_NM 폴백
-4. assembly.plenary_processed_settlement — ACTIONS describe 누락 + V2 fetcher 타입 안전성
-
-Architect 2-pass: 1차 ITERATE (4 issues) → 2차 APPROVE.
-1018 tests pass, typecheck/lint/knip/verify-docs/build 0 issues.
+법제처 law detail API 21개 함수의 XML 파싱 버그 전수 수정.
+lawjosub/engLsJoArticle/admrulSub/trtySub/admrulSub(OldNew) 응답 실제 구조에 맞춰 파서 재작성.
+get_law_detail에 article_start/article_end 옵션 추가 — 긴 법령(예: 민사집행법 296조) 8000자 truncation 회피.
+커밋 2건 (a54a120, 1f12d6b), 1021 tests pass, lint/typecheck/build clean.
 
 ## Progress
 
-- ✅ 전 18개 도메인 필터 인벤토리 (caveman-investigator agent로 매트릭스 출력)
-- ✅ 라이브 API 검증 (DART/FINLIFE/Insurance/HIRA/Tourism/G2B/Law/Assembly)
-- ✅ 발견된 4건 모두 수정 + 라이브 검증
-- ✅ Production E2E (member_current + 법사위 → 18건)
-- ✅ Architect APPROVE on cc9de91
-- ✅ 3 round 커밋·푸시 (40a622d, f52cfff, cc9de91)
+- ✅ `getLawArticleSub` XML 파싱 재작성 — lawjosub 실제 응답(`법령조문 > 조문내용/항/호/목`) 반영
+- ✅ `get_law_detail`에 `article_start`/`article_end` 범위 필터 추가 (8000자 truncation 회피)
+- ✅ `getEnglishLawDetail` joYn 필터 — 조항만 추출, 편/장/절 제외
+- ✅ `getAdminRuleDetail` 다중 조문내용 노드 처리
+- ✅ `getTreatyDetail` 다자조약 응답 구조 분기
+- ✅ `getAdminRuleOldNewDetail` root 노드 보정
+- ✅ 라이브 검증: 21개 law detail 함수 전수 통과 (law/admrul/ordin/trty 양자·다자/lstrm/elaw/prec/detc/expc/decc/ftc/nhrck 위원회 결정문 + oldAndNew/lsStmd/thdCmp/admrulOldAndNew)
+- ✅ 테스트 1021건 통과, lint/typecheck/build 0 issues
+- ✅ 커밋 a54a120, 1f12d6b 푸시 완료
 
 ## Next Steps
 
-1. v3 backlog (이번 PR 외): BILLRCPV2/BILLRCP alias 정리, VCONFBILLLIST spec 재발굴, REST/OpenAPI surface 추가
-2. 추후 dataset 추가 시: row schema 먼저 확인 → server param 결정 매트릭스 적용
-3. like_* prefix param 의심: 새 insurance/data.go.kr 도메인 추가 시 server vs client filter 라이브 검증
+- 사용자 원목표(가압류 변경/취소 조문 텍스트 확보) — 이제 MCP만으로 가능. 후속 세션에서 `get_law_detail` + article range로 민사집행법/민사보전법 해당 조문 직접 인용 가능
+- v3 backlog: 4건 detail 함수의 inline TDD 테스트 추가 (현재는 라이브 검증으로만 확인)
+- 추후 law-api.ts에 새 detail 함수 추가 시 → 응답 XML 실제 구조 먼저 curl로 확인 후 파서 작성 (이번 세션의 4건 모두 추정 기반 파서로 인한 버그였음)
 
 ## Blockers
 
-- 없음 (모든 검증 게이트 green)
+- 없음 (모든 라이브 검증 green)
 
 ## Watch Out
 
-- `nbslryaradshbpbpm` (plenary_processed_etc) row schema는 `BillProcessingRow` 사용 — BILL_NM/COMMITTEE_NM/LINK_URL. `BillSearchRow` 아님.
-- VCONFBILLLIST는 모든 server filter 무시 — voteListClientFilters 유지 필수
-- BILLRCP/BILLJUDGE BILL_NAME/BILL_NM 둘 다 무시 — clientFilters: { bill_name: "BILL_NM" } 필수
-- open.assembly.go.kr curl 직접 검증 시 `-A "Mozilla/5.0"` 헤더 필수 (curl 기본 UA는 400)
-- FINLIFE도 Node fetch에서 User-Agent 헤더 명시 (src/finlife-api.ts:93)
+- `lstrm` (법령용어) 다중 `trmSeqs` 호출 시 응답 garbled — **단일 ID만 권장**. 배치 조회 필요 시 순차 단건 호출 + 클라이언트 머지
+- lawjosub 응답은 `법령조문 > 조문단위 > 조문내용` (단수)이지만 admrul/trty 일부는 `조문내용` 다중 노드 — 함수별로 array-handling 분기 필요 (`Array.isArray()` 가드 필수)
+- `getEnglishLawDetail`은 편/장/절 헤더와 조항이 한 리스트에 섞여 있음 — `joYn === 'Y'` 필터로 조항만 추출
+- 다자조약 (`getTreatyDetail` multilateral)은 양자조약과 root 구조 다름 — 응답 root 키로 분기
+- get_law_detail 호출 시 article_start/article_end 미지정이면 전체 반환 (8000자 truncate 가능) — 긴 법령은 범위 지정 권장
 
 ## Files Touched
 
-- src/tools/skills/assembly.ts (handler config + describe + clientFilters)
-- src/tools/skills/assembly.test.ts (TDD: plenary_processed_etc + bill_receipts/bill_judge)
-- src/tools/skills/insurance.ts (medical_reimbursement client-fallback)
-- src/tools/skills/insurance.test.ts (TDD: like_prd_nm fallback)
-- src/assembly-api.ts (getPlenaryProcessedV2 return type → BillProcessingRow)
+- src/law/detail.ts — getLawArticleSub 재작성 + getEnglishLawDetail joYn 필터 + getAdminRuleDetail 다중 노드 + getTreatyDetail 다자조약 fallback
+- src/law/amendment.ts — getAdminRuleOldNewDetail root fallback
+- src/law-types.ts — LawArticleSubDetail 구조 단순화 (articleTitle 추가)
+- src/tools/skills/legal-research.ts — get_law_article_sub 출력 단순화 + get_law_detail article_start/article_end 범위 필터
+- src/law-api.test.ts — 4개 수정에 대응하는 mock XML 갱신 + 호/목 중첩 케이스 추가
