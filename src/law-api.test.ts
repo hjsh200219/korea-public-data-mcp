@@ -856,6 +856,22 @@ describe("getAdminRuleDetail", () => {
     expect(r.ruleName).toBe("테스트훈령");
     expect(r.content).toBe("조문본문");
   });
+
+  it("getAdminRuleDetail_복수조문내용_줄바꿈으로결합", async () => {
+    mockFetchXml(`
+      <AdmRulService>
+        <행정규칙기본정보>
+          <행정규칙일련번호>500002</행정규칙일련번호>
+          <행정규칙명>다조문훈령</행정규칙명>
+        </행정규칙기본정보>
+        <조문내용>제1조 목적</조문내용>
+        <조문내용>제2조 정의</조문내용>
+        <조문내용>제3조 적용</조문내용>
+      </AdmRulService>
+    `);
+    const r = await getAdminRuleDetail(OC, 500002);
+    expect(r.content).toBe("제1조 목적\n\n제2조 정의\n\n제3조 적용");
+  });
 });
 
 describe("searchOrdinances", () => {
@@ -913,7 +929,7 @@ describe("getOrdinanceDetail", () => {
 });
 
 describe("getTreatyDetail", () => {
-  it("getTreatyDetail_정상XML_파싱", async () => {
+  it("getTreatyDetail_양자조약_BothTrtyService루트", async () => {
     mockFetchXml(`
       <BothTrtyService>
         <조약기본정보>
@@ -939,6 +955,31 @@ describe("getTreatyDetail", () => {
     expect(r.counterpartyCountry).toBe("미국");
     expect(r.content).toBe("조약본문");
   });
+
+  it("getTreatyDetail_다자조약_MultTrtyService루트", async () => {
+    mockFetchXml(`
+      <MultTrtyService>
+        <조약기본정보>
+          <조약일련번호>700002</조약일련번호>
+          <조약명_한글>다자조약명</조약명_한글>
+          <조약명_영문>Multilateral Treaty</조약명_영문>
+          <발효일자>20230601</발효일자>
+          <조약번호>2550</조약번호>
+        </조약기본정보>
+        <추가정보>
+          <다자조약분야명>무역/통상/산업</다자조약분야명>
+        </추가정보>
+        <조약내용>
+          <조약내용>다자조약 본문</조약내용>
+        </조약내용>
+      </MultTrtyService>
+    `);
+    const r = await getTreatyDetail(OC, 700002);
+    expect(r.id).toBe(700002);
+    expect(r.treatyNameKo).toBe("다자조약명");
+    expect(r.treatyField).toBe("무역/통상/산업");
+    expect(r.content).toBe("다자조약 본문");
+  });
 });
 
 describe("getLegalTermDetail", () => {
@@ -960,7 +1001,7 @@ describe("getLegalTermDetail", () => {
 });
 
 describe("getEnglishLawDetail", () => {
-  it("getEnglishLawDetail_정상XML_파싱", async () => {
+  it("getEnglishLawDetail_joYn=Y_조문_챕터헤더는제외", async () => {
     mockFetchXml(`
       <Law>
         <InfSection>
@@ -971,10 +1012,22 @@ describe("getEnglishLawDetail", () => {
         </InfSection>
         <JoSection>
           <Jo>
-            <joYn>조문</joYn>
+            <joYn>N</joYn>
             <joNo>1</joNo>
-            <joTtl>General</joTtl>
+            <joTtl></joTtl>
+            <joCts>CHAPTER I GENERAL PROVISIONS</joCts>
+          </Jo>
+          <Jo>
+            <joYn>Y</joYn>
+            <joNo>1</joNo>
+            <joTtl>Article 1 (Purpose)</joTtl>
             <joCts>Article text</joCts>
+          </Jo>
+          <Jo>
+            <joYn>Y</joYn>
+            <joNo>2</joNo>
+            <joTtl>Article 2 (Definition)</joTtl>
+            <joCts>Definition text</joCts>
           </Jo>
         </JoSection>
       </Law>
@@ -982,7 +1035,10 @@ describe("getEnglishLawDetail", () => {
     const r = await getEnglishLawDetail(OC, 600000);
     expect(r.lawId).toBe("ELAW1");
     expect(r.lawNameEn).toBe("Civil Act");
+    expect(r.articles).toHaveLength(2);
+    expect(r.articles[0].articleTitle).toBe("Article 1 (Purpose)");
     expect(r.articles[0].articleContent).toBe("Article text");
+    expect(r.articles[1].articleTitle).toBe("Article 2 (Definition)");
   });
 });
 
@@ -1510,9 +1566,9 @@ describe("searchAdminRuleOldNew", () => {
 });
 
 describe("getAdminRuleOldNewDetail", () => {
-  it("getAdminRuleOldNewDetail_정상XML_파싱", async () => {
+  it("getAdminRuleOldNewDetail_AdmRulOldAndNewService루트_파싱", async () => {
     mockFetchXml(`
-      <OldAndNewService>
+      <AdmRulOldAndNewService>
         <구조문_기본정보>
           <행정규칙ID>OLD_R</행정규칙ID>
           <행정규칙일련번호>1</행정규칙일련번호>
@@ -1533,7 +1589,7 @@ describe("getAdminRuleOldNewDetail", () => {
         </신조문_기본정보>
         <구조문목록><조문>구</조문></구조문목록>
         <신조문목록><조문>신</조문></신조문목록>
-      </OldAndNewService>
+      </AdmRulOldAndNewService>
     `);
     const r = await getAdminRuleOldNewDetail(OC, 180001);
     expect(r.oldBasicInfo.ruleName).toBe("구규칙");

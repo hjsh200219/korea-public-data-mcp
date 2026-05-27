@@ -403,7 +403,8 @@ export async function getAdminRuleOldNewDetail(
   const url = buildDetailUrl(oc, "admrulOldAndNew", "ID", id);
   const data = await fetchXml(url);
 
-  const root = data.OldAndNewService as Record<string, unknown> | undefined;
+  // 행정규칙 신구법비교 루트는 AdmRulOldAndNewService.
+  const root = (data.AdmRulOldAndNewService || data.OldAndNewService) as Record<string, unknown> | undefined;
   if (!root) throw new Error("행정규칙 신구법비교 정보를 찾을 수 없습니다");
 
   const oldInfo = root["구조문_기본정보"] as Record<string, unknown> || {};

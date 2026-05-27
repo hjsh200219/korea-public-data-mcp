@@ -78,6 +78,13 @@ export async function getAdminRuleDetail(
 
   const basic = root["행정규칙기본정보"] as Record<string, unknown> || root;
 
+  // 조문내용은 반복 태그(여러 조). 단일/배열 모두 처리하여 줄바꿈으로 합친다.
+  const articleNodes = ensureArray(root["조문내용"] as unknown);
+  const content = articleNodes
+    .map((node) => stripHtmlTags(str(node)))
+    .filter(Boolean)
+    .join("\n\n");
+
   return {
     id: num(basic.행정규칙일련번호),
     ruleName: str(basic.행정규칙명),
@@ -86,7 +93,7 @@ export async function getAdminRuleDetail(
     issuanceNumber: str(basic.발령번호),
     departmentName: str(basic.소관부처명),
     amendmentType: str(basic.제개정구분명),
-    content: stripHtmlTags(str(root.조문내용)),
+    content,
   };
 }
 
@@ -136,15 +143,20 @@ export async function getTreatyDetail(
   const url = buildDetailUrl(oc, "trty", "ID", id);
   const data = await fetchXml(url);
 
-  const root = data.BothTrtyService as Record<string, unknown> | undefined;
+  // 양자조약은 BothTrtyService, 다자조약은 MultTrtyService 루트를 사용한다.
+  const root = (data.BothTrtyService || data.MultTrtyService) as Record<string, unknown> | undefined;
   if (!root) throw new Error("조약을 찾을 수 없습니다");
 
   const basic = root["조약기본정보"] as Record<string, unknown> || {};
   const extra = root["추가정보"] as Record<string, unknown> || {};
   const contentWrapper = root["조약내용"] as Record<string, unknown> | undefined;
-  const contentText = contentWrapper
-    ? str((contentWrapper as Record<string, unknown>)["조약내용"])
-    : "";
+  // 다자조약 응답은 조약내용 래퍼 안에 같은 이름의 자식이 1개 또는 다수로 들어온다.
+  const innerNodes = contentWrapper
+    ? ensureArray((contentWrapper as Record<string, unknown>)["조약내용"] as unknown)
+    : [];
+  const contentText = innerNodes.length > 0
+    ? innerNodes.map((n) => stripHtmlTags(str(n))).filter(Boolean).join("\n\n")
+    : stripHtmlTags(str(contentWrapper));
 
   return {
     id: num(basic.조약일련번호),
@@ -154,8 +166,8 @@ export async function getTreatyDetail(
     signDate: str(basic.서명일자),
     treatyNumber: str(basic.조약번호),
     counterpartyCountry: str(extra.체결대상국가한글 || extra.체결대상국가),
-    treatyField: str(extra.양자조약분야명),
-    content: stripHtmlTags(contentText),
+    treatyField: str(extra.양자조약분야명) || str(extra.다자조약분야명),
+    content: contentText,
   };
 }
 
@@ -208,8 +220,9 @@ export async function getEnglishLawDetail(
     lawNameEn: str(infSection.lsNmEng),
     promulgationDate: str(infSection.ancYd),
     promulgationNumber: str(infSection.ancNo),
+    // joYn=Y 만 조문(章/CHAPTER 헤더 등 N 항목 제외).
     articles: rawArticles
-      .filter((a) => str(a.joYn) === "조문" || str(a.joCts))
+      .filter((a) => str(a.joYn) === "Y")
       .map((a) => ({
         articleNumber: str(a.joNo),
         articleBranchNumber: str(a.joBrNo),
