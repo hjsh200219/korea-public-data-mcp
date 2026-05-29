@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { filterCookiesByDomain, ensureNetscapeHeader } from "./refresh-youtube-cookies.js";
+import {
+  filterCookiesByDomain,
+  ensureNetscapeHeader,
+  findMissingAuthCookies,
+} from "./refresh-youtube-cookies.js";
 
 const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
 
@@ -90,6 +94,54 @@ describe("ensureNetscapeHeader", () => {
   it("빈 문자열에 헤더 추가", () => {
     const result = ensureNetscapeHeader("");
     expect(result).toBe(NETSCAPE_HEADER);
+  });
+});
+
+describe("findMissingAuthCookies (로그아웃 프로필 가드)", () => {
+  it("필수 인증 쿠키 모두 있으면 빈 배열", () => {
+    const filtered = [
+      makeLine(".youtube.com", "LOGIN_INFO"),
+      makeLine(".youtube.com", "SAPISID"),
+      makeLine(".youtube.com", "__Secure-1PSID"),
+    ].join("\n");
+    expect(findMissingAuthCookies(filtered)).toEqual([]);
+  });
+
+  it("로그아웃 방문자 쿠키만 있으면 전부 누락 보고", () => {
+    const filtered = [
+      makeLine(".youtube.com", "PREF"),
+      makeLine(".youtube.com", "YSC"),
+      makeLine(".youtube.com", "VISITOR_INFO1_LIVE"),
+    ].join("\n");
+    expect(findMissingAuthCookies(filtered)).toEqual([
+      "LOGIN_INFO",
+      "SAPISID",
+      "__Secure-1PSID",
+    ]);
+  });
+
+  it("일부만 있으면 누락분만 보고", () => {
+    const filtered = makeLine(".youtube.com", "SAPISID");
+    expect(findMissingAuthCookies(filtered)).toEqual(["LOGIN_INFO", "__Secure-1PSID"]);
+  });
+
+  it("빈 입력이면 전부 누락", () => {
+    expect(findMissingAuthCookies("")).toEqual([
+      "LOGIN_INFO",
+      "SAPISID",
+      "__Secure-1PSID",
+    ]);
+  });
+
+  it("헤더/주석 줄은 무시", () => {
+    const filtered = [
+      "# Netscape HTTP Cookie File",
+      "# comment",
+      makeLine(".youtube.com", "LOGIN_INFO"),
+      makeLine(".youtube.com", "SAPISID"),
+      makeLine(".youtube.com", "__Secure-1PSID"),
+    ].join("\n");
+    expect(findMissingAuthCookies(filtered)).toEqual([]);
   });
 });
 

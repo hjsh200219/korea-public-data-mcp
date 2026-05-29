@@ -18,6 +18,25 @@ const ALLOWED_DOMAINS = [".youtube.com"];
 // 20KB 경고 임계값
 const WARN_SIZE_BYTES = 20 * 1024;
 
+// 인증(로그인) 쿠키 — 이게 없으면 transcript 추출 불가.
+// 로그아웃/잘못된 프로필 추출 시 방문자 쿠키(PREF/YSC 등)만 잡혀 빈값 아님 → 업로드 차단용 가드.
+export const REQUIRED_AUTH_COOKIES = ["LOGIN_INFO", "SAPISID", "__Secure-1PSID"];
+
+/** 필터링된 Netscape 쿠키에서 누락된 필수 인증 쿠키 목록 반환 (빈 배열 = 정상) */
+export function findMissingAuthCookies(filtered: string): string[] {
+  const names = new Set<string>();
+  for (const line of filtered.split("\n")) {
+    if (line.startsWith("#") || line.trim() === "") {
+      continue;
+    }
+    const parts = line.split("\t");
+    if (parts.length >= 6 && parts[5]) {
+      names.add(parts[5]);
+    }
+  }
+  return REQUIRED_AUTH_COOKIES.filter((c) => !names.has(c));
+}
+
 /** Netscape 쿠키 파일에서 허용된 도메인만 필터링 */
 export function filterCookiesByDomain(raw: string): string {
   const lines = raw.split("\n");
@@ -61,9 +80,11 @@ function parseBrowserArg(): string {
 
 async function main(): Promise<void> {
   const browser = parseBrowserArg();
+  // yt-dlp 형식: BROWSER[+KEYRING][:PROFILE] (예: "chrome:Profile 4") — 브라우저명만 검증
+  const browserName = browser.split(":")[0].split("+")[0];
   const validBrowsers = ["chrome", "firefox", "safari", "brave", "edge", "chromium"];
-  if (!validBrowsers.includes(browser)) {
-    console.error(`지원하지 않는 브라우저: ${browser}`);
+  if (!validBrowsers.includes(browserName)) {
+    console.error(`지원하지 않는 브라우저: ${browserName}`);
     console.error(`지원 목록: ${validBrowsers.join(", ")}`);
     process.exit(1);
   }
@@ -94,6 +115,15 @@ async function main(): Promise<void> {
 
   // 도메인 필터링
   const filtered = filterCookiesByDomain(raw);
+
+  // 인증 쿠키 가드 — 로그아웃/잘못된 프로필(방문자 쿠키만) 업로드 차단
+  const missing = findMissingAuthCookies(filtered);
+  if (missing.length > 0) {
+    console.error(`[FATAL] 인증 쿠키 누락: ${missing.join(", ")}`);
+    console.error("크롬 프로필이 YouTube 로그아웃 상태이거나 잘못된 프로필을 읽음 → 업로드 중단.");
+    console.error('해결: --browser "chrome:Profile N" 으로 로그인된 프로필 지정.');
+    process.exit(1);
+  }
 
   // Netscape 헤더 확인/추가
   const withHeader = ensureNetscapeHeader(filtered);
