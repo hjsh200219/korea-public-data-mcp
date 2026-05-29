@@ -49,6 +49,7 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - 스킬 내 텍스트 검색: `matchesQuery(title, description, query)` — title+description 토큰 분리 매칭, 대소문자 무시
 - YouTube kill switches: `YOUTUBE_CIRCUIT_BREAKER_ENABLED`, `YOUTUBE_PROBE_ENABLED` (`false`로 즉시 비활성화)
 - YouTube cookies: `.youtube.com` 도메인만 필터링 (Railway 32KB 제한 — `.google.com` 포함 시 초과)
+- YouTube cookie 추출: yt-dlp `--cookies-from-browser`에 **로그인된 프로필 명시 필수** (`chrome:Profile N`) — 프로필 미지정 시 `Default` 읽어 로그아웃 방문자 쿠키만 잡힘. `refresh-youtube-cookies.ts`는 `BROWSER:PROFILE` 형식 파싱 + `findMissingAuthCookies` 가드(LOGIN_INFO/SAPISID/`__Secure-1PSID` 없으면 업로드 중단)
 - YouTube Circuit Breaker `state` getter는 lazy 전이 포함 (open→half-open by `OPEN_DURATION_MS`) — 별도 `currentState` 만들지 말고 단일 게터 재사용 (`isOpen()`도 동일 게터 호출)
 - YouTube Python fallback 성공 경로도 `youtubeCircuitBreaker.recordSuccess()` 명시 호출 — half-open 회복 메커니즘 보존 (누락 시 영구 half-open 잔존)
 - CLI scripts (`scripts/*.ts`): `main()`은 `process.argv[1]` 가드로 보호 — import 시 자동 실행 방지 (test:coverage 부작용)
