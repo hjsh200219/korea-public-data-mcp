@@ -27,3 +27,4 @@
 - [yt-dlp-cookies-file-quirks](memory/yt-dlp-cookies-file-quirks.md) — yt-dlp --cookies 파일/URL 사용 시 함정 두 가지
 - [yt-dlp-cookies-from-browser-leakage](memory/yt-dlp-cookies-from-browser-leakage.md) — yt-dlp --cookies-from-browser는 모든 사이트 쿠키 추출 — 도메인 필터 필수
 - [yt-dlp-partial-write-on-exit1](memory/yt-dlp-partial-write-on-exit1.md) — yt-dlp exits 1 on multi-lang 429 but may have already written subtitle files — read before throwing
+- [gov24-ai-endpoint-characteristics](memory/gov24-ai-endpoint-characteristics.md) — plus.gov.kr AI 익명 cold POST + SSE 이중 스키마(CHUNK/stream) + X_GST_QLC 쿼터

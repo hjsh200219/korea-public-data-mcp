@@ -1,41 +1,50 @@
 ---
-created: 2026-05-30T08:18:51+09:00
-project: korea-public-data-mcp
-summary: YouTube 쿠키 동기화 인증쿠키 누락 장애 진단 및 수정 (프로필 미지정 → Profile 4 지정 + 가드 추가)
+created: 2026-06-03T07:20:00+09:00
+project: k-public-data-mcp
+summary: gov24-ai (plus.gov.kr AI 민원 검색 beta) 통합 — ralplan→ralph, E2E 검증, push 완료
 ---
 
 ## Session Digest
-YouTube `get_transcript`가 "쿠키 만료/로그인 필요"로 지속 실패. 사용자는 `sync-youtube-cookies` cron이 성공(8줄 846B 업로드)했다고 보고했으나 여전히 실패.
 
-근본 원인: `scripts/sync-youtube-cookies.sh`가 `yt-dlp --cookies-from-browser chrome`를 프로필 미지정으로 호출 → yt-dlp가 `Default` 프로필을 읽는데 이 맥엔 Default가 없음(로그인 세션 = `Profile 4`) → 로그아웃 방문자 쿠키 8개(PREF/YSC/VISITOR_INFO1_LIVE 등)만 추출, 인증 쿠키(SID/SAPISID/LOGIN_INFO/`__Secure-1PSID`) 전부 누락. `video_info`는 `YOUTUBE_API_KEY`로 동작해 정상, transcript만 막힘.
-
-수정: 프로필 명시(`chrome:Profile 4`) + `findMissingAuthCookies` 가드(인증쿠키 누락 시 업로드 중단). 재동기화(24줄 3078B) + redeploy 후 `get_transcript` 1270 세그먼트 정상 추출 검증.
+`gov24-ai` 도메인 통합 완료. `plus.gov.kr` AI 민원 검색 beta 엔드포인트를 `gov24_ai` MCP 스킬로 래핑. SSE 스트리밍 응답(이중 스키마)을 버퍼링 후 단일 텍스트로 반환, `GOV24_AI_ENABLED` 게이트로 기본 OFF 격리. ralplan 합의 → ralph TDD 구현. 단위/계약/E2E 전체 통과, 커밋 `d44dbc1` origin/master push 완료(rebase 후).
 
 ## Progress
-- [x] 장애 진단: 프로필 미지정 → 로그아웃 쿠키 추출 (Railway env/크롬 프로필 DB로 확정)
-- [x] `refresh-youtube-cookies.ts`: `BROWSER:PROFILE` 형식 파싱(브라우저명만 검증) + `findMissingAuthCookies` 가드 추가
-- [x] `refresh-youtube-cookies.test.ts`: 가드 테스트 5건 추가 (총 16 통과)
-- [x] `sync-youtube-cookies.sh`(repo 밖, workspace/scripts): `--browser "chrome:Profile 4"` 적용
-- [x] 검증 전체 통과: typecheck/lint/test(1026)/build
-- [x] 코드 커밋·푸시: `996b3af` → origin/master
-- [x] 재동기화 + redeploy + transcript 실측 검증
-- [x] AGENTS.md 컨벤션 + runbook 메모리 갱신
 
-## Next Steps
-1. (선택) 프로필명 하드코딩(`Profile 4`) 대신 로그인 프로필 자동 탐지 로직 검토 — 크롬 프로필 변경 시 재발 방지
-2. 매주 만료 체크 루틴(trig_013jaxkLuRLDkpk71g49tJxB)이 새 프로필 경로로 정상 동작하는지 다음 주기에 확인
+### 완료
+- `src/gov24-ai-api.ts` — `parseSseText()`(CHUNK + stream 두 스키마 파싱, 프로덕션 경로) + `askGov24Ai()`(buffer-all SSE)
+- `src/gov24-ai-types.ts` — Gov24AiReference/Link/Result
+- `src/tools/skills/gov24-ai.ts` — `ask` action, renderer, PII 경고, 면책 항상 포함, 빈답변 fail-loud
+- `src/config.ts` / `src/tools/skills/index.ts` — `GOV24_AI_ENABLED` 게이트(FOREIGN_CASE 패턴)
+- 문서 동기화 — `scripts/verify-docs.ts` EXPECTED 19/16/16, `ARCHITECTURE.md` 149 actions, `docs/env.md`, `docs/source-map.md`, AGENTS.md 도메인 목록
+- 테스트 — 단위 27/27, 라이브 contract 2/2, E2E(실 MCP 서버 stdio 핸드셰이크 + 게이트 ON/OFF), gc exit 0
+
+### 미완료 (deferred — ADR follow-ups)
+- multi-turn `cnvrsId` 지원 (cookie/session 전략 필요)
+- cookie-reuse vs cold-per-call 쿼터/남용 전략
+- health/canary probe (현재 v1 모니터링 없음 — silently-dead 엔드포인트 미감지)
+- idle-timer streaming (답변 >30s 시)
+
+## Next Steps (우선순위)
+1. **Health/canary probe** — 최저비용 silent failure 감지. known-good 쿼리 주기 호출.
+2. **multi-turn cnvrsId** — cookie 캐싱 전략 ADR 후 구현.
+3. **idle-timer streaming** — 답변 30s 초과 처리.
+4. **쿼터 모니터링** — beta 남용 위험, 호출 로깅/rate-limit 검토.
 
 ## Blockers
-- 없음
+없음.
 
 ## Watch Out
-- `sync-youtube-cookies.sh`는 `/Users/edb_development/workspace/scripts/`에 있고 **git 미추적** — 이 repo 커밋에 포함 안 됨, 로컬 디스크에만 존재. 백업/이관 시 별도 관리.
-- env 주입 후 redeploy 필수 (`youtube-cookie-pool.ts` 싱글톤이 시작 시 1회 env 읽음, `--skip-deploys`는 미반영)
-- `findMissingAuthCookies` 필수 쿠키 목록: LOGIN_INFO/SAPISID/`__Secure-1PSID`
+- **비공식 reverse-engineered beta** — `plus.gov.kr`은 공개 API 아님. 예고 없이 URL/스키마 변경·종료 가능. `GOV24_AI_ENABLED=false` 기본으로 격리, 배포 시 명시 opt-in.
+- **SSE 이중 스키마** — 동일 엔드포인트가 요청마다 `CHUNK`/`stream` 번갈아 반환. `parseSseText`는 둘 다 처리. 스키마 추가 시 파서 업데이트. ([[gov24-ai-endpoint-characteristics]])
+- **PII 경고** — renderer 경고 문구·면책 제거/약화 금지.
+- **verify-docs EXPECTED** — 19/16/16. 파일 추가/삭제 시 `npm run verify-docs` 동기화 필수.
 
 ## Files Touched
-- scripts/refresh-youtube-cookies.ts (프로필 파싱 + 가드)
-- scripts/refresh-youtube-cookies.test.ts (가드 테스트 5건)
-- AGENTS.md (YouTube cookie 프로필 컨벤션)
-- .claude-project/memory/youtube-cookies-railway-refresh-runbook.md (프로필 요구사항 갱신)
-- (repo 밖) /Users/edb_development/workspace/scripts/sync-youtube-cookies.sh
+- `src/gov24-ai-api.ts` (신규) — SSE 파서 + HTTP 클라이언트
+- `src/gov24-ai-types.ts` (신규) — 타입
+- `src/tools/skills/gov24-ai.ts` (신규) — MCP 스킬(ask + renderer)
+- `src/gov24-ai-api.test.ts` (신규) — 단위 18
+- `src/tools/skills/gov24-ai.test.ts` (신규) — 단위 9
+- `src/gov24-ai-api.contract.test.ts` (신규) — 라이브 contract(skipIf gate)
+- `src/config.ts`, `src/tools/skills/index.ts` — 게이트 wiring
+- `scripts/verify-docs.ts`, `ARCHITECTURE.md`, `docs/env.md`, `docs/source-map.md`, `AGENTS.md` — 문서 동기화
