@@ -37,10 +37,11 @@ src/
 | `tourism` | 한국관광공사 KorService2 |
 | `coupang` | 쿠팡 파트너스 |
 | `assembly` | 국회 Open API (open.assembly.go.kr) — 의안/법률안/표결/의원 |
+| `gov24-ai` | 정부24 plus AI 검색(beta, plus.gov.kr) — 민원 RAG SSE 챗봇 |
 
 ## 스킬 도구 (tools/skills/)
 
-★ 18개 의도 기반 스킬 도구 + MCP Prompts (v6)
+★ 19개 의도 기반 스킬 도구 + MCP Prompts (v6)
 
 | 파일 | 설명 |
 |------|------|
@@ -65,15 +66,16 @@ src/
 | `tourism.ts` | 한국관광공사 KorService2 (7 actions) |
 | `product-review.ts` | 제품 리뷰 (3 actions, youtube.md 동적 채널) |
 | `assembly.ts` | 국회 Open API (24 actions, 의안/법률안/처리안건/표결/회의록/일정/의원) |
+| `gov24-ai.ts` | 정부24 plus AI 검색(beta) — 민원 질의응답 (1 action: ask, SSE 파싱) |
 
 ## Layer Rules
 
 ```
 Entrypoint → Protocol (server.ts → tools/skills/index.ts)
                       + HTTP Adapter (api-routes.ts, openapi.ts)
-           → Data Access ({domain}-api.ts × 15)
+           → Data Access ({domain}-api.ts × 16)
            → Shared (shared.ts, tools/skills/_shared.ts)
-           → Types ({domain}-types.ts × 15)
+           → Types ({domain}-types.ts × 16)
 ```
 
 - Dependencies flow downward only

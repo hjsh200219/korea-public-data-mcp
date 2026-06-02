@@ -2,7 +2,7 @@
 
 ## System Overview
 
-public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시, 금융위원회 보험상품 공시, 국회 Open API. **18개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 148개 API 액션을 제공 (v6.0.0).
+public-data-mcp is a Model Context Protocol (MCP) server providing Korean public data search through multiple APIs: 법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시, 금융위원회 보험상품 공시, 국회 Open API, 정부24 plus AI 민원 검색(beta). **19개 의도 기반 스킬 도구** + **5개 MCP Prompts 워크플로 가이드**로 149개 API 액션을 제공 (v6.0.0).
 
 ## High-Level Diagram
 
@@ -49,6 +49,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
        │  │  insurance         (9 actions)           │
        │  │  foreign-precedents(4 actions, US/CourtListener) │
        │  │  assembly          (24 actions)          │
+       │  │  gov24-ai          (1 action) plus.gov.kr AI beta │
        │  └───────────┬────────────────────────────┘
        │              │
        └──────┬───────┘
@@ -66,6 +67,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  courtlistener-api.ts — CourtListener v4 클라이언트 (US 판례)  │
 │  openlegaldata-api.ts — OpenLegalData (DE 판례)  │
 │  assembly-api.ts — 국회 Open API (24 dataset, generic fetcher)  │
+│  gov24-ai-api.ts — 정부24 plus AI 검색 SSE 클라이언트 (beta)  │
 │  shared.ts     — truncate, errorResponse, stripHtmlTags  │
 └─────────────────┬───────────────────────────┘
                   │
@@ -83,6 +85,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  courtlistener-types.ts — 정규화 도메인 (camelCase, cursor) │
 │  openlegaldata-types.ts — 독일 판례 interfaces │
 │  assembly-types.ts — 국회 Open API envelope + row 타입 │
+│  gov24-ai-types.ts — 정부24 AI SSE 결과 interfaces │
 └─────────────────────────────────────────────┘
                   │
                   ▼
@@ -95,6 +98,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 │  finlife.fss.or.kr                          │
 │  www.courtlistener.com (Free Law Project)   │
 │  open.assembly.go.kr (국회 Open API)         │
+│  plus.gov.kr (정부24 plus AI 검색 beta)      │
 └─────────────────────────────────────────────┘
 ```
 

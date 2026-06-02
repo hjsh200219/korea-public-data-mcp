@@ -18,4 +18,5 @@
 | `COUPANG_ACCESS_KEY` | No | 쿠팡 파트너스 Access Key |
 | `COUPANG_SECRET_KEY` | No | 쿠팡 파트너스 Secret Key |
 | `ASSEMBLY_API_KEY` | No | 국회 Open API key (open.assembly.go.kr) — 의안/법률안/표결/국회의원 조회 |
+| `GOV24_AI_ENABLED` | No | `true` 설정 시 정부24 plus AI 검색(beta) 도구 활성화. 비공식 reverse-engineered 엔드포인트 — 기본 비활성 |
 | `PORT` | No | HTTP server port (default: 3000) |

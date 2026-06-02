@@ -1,5 +1,5 @@
 /**
- * 스킬 도구 오케스트레이터 — 18개 스킬 도구 + MCP Prompts 등록
+ * 스킬 도구 오케스트레이터 — 19개 스킬 도구 + MCP Prompts 등록
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -22,6 +22,7 @@ import { registerYoutube } from "./youtube.js";
 import { registerTourism } from "./tourism.js";
 import { registerForeignCaseResearch } from "./foreign-case-research.js";
 import { registerProductReviewSkill } from "./product-review.js";
+import { registerGov24Ai } from "./gov24-ai.js";
 import { registerSkillPrompts } from "./prompts.js";
 
 export function registerSkillTools(
@@ -77,6 +78,11 @@ export function registerSkillTools(
 
   if (config.assemblyApiKey) {
     registerAssembly(server, config.assemblyApiKey);
+  }
+
+  // 정부24 plus AI 검색(beta): 비공식 reverse-engineered 엔드포인트, 기본 OFF
+  if (config.gov24AiEnabled) {
+    registerGov24Ai(server);
   }
 
   registerSkillPrompts(server);

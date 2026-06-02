@@ -20,6 +20,7 @@ export interface ServerConfig {
   coupangAccessKey?: string;
   coupangSecretKey?: string;
   assemblyApiKey?: string;
+  gov24AiEnabled?: boolean;
 }
 
 function collectUnipassKeys(): Record<string, string> {
@@ -45,6 +46,7 @@ export function loadConfig(): ServerConfig {
   const coupangAccessKey = process.env.COUPANG_ACCESS_KEY || "";
   const coupangSecretKey = process.env.COUPANG_SECRET_KEY || "";
   const assemblyApiKey = process.env.ASSEMBLY_API_KEY || "";
+  const gov24AiEnabled = process.env.GOV24_AI_ENABLED === "true";
   const unipassKeys = collectUnipassKeys();
 
   if (!lawApiOc) {
@@ -96,6 +98,10 @@ export function loadConfig(): ServerConfig {
     console.warn("ASSEMBLY_API_KEY 미설정 — 국회 Open API 도구 비활성화");
   }
 
+  if (!gov24AiEnabled) {
+    console.warn("GOV24_AI_ENABLED 미설정 — 정부24 plus AI 검색(beta) 도구 비활성화");
+  }
+
   return {
     lawApiOc,
     dartApiKey: dartApiKey || undefined,
@@ -111,5 +117,6 @@ export function loadConfig(): ServerConfig {
     coupangAccessKey: coupangAccessKey || undefined,
     coupangSecretKey: coupangSecretKey || undefined,
     assemblyApiKey: assemblyApiKey || undefined,
+    gov24AiEnabled: gov24AiEnabled || undefined,
   };
 }
