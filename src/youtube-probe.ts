@@ -1,8 +1,7 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { promisify } from "node:util";
+import { getTranscript } from "./youtube-api.js";
+import { TranscriptError } from "./youtube-types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -13,7 +12,7 @@ interface ProbeResult {
 }
 
 const PROBE_VIDEO_ID = process.env.YOUTUBE_PROBE_VIDEO_ID ?? "jNQXAC9IVRw"; // Me at the zoo
-const PROBE_SUB_LANGS = process.env.YOUTUBE_PROBE_SUB_LANGS ?? "en,ko";
+const PROBE_LANG = process.env.YOUTUBE_PROBE_LANG ?? "en"; // "Me at the zoo"는 en 자막 보유
 const PROBE_INTERVAL_MS = 5 * 60 * 1000; // 5분
 const RING_BUFFER_SIZE = 100;
 
@@ -49,38 +48,29 @@ export class YoutubeProbe {
   }
 
   private async _runProbe(): Promise<void> {
-    // 실제 자막 추출(getTranscript)의 1순위 경로와 동일하게 헬스 체크한다:
-    // android_vr 클라이언트로 자막 파일을 실제로 받아본다.
-    // 왜 --dump-json이 아니라 자막 추출인가:
-    //   - 쿠키없는 web --dump-json(이전 구현)은 video formats를 요구 → 데이터센터 IP에서
+    // 실제 도구(getTranscript)를 그대로 호출해 헬스 체크한다 — 프로브와 서빙 경로가
+    // 100% 동일해야 "실제 tool 은 멀쩡한데 프로브만 down" 불일치가 안 생긴다.
+    //
+    // 왜 자체 yt-dlp 명령을 버렸나:
+    //   - 이전 구현: 쿠키없는 web `--dump-json`. video formats를 요구 → 데이터센터 IP에서
     //     항상 봇 차단("No title found in player responses")을 맞아 실제 도구는 멀쩡해도 down 오보.
-    //   - android_vr는 자막 PO Token 미요구 + 쿠키 무관 동작이라 데이터센터 IP에서도 자막 추출 성공.
-    //     (단 android_vr는 쿠키 미지원 — --cookies를 붙이면 "Skipping client" 로 클라이언트가 통째 스킵됨.
-    //      그래서 쿠키는 주지 않는다.)
-    const dir = await mkdtemp(join(tmpdir(), "yt-probe-"));
+    //   - android_vr 단독 자막 추출도 부족: 실제 도구는 android_vr → tv → web(쿠키) 캐스케이드라
+    //     android_vr가 데이터센터 IP에서 간헐 실패해도 폴백으로 살아남는다. 프로브가 android_vr
+    //     단독이면 실제 도구는 성공하는데 프로브만 실패한다.
+    //
+    // 서킷 브레이커 결합: getTranscript 내부에서 success/failure가 기록된다. 흔한 프로브 실패
+    // (BOT_DETECTED/PO_TOKEN/RATE_LIMITED)는 실유저도 똑같이 겪는 인프라 장애라 트립이 정상이고,
+    // 프로브 성공은 half-open → close 회복 하트비트가 된다. (NO_SUBTITLES는 브레이커 트립 제외.)
     try {
-      await execFileAsync("yt-dlp", [
-        "--skip-download",
-        "--write-auto-subs",
-        "--write-sub",
-        "--sub-lang", PROBE_SUB_LANGS,
-        "--sub-format", "json3",
-        "--extractor-args", "youtube:player_client=android_vr",
-        "-o", join(dir, "%(id)s"),
-        "--", PROBE_VIDEO_ID,
-      ], { timeout: 30000 });
-      // yt-dlp가 exit 0이어도 자막 파일이 0개면 실패로 본다 (자막 추출이 핵심 기능).
-      const files = await readdir(dir);
-      if (files.some((f) => f.endsWith(".json3"))) {
-        this._push({ success: true, timestamp: Date.now() });
-      } else {
-        this._push({ success: false, errorCode: "NO_SUBTITLE_FILE", timestamp: Date.now() });
-      }
+      await getTranscript(PROBE_VIDEO_ID, PROBE_LANG);
+      this._push({ success: true, timestamp: Date.now() });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      this._push({ success: false, errorCode: msg.slice(0, 200), timestamp: Date.now() });
-    } finally {
-      await rm(dir, { recursive: true, force: true }).catch(() => {});
+      const code = e instanceof TranscriptError
+        ? e.code
+        : e instanceof Error
+          ? e.message
+          : String(e);
+      this._push({ success: false, errorCode: String(code).slice(0, 200), timestamp: Date.now() });
     }
     this._checkConsecutiveFailures();
   }

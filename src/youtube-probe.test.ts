@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// 실제 도구 getTranscript는 mock (네트워크/yt-dlp 없이 _runProbe 경로 검증).
+// hoisted + resetModules 미사용 → youtube-types를 공유하므로 instanceof 정상 동작.
+const { mockGetTranscript } = vi.hoisted(() => ({ mockGetTranscript: vi.fn() }));
+vi.mock("./youtube-api.js", () => ({ getTranscript: mockGetTranscript }));
+
 // YoutubeProbe를 직접 테스트 — 싱글톤 대신 클래스를 export 해야 함
 import { YoutubeProbe } from "./youtube-probe.js";
+import { TranscriptError, TranscriptErrorCode } from "./youtube-types.js";
 
 describe("YoutubeProbe", () => {
   let probe: YoutubeProbe;
@@ -15,6 +21,7 @@ describe("YoutubeProbe", () => {
     probe.stop();
     vi.useRealTimers();
     vi.unstubAllEnvs();
+    mockGetTranscript.mockReset();
   });
 
   it("getHealthData() 반환 스키마: 필수 필드 존재", () => {
@@ -91,7 +98,7 @@ describe("YoutubeProbe", () => {
       new URL("./youtube-probe.ts", import.meta.url),
       "utf-8",
     );
-    expect(probeSource).toMatch(/msg\.slice\(0,\s*200\)/);
+    expect(probeSource).toMatch(/\.slice\(0,\s*200\)/);
 
     // 추가: ring buffer가 200자급 메시지를 그대로 보존하는지 확인
     (probe as unknown as { _push: (r: unknown) => void })._push({
@@ -105,18 +112,36 @@ describe("YoutubeProbe", () => {
     expect(code).toContain("Sign in to confirm");
   });
 
-  it("_runProbe는 자막 추출(android_vr)로 헬스 체크 — 쿠키없는 web --dump-json 회귀 방지", async () => {
+  it("_runProbe는 실제 도구 getTranscript를 호출 — 프로브 전용 yt-dlp 명령 회귀 방지", async () => {
     const probeSource = (await import("node:fs")).readFileSync(
       new URL("./youtube-probe.ts", import.meta.url),
       "utf-8",
     );
-    // android_vr 자막 추출 경로를 사용해야 함
-    expect(probeSource).toMatch(/youtube:player_client=android_vr/);
-    expect(probeSource).toMatch(/"--write-auto-subs"/);
-    // 데이터센터 IP에서 항상 봇 차단 맞던 --dump-json arg 로 회귀하면 안 됨 (배열 리터럴 기준, 주석 제외)
+    // 실제 서빙 경로(getTranscript)를 그대로 호출해야 함
+    expect(probeSource).toMatch(/getTranscript\(PROBE_VIDEO_ID/);
+    // 프로브가 자체 yt-dlp 추출 명령을 다시 굴리면 안 됨 (캐스케이드/쿠키 폴백 누락 → 불일치)
     expect(probeSource).not.toMatch(/"--dump-json"/);
-    // android_vr는 쿠키 미지원 → --cookies를 붙이면 클라이언트가 스킵되므로 쿠키 주면 안 됨
-    expect(probeSource).not.toMatch(/"--cookies"/);
+    expect(probeSource).not.toMatch(/"--write-auto-subs"/);
+  });
+
+  it("_runProbe 성공 시 success=true push (getTranscript mock)", async () => {
+    mockGetTranscript.mockResolvedValueOnce({
+      videoId: "x", segments: [], fullText: "", language: "en", segmentCount: 0,
+    });
+    await (probe as unknown as { _runProbe: () => Promise<void> })._runProbe();
+    const data = probe.getHealthData([], "closed") as Record<string, unknown>;
+    expect(data.consecutiveFailures).toBe(0);
+    expect(data.lastSuccess).not.toBeNull();
+  });
+
+  it("_runProbe 실패 시 TranscriptError.code를 errorCode로 기록 (getTranscript mock)", async () => {
+    mockGetTranscript.mockRejectedValueOnce(
+      new TranscriptError("봇 차단", TranscriptErrorCode.BOT_DETECTED),
+    );
+    await (probe as unknown as { _runProbe: () => Promise<void> })._runProbe();
+    const data = probe.getHealthData([], "closed") as Record<string, unknown>;
+    expect(data.lastErrorCode).toBe(TranscriptErrorCode.BOT_DETECTED);
+    expect(data.consecutiveFailures).toBe(1);
   });
 
   it("status: 실패 있지만 3회 미만이면 'degraded'", () => {
