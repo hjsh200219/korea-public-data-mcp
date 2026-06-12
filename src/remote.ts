@@ -8,6 +8,7 @@ import cors from "cors";
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "./server.js";
+import { handleStatelessMcpRequest } from "./mcp-stateless-fallback.js";
 import { createApiRouter } from "./api-routes.js";
 import { generateOpenApiSpec } from "./openapi.js";
 import { loadConfig, SERVER_VERSION } from "./config.js";
@@ -171,15 +172,13 @@ async function handleMcpPost(req: express.Request, res: express.Response): Promi
     return;
   }
 
-  // sessionId가 있는데 sessions에 없으면 stale → 명시적 404로 클라이언트가 재초기화하도록 안내
-  // (이걸 새 transport로 처리하면 클라이언트가 보낸 tools/list 같은 메서드가 initialize 없이
-  //  들어와서 transport가 400으로 거절하는 잘못된 흐름이 됨)
+  // sessionId가 있는데 sessions에 없으면 stale (재배포로 인메모리 세션 소실).
+  // 과거엔 404를 돌려줬지만 claude.ai 게이트웨이는 재초기화 없이 포기해
+  // 대화에서 툴이 통째로 사라짐(2026-06-12 장애). stateless 폴백으로 그대로 응답한다.
+  // (stateless transport는 세션 검증을 생략하므로 initialize 없는 tools/list도 처리 가능)
   if (sessionId) {
-    res.status(404).json({
-      jsonrpc: "2.0",
-      id: null,
-      error: { code: -32001, message: "Session not found. Please re-initialize." },
-    });
+    log.warn(`stale session ${sessionId} — serving via stateless fallback`);
+    await handleStatelessMcpRequest(serverConfig, req, res);
     return;
   }
 

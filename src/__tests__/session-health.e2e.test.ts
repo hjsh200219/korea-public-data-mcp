@@ -8,6 +8,7 @@ import express from "express";
 import cors from "cors";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "../server.js";
+import { handleStatelessMcpRequest } from "../mcp-stateless-fallback.js";
 import { SERVER_VERSION } from "../config.js";
 import type { ServerConfig } from "../config.js";
 
@@ -55,11 +56,9 @@ function createTestApp() {
       return;
     }
 
+    // stale 세션 → stateless 폴백 (remote.ts와 동일 분기, 2026-06-12 장애 수정)
     if (sessionId) {
-      res.status(404).json({
-        jsonrpc: "2.0", id: null,
-        error: { code: -32001, message: "Session not found." },
-      });
+      await handleStatelessMcpRequest(CONFIG, req, res);
       return;
     }
 
@@ -157,8 +156,8 @@ describe("세션 & 헬스체크 E2E", () => {
       expect(res.headers["mcp-session-id"]).toBe("test-session-id");
     });
 
-    it("stale_sessionId_404반환", async () => {
-      const { app } = createTestApp();
+    it("stale_sessionId_stateless폴백_200", async () => {
+      const { app, sessions } = createTestApp();
 
       const res = await request(app, "post", "/mcp", {
         headers: {
@@ -169,8 +168,12 @@ describe("세션 & 헬스체크 E2E", () => {
         body: { jsonrpc: "2.0", id: 1, method: "tools/list" },
       });
 
-      expect(res.status).toBe(404);
-      expect(res.body.error.message).toContain("Session not found");
+      // 404가 아니라 stateless 폴백으로 정상 응답해야 한다
+      // (claude.ai 게이트웨이는 404 후 재초기화하지 않음 — 2026-06-12 장애)
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('"tools"');
+      // 폴백은 1회성 — 세션 Map에 등록되면 안 된다
+      expect(sessions.has("nonexistent-session")).toBe(false);
     });
 
     it("DELETE /mcp_세션삭제_200", async () => {

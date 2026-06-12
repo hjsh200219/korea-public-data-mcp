@@ -53,6 +53,7 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - YouTube Circuit Breaker `state` getter는 lazy 전이 포함 (open→half-open by `OPEN_DURATION_MS`) — 별도 `currentState` 만들지 말고 단일 게터 재사용 (`isOpen()`도 동일 게터 호출)
 - YouTube Python fallback 성공 경로도 `youtubeCircuitBreaker.recordSuccess()` 명시 호출 — half-open 회복 메커니즘 보존 (누락 시 영구 half-open 잔존)
 - YouTube 헬스 프로브(`youtube-probe.ts` `_runProbe`)는 서빙 경로 `getTranscript()`를 **그대로 호출** — 별도 yt-dlp 명령으로 복제 금지. 복제하면 캐스케이드(android_vr→tv→web)·쿠키 폴백이 빠져 "실제 tool은 정상인데 프로브만 down" 늑대소년 발생(과거 쿠키없는 web `--dump-json`이 데이터센터 IP에서 항상 봇 차단). 서킷 브레이커 결합은 의도적(회복 하트비트)
+- MCP stale 세션(재배포로 인메모리 세션 소실 후 옛 `mcp-session-id` 요청)은 404 거절 금지 — `handleStatelessMcpRequest()`(`mcp-stateless-fallback.ts`) 1회성 stateless 폴백으로 응답. claude.ai 게이트웨이는 404 후 재초기화하지 않고 포기해 대화에서 툴이 통째로 사라짐 (2026-06-12 장애)
 - CLI scripts (`scripts/*.ts`): `main()`은 `process.argv[1]` 가드로 보호 — import 시 자동 실행 방지 (test:coverage 부작용)
 - Dead-code (Knip): 내부 전용 심볼은 `export` 제거, 외부 참조 없는 타입은 삭제
 - `verify-docs.ts` EXPECTED 카운트: 파일 추가/삭제 시 `npm run verify-docs`로 동기화 필수
