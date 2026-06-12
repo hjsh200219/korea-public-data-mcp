@@ -29,3 +29,5 @@
 - [yt-dlp-cookies-from-browser-leakage](memory/yt-dlp-cookies-from-browser-leakage.md) — yt-dlp --cookies-from-browser는 모든 사이트 쿠키 추출 — 도메인 필터 필수
 - [yt-dlp-partial-write-on-exit1](memory/yt-dlp-partial-write-on-exit1.md) — yt-dlp exits 1 on multi-lang 429 but may have already written subtitle files — read before throwing
 - [gov24-ai-endpoint-characteristics](memory/gov24-ai-endpoint-characteristics.md) — plus.gov.kr AI 익명 cold POST + SSE 이중 스키마(CHUNK/stream) + X_GST_QLC 쿼터
+- [mcp-stale-session-stateless-fallback](memory/mcp-stale-session-stateless-fallback.md) — Railway 재배포 후 stale MCP 세션은 404 거절 금지, stateless 폴백으로 응답 (claude.ai 게이트웨이는 404 후 재초기화 안 함)
+- [railway-stale-session-diagnosis](memory/railway-stale-session-diagnosis.md) — claude.ai 툴 통째 소실 시 railway logs로 "Starting Container" 직후 stale sid 404 패턴 진단
