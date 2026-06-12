@@ -1,50 +1,45 @@
 ---
-created: 2026-06-03T07:20:00+09:00
+created: 2026-06-12T11:50:00+09:00
 project: k-public-data-mcp
-summary: gov24-ai (plus.gov.kr AI 민원 검색 beta) 통합 — ralplan→ralph, E2E 검증, push 완료
+summary: /health/youtube 프로브 늑대소년 버그 수정 — getTranscript 직접 호출로 서빙 경로 일치 + yt-dlp 2026.06.09 업데이트, 배포 검증 완료
 ---
 
 ## Session Digest
 
-`gov24-ai` 도메인 통합 완료. `plus.gov.kr` AI 민원 검색 beta 엔드포인트를 `gov24_ai` MCP 스킬로 래핑. SSE 스트리밍 응답(이중 스키마)을 버퍼링 후 단일 텍스트로 반환, `GOV24_AI_ENABLED` 게이트로 기본 OFF 격리. ralplan 합의 → ralph TDD 구현. 단위/계약/E2E 전체 통과, 커밋 `d44dbc1` origin/master push 완료(rebase 후).
+"K-Data MCP youtube가 안 된다"는 신고 조사. 실제로는 **서버·youtube 툴 모두 정상**(라이브 get_transcript 성공). 이전 세션이 deferred MCP 툴을 ToolSearch로 안 불러 "서버 down"으로 오진한 것. 진짜 버그는 `/health/youtube` 합성 프로브가 쿠키없는 web `yt-dlp --dump-json`(video formats 요구)으로 돌아 Railway 데이터센터 IP에서 항상 봇 차단을 맞아 `status:down` 오보를 낸 것(늑대소년). 프로브를 실제 도구 `getTranscript()` 직접 호출로 바꿔 서빙 경로(android_vr→tv→web 캐스케이드+쿠키 폴백)와 100% 일치시킴. 동시에 yt-dlp 핀 3개월 묵은 것(2026.03.17→2026.06.09) 업데이트. 커밋 2개(defba0f, 1d47f5d) master push + 2회 Railway 재배포 검증 완료.
 
 ## Progress
 
 ### 완료
-- `src/gov24-ai-api.ts` — `parseSseText()`(CHUNK + stream 두 스키마 파싱, 프로덕션 경로) + `askGov24Ai()`(buffer-all SSE)
-- `src/gov24-ai-types.ts` — Gov24AiReference/Link/Result
-- `src/tools/skills/gov24-ai.ts` — `ask` action, renderer, PII 경고, 면책 항상 포함, 빈답변 fail-loud
-- `src/config.ts` / `src/tools/skills/index.ts` — `GOV24_AI_ENABLED` 게이트(FOREIGN_CASE 패턴)
-- 문서 동기화 — `scripts/verify-docs.ts` EXPECTED 19/16/16, `ARCHITECTURE.md` 149 actions, `docs/env.md`, `docs/source-map.md`, AGENTS.md 도메인 목록
-- 테스트 — 단위 27/27, 라이브 contract 2/2, E2E(실 MCP 서버 stdio 핸드셰이크 + 게이트 ON/OFF), gc exit 0
+- 진단: `/health` ok(v6.0.0)이나 `/health/youtube` status:down. 배포 쿠키+yt-dlp로 로컬(가정 IP) 프로브 영상 정상 추출 → 쿠키·버전 문제 아님 확정. Railway 데이터센터 IP 봇탐지 + 프로브 자체 결함이 원인.
+- `src/youtube-probe.ts` `_runProbe()` — 자체 yt-dlp 명령 제거, `getTranscript(PROBE_VIDEO_ID, PROBE_LANG)` 직접 호출. `PROBE_LANG`(기본 en), `YOUTUBE_PROBE_LANG` env 추가. errorCode는 `TranscriptError.code`로 기록.
+- `src/youtube-probe.test.ts` — getTranscript 호출 검증(자체 yt-dlp 회귀 방지) + 성공/실패(code 추출) hoisted-mock 테스트 추가. 11/11 통과.
+- `Dockerfile` — yt-dlp 2026.03.17 → 2026.06.09.
+- 문서: AGENTS.md 프로브 컨벤션 1줄 추가, memory `youtube-health-probe-endpoint` 갱신 + MEMORY.md 인덱스 추가, 허브노트 `_vault/projects/k-public-data-mcp.md` 결정 기록.
+- 검증: 빌드 clean, lint 0, 전체 1056 통과. 배포 후 첫 프로브 사이클(11:43:32) 성공 → status healthy 복귀, ytdlp 2026.06.09 확인. 라이브 get_transcript 정상.
 
-### 미완료 (deferred — ADR follow-ups)
-- multi-turn `cnvrsId` 지원 (cookie/session 전략 필요)
-- cookie-reuse vs cold-per-call 쿼터/남용 전략
-- health/canary probe (현재 v1 모니터링 없음 — silently-dead 엔드포인트 미감지)
-- idle-timer streaming (답변 >30s 시)
+### 중간 시행착오 (기록용)
+- 1차(defba0f): 프로브를 android_vr 단독 자막 추출로 변경 → 실측 `degraded`(android_vr 단독은 데이터센터서 간헐 실패, 실제 도구는 캐스케이드로 살아남음). 2차(1d47f5d)에서 getTranscript 직접 호출로 바로잡음.
+- android_vr + `--cookies` 동시 사용 시 yt-dlp가 `"Skipping client android_vr since it does not support cookies"`로 클라이언트 통째 스킵 → 실패. android_vr엔 쿠키 주면 안 됨.
 
 ## Next Steps (우선순위)
-1. **Health/canary probe** — 최저비용 silent failure 감지. known-good 쿼리 주기 호출.
-2. **multi-turn cnvrsId** — cookie 캐싱 전략 ADR 후 구현.
-3. **idle-timer streaming** — 답변 30s 초과 처리.
-4. **쿼터 모니터링** — beta 남용 위험, 호출 로깅/rate-limit 검토.
+1. **쿠키 자동 sync 안정화** — `sync-youtube-cookies.sh`(launchd 08:00)가 06-10~12 3일 연속 FAIL(Chrome 로그아웃/Profile 4 미로그인). 오늘 08:07 수동 복구. 재발 방지: Chrome Profile 4 YouTube 로그인 상시 유지, 또는 sync FAIL 3연속 시 텔레그램 알림 강화. android_vr는 쿠키 불필요라 비치명적이나 tv/web 폴백엔 필요.
+2. **cookiePool 메트릭 cosmetic 오표기 정리** — `/health/youtube`의 `cookiePool: expired -1d`는 단일 YOUTUBE_COOKIES 모드(POOL 미사용)에서 vestigial. `youtube-cookie-pool.ts getHealthInfo()`가 POOL 미설정 시 expired 기본값 반환하는 듯 — 단일 쿠키 모드면 실제 YOUTUBE_COOKIES 만료를 반영하거나 null 표기하도록 개선.
+3. (이월) gov24-ai health/canary probe, multi-turn cnvrsId — 2026-06-03 핸드오프 유지.
 
 ## Blockers
 없음.
 
 ## Watch Out
-- **비공식 reverse-engineered beta** — `plus.gov.kr`은 공개 API 아님. 예고 없이 URL/스키마 변경·종료 가능. `GOV24_AI_ENABLED=false` 기본으로 격리, 배포 시 명시 opt-in.
-- **SSE 이중 스키마** — 동일 엔드포인트가 요청마다 `CHUNK`/`stream` 번갈아 반환. `parseSseText`는 둘 다 처리. 스키마 추가 시 파서 업데이트. ([[gov24-ai-endpoint-characteristics]])
-- **PII 경고** — renderer 경고 문구·면책 제거/약화 금지.
-- **verify-docs EXPECTED** — 19/16/16. 파일 추가/삭제 시 `npm run verify-docs` 동기화 필수.
+- **프로브 = 서빙 경로**: `youtube-probe._runProbe`는 반드시 `getTranscript`를 그대로 호출해야 함. 자체 yt-dlp 명령으로 복제하면 캐스케이드/쿠키 폴백 누락 → 늑대소년 재발. (AGENTS.md 컨벤션 추가됨)
+- **서킷 브레이커 결합 의도적**: 프로브 실패가 브레이커에 기록됨. 흔한 실패(BOT/PO_TOKEN/RATE_LIMITED)는 실유저도 겪는 인프라 장애라 정상. NO_SUBTITLES는 트립 제외. 프로브 영상 영구 삭제 리스크는 `YOUTUBE_PROBE_VIDEO_ID` env 교체로 완화.
+- **yt-dlp 핀**: Dockerfile에 버전 하드코딩. YouTube 봇탐지/`"No title found in player responses"` 반복 시 최신 stable로 재bump(런북 처방).
+- **Railway 도메인**: 공개 URL은 `https://public-data.up.railway.app` (서비스명 korea-public-data-mcp). `korea-public-data-mcp-production.up.railway.app`은 존재 안 함(404).
+- **verify-docs EXPECTED**: 19/16/16 (이번 변경은 도메인/스킬 증감 없음).
 
 ## Files Touched
-- `src/gov24-ai-api.ts` (신규) — SSE 파서 + HTTP 클라이언트
-- `src/gov24-ai-types.ts` (신규) — 타입
-- `src/tools/skills/gov24-ai.ts` (신규) — MCP 스킬(ask + renderer)
-- `src/gov24-ai-api.test.ts` (신규) — 단위 18
-- `src/tools/skills/gov24-ai.test.ts` (신규) — 단위 9
-- `src/gov24-ai-api.contract.test.ts` (신규) — 라이브 contract(skipIf gate)
-- `src/config.ts`, `src/tools/skills/index.ts` — 게이트 wiring
-- `scripts/verify-docs.ts`, `ARCHITECTURE.md`, `docs/env.md`, `docs/source-map.md`, `AGENTS.md` — 문서 동기화
+- `src/youtube-probe.ts` — _runProbe getTranscript 호출로 재작성, PROBE_LANG 추가
+- `src/youtube-probe.test.ts` — getTranscript mock 테스트
+- `Dockerfile` — yt-dlp 2026.06.09
+- `AGENTS.md` — 프로브 컨벤션
+- `.claude-project/memory/youtube-health-probe-endpoint.md`, `.claude-project/MEMORY.md` — 메모리 갱신

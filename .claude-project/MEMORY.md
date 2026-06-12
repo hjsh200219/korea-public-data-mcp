@@ -23,6 +23,7 @@
 - [youtube-data-api-v3-captions-constraints](memory/youtube-data-api-v3-captions-constraints.md) — YouTube Data API v3 captions.download은 owner-only OAuth — 제3자 자막 수집 대안 없음
 - [youtube-fallback-langs-rate-limit-risk](memory/youtube-fallback-langs-rate-limit-risk.md) — 9-lang FALLBACK 일괄 요청은 timedtext 429 빈도 증가 리스크 — 운영 모니터 후 좁히기 검토
 - [youtube-transcript-error-code-priority](memory/youtube-transcript-error-code-priority.md) — TranscriptError cascade 사유 보존 우선순위 (PO_TOKEN > COOKIE > BOT > NO_SUBS) + CB INFRA_ERRORS 정책
+- [youtube-health-probe-endpoint](memory/youtube-health-probe-endpoint.md) — /health/youtube 프로브는 getTranscript 그대로 호출(서빙 경로 일치, 늑대소년 방지). cookiePool expired는 status 무관 cosmetic
 - [youtube-yt-dlp-client-selection](memory/youtube-yt-dlp-client-selection.md) — yt-dlp YouTube 자동자막 우회 클라이언트 캐스케이드 (android_vr → tv → web w/ cookies, android_vr → android w/o)
 - [yt-dlp-cookies-file-quirks](memory/yt-dlp-cookies-file-quirks.md) — yt-dlp --cookies 파일/URL 사용 시 함정 두 가지
 - [yt-dlp-cookies-from-browser-leakage](memory/yt-dlp-cookies-from-browser-leakage.md) — yt-dlp --cookies-from-browser는 모든 사이트 쿠키 추출 — 도메인 필터 필수
