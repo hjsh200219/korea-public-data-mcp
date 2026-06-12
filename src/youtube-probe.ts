@@ -1,4 +1,7 @@
 import { execFile } from "node:child_process";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -10,6 +13,7 @@ interface ProbeResult {
 }
 
 const PROBE_VIDEO_ID = process.env.YOUTUBE_PROBE_VIDEO_ID ?? "jNQXAC9IVRw"; // Me at the zoo
+const PROBE_SUB_LANGS = process.env.YOUTUBE_PROBE_SUB_LANGS ?? "en,ko";
 const PROBE_INTERVAL_MS = 5 * 60 * 1000; // 5분
 const RING_BUFFER_SIZE = 100;
 
@@ -45,13 +49,38 @@ export class YoutubeProbe {
   }
 
   private async _runProbe(): Promise<void> {
-    // 간단한 메타데이터 조회 (자막 추출 대신 --dump-json으로 빠르게)
+    // 실제 자막 추출(getTranscript)의 1순위 경로와 동일하게 헬스 체크한다:
+    // android_vr 클라이언트로 자막 파일을 실제로 받아본다.
+    // 왜 --dump-json이 아니라 자막 추출인가:
+    //   - 쿠키없는 web --dump-json(이전 구현)은 video formats를 요구 → 데이터센터 IP에서
+    //     항상 봇 차단("No title found in player responses")을 맞아 실제 도구는 멀쩡해도 down 오보.
+    //   - android_vr는 자막 PO Token 미요구 + 쿠키 무관 동작이라 데이터센터 IP에서도 자막 추출 성공.
+    //     (단 android_vr는 쿠키 미지원 — --cookies를 붙이면 "Skipping client" 로 클라이언트가 통째 스킵됨.
+    //      그래서 쿠키는 주지 않는다.)
+    const dir = await mkdtemp(join(tmpdir(), "yt-probe-"));
     try {
-      await execFileAsync("yt-dlp", ["--dump-json", "--", PROBE_VIDEO_ID], { timeout: 15000 });
-      this._push({ success: true, timestamp: Date.now() });
+      await execFileAsync("yt-dlp", [
+        "--skip-download",
+        "--write-auto-subs",
+        "--write-sub",
+        "--sub-lang", PROBE_SUB_LANGS,
+        "--sub-format", "json3",
+        "--extractor-args", "youtube:player_client=android_vr",
+        "-o", join(dir, "%(id)s"),
+        "--", PROBE_VIDEO_ID,
+      ], { timeout: 30000 });
+      // yt-dlp가 exit 0이어도 자막 파일이 0개면 실패로 본다 (자막 추출이 핵심 기능).
+      const files = await readdir(dir);
+      if (files.some((f) => f.endsWith(".json3"))) {
+        this._push({ success: true, timestamp: Date.now() });
+      } else {
+        this._push({ success: false, errorCode: "NO_SUBTITLE_FILE", timestamp: Date.now() });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this._push({ success: false, errorCode: msg.slice(0, 200), timestamp: Date.now() });
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
     }
     this._checkConsecutiveFailures();
   }

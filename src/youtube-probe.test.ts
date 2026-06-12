@@ -105,6 +105,20 @@ describe("YoutubeProbe", () => {
     expect(code).toContain("Sign in to confirm");
   });
 
+  it("_runProbe는 자막 추출(android_vr)로 헬스 체크 — 쿠키없는 web --dump-json 회귀 방지", async () => {
+    const probeSource = (await import("node:fs")).readFileSync(
+      new URL("./youtube-probe.ts", import.meta.url),
+      "utf-8",
+    );
+    // android_vr 자막 추출 경로를 사용해야 함
+    expect(probeSource).toMatch(/youtube:player_client=android_vr/);
+    expect(probeSource).toMatch(/"--write-auto-subs"/);
+    // 데이터센터 IP에서 항상 봇 차단 맞던 --dump-json arg 로 회귀하면 안 됨 (배열 리터럴 기준, 주석 제외)
+    expect(probeSource).not.toMatch(/"--dump-json"/);
+    // android_vr는 쿠키 미지원 → --cookies를 붙이면 클라이언트가 스킵되므로 쿠키 주면 안 됨
+    expect(probeSource).not.toMatch(/"--cookies"/);
+  });
+
   it("status: 실패 있지만 3회 미만이면 'degraded'", () => {
     (probe as unknown as { _push: (r: unknown) => void })._push({
       success: true,
