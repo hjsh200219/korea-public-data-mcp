@@ -46,3 +46,4 @@
 - [law-drf-root-element-fallback](law-drf-root-element-fallback.md) — trty 양자/다자, admrulOldAndNew, lawjosub 등 root 분기. fallback chain 필수
 - [law-elaw-joyn-y-not-string](law-elaw-joyn-y-not-string.md) — 영문법령 joYn은 "Y"/"N" 코드, "조문" 한글 비교 시 항상 false
 - [fast-xml-parser-repeated-tag-array](fast-xml-parser-repeated-tag-array.md) — 반복 태그 자동 배열화, str() 코어션 금지 → ensureArray + join 패턴
+- [dart-corp-code-egress-timeout-snapshot](dart-corp-code-egress-timeout-snapshot.md) — corp_code 해석 prod-only 60s abort(Railway egress 느림), 정적 스냅샷 우선 조회로 해결

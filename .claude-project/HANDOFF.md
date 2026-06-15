@@ -1,52 +1,38 @@
 ---
-created: 2026-06-12T12:50:00+09:00
+created: 2026-06-15T12:42:00+09:00
 project: k-public-data-mcp
-summary: Railway 재배포 후 인메모리 세션 소실 → claude.ai 게이트웨이 stale sid 404 포기 장애 수정 — stateless 폴백(mcp-stateless-fallback.ts) 도입, 커밋 95a6e32 배포 완료
+summary: DART corp_code 프로덕션 60s 타임아웃 수정 — 정적 스냅샷 우선 조회 (커밋 9f585d5 푸시 완료, prod 배포 대기)
 ---
 
 ## Session Digest
-
-2026-06-12 12:25 Railway 재배포(직전 세션 프로브 수정 배포) 이후 인메모리 세션 Map이 초기화됨. 12:26:32 claude.ai 게이트웨이가 재배포 이전의 stale sid(787d89f1)로 `POST /mcp` tools/list를 요청 → 서버가 404 반환 → 게이트웨이가 재초기화 없이 포기 → 사용자의 claude.ai/code 클라우드 세션에서 K-Data 툴 0개(ToolSearch 결과에 youtube 미포함, higgsfield만 반환). Claude Code CLI는 같은 404에서 자동 재초기화+재시도로 회복하므로 CLI 사용자에겐 무증상.
-
-수정: stale 세션 요청을 404로 거절하는 대신 1회성 stateless transport로 응답. `src/mcp-stateless-fallback.ts` 신규, `src/remote.ts`의 stale 404 분기를 폴백 호출로 교체. TDD 준수: `src/mcp-stateless-fallback.test.ts` 3케이스 작성(Red) 후 구현(Green). 기존 `session-health.e2e.test.ts`의 stale 404 기대값도 200 폴백+세션 미등록 검증으로 업데이트.
-
-검증: lint 0, 전체 테스트 1059 통과(신규 3 포함), build clean, verify-docs 정상(19/16/16). 커밋 95a6e32 master push → Railway e6f784df 배포 SUCCESS(12:47) → 라이브 재현 검증: stale sid tools/list → HTTP 200 + 툴 18종 반환 확인.
-
-부수 발견: CLAUDE.md가 AGENTS.md의 심링크 — 양쪽 모두 수정하면 컨벤션이 중복 삽입됨. AGENTS.md만 수정하면 양쪽에 적용. 이번 세션에 실수 후 dedupe 처리 완료.
+DART `corporate_disclosure` corp_code 해석이 프로덕션(Railway)에서만 60s 후 abort하던 버그 수정. 원인: Railway egress → opendart.fss.or.kr 가 전반적으로 느려(작은 JSON도 ~14s) 3.5MB `corpCode.xml` ZIP 다운로드가 `CORP_CODE_TIMEOUT_MS`(60s) 안에 못 끝남. 정적 스냅샷(`dart-corp-codes.ts`, 118,313건 gzip+base64) 우선 조회 + 미수록 시 라이브 corpCode.xml 폴백으로 해결. 케어랩스 해석 60s → 56ms. 커밋 `9f585d5` 푸시 완료.
 
 ## Progress
+- [x] 원인 진단: prod REST `/api/dart/corp-code` 60.47s abort 재현 (= CORP_CODE_TIMEOUT_MS)
+- [x] financials 등 작은 JSON은 14s로 동작 확인 → 호스트 도달 가능, 대용량 다운로드만 stall
+- [x] `scripts/harvest-dart-corp-codes.ts` 스냅샷 생성기 작성
+- [x] `src/dart-corp-codes.ts` 생성 (118k건, lazy gunzip ~121ms 1회 캐시)
+- [x] `resolveCorpCode` 스냅샷 우선 + 라이브 폴백 (TDD 4케이스)
+- [x] AGENTS.md 컨벤션 2줄 추가
+- [x] 검증: type/lint/test(1062)/build/verify-docs/knip 클린, 커버리지 84.9%/89.07%
+- [x] 커밋 `9f585d5` 푸시
 
-### 완료
-- 장애 원인 분석: Railway 재배포 → 인메모리 세션 소실 → stale sid 요청 → 기존 코드 404 반환 → claude.ai 게이트웨이가 재초기화 없이 포기하는 동작을 railway logs 타임라인으로 확정.
-- `src/mcp-stateless-fallback.ts` 신규: `handleStatelessMcpRequest()` — `sessionIdGenerator: undefined` 1회성 stateless StreamableHTTPServerTransport(세션 검증 생략), 세션 Map 미등록, `res` close 시 transport/server 정리.
-- `src/remote.ts` stale 분기: 404 제거 → 폴백 호출 + warn 로그(`"stale session ... stateless fallback"`).
-- `src/mcp-stateless-fallback.test.ts` 신규: tools/list·initialize·tools/call 3케이스.
-- `src/__tests__/session-health.e2e.test.ts`: stale 404 기대 → 200 폴백 + 세션 미등록 검증.
-- `AGENTS.md` 컨벤션 추가: stale 세션 stateless 폴백 정책 1줄.
-- 검증·배포: 전체 1059 통과, lint 0, build clean, verify-docs 19/16/16. 95a6e32 push → Railway e6f784df SUCCESS(12:47) → 라이브 stale sid 재현 → HTTP 200 + 18종 툴 확인.
-- 메모리 2건 신규: `mcp-stale-session-stateless-fallback`, `railway-stale-session-diagnosis`.
-
-## Next Steps (우선순위)
-1. **(이월) 쿠키 자동 sync 안정화** — `sync-youtube-cookies.sh`(launchd 08:00) 06-10~12 3일 연속 FAIL(Chrome Profile 4 미로그인). 재발 방지: FAIL 3연속 시 텔레그램 알림 강화, Chrome Profile 4 YouTube 로그인 상시 유지 점검.
-2. **(이월) cookiePool 메트릭 cosmetic 오표기** — `/health/youtube`의 `cookiePool: expired -1d`는 단일 YOUTUBE_COOKIES 모드에서 vestigial. POOL 미설정 시 실제 YOUTUBE_COOKIES 만료 반영 또는 null 표기로 개선.
-3. **(이월) gov24-ai health/canary probe, multi-turn cnvrsId** — 2026-06-03 핸드오프 이월 유지.
+## Next Steps
+1. **프로덕션 배포** — 현재 prod는 구버전이라 여전히 60s 타임아웃. Railway 재배포해야 수정 반영
+2. 배포 후 prod `/api/dart/corp-code?corp_name=케어랩스` 재검증 (56ms 기대)
+3. (원 작업) 케어랩스 종속회사 EDB 매출 비중 조사 재개 — corp_code=01187148, 사업보고서 종속기업 요약재무
 
 ## Blockers
-없음.
+- 없음 (배포는 사용자 결정 사항)
 
 ## Watch Out
-- **CLAUDE.md = AGENTS.md 심링크**: 두 파일 모두 수정하면 중복 삽입. 항상 AGENTS.md만 수정.
-- **stateless 폴백 오버헤드**: 요청당 `createServer()` + transport 신규 생성. claude.ai 게이트웨이가 stale sid를 계속 재사용하면 매 요청 폴백 동작 — Railway 로그 `"stale session ... stateless fallback"` 빈도 높으면 점검.
-- **GET /mcp(SSE) stale 처리**: 폴백은 POST에만 적용. GET은 stale sid 시 여전히 400(SSE는 stateless 불가 — 의도적).
-- **프로브 = 서빙 경로**: `youtube-probe._runProbe`는 반드시 `getTranscript()` 그대로 호출. 자체 yt-dlp 명령 복제 금지(늑대소년 재발).
-- **yt-dlp 핀**: Dockerfile 하드코딩(2026.06.09). 봇탐지 반복 시 최신 stable 재bump.
-- **Railway 도메인**: 공개 URL `https://public-data.up.railway.app` (서비스명 korea-public-data-mcp).
-- **verify-docs EXPECTED**: 19/16/16 (이번 변경 도메인/스킬 증감 없음).
+- `dart-corp-codes.ts`는 자동 생성 — 직접 수정 금지. 신규 상장/개명 반영은 `npx tsx scripts/harvest-dart-corp-codes.ts` 재실행
+- 정적 스냅샷은 시점 데이터 — 최근 상장/개명 기업은 스냅샷 미수록 시 라이브 폴백(prod에서 여전히 60s 위험). 주기적 harvest 권장
+- prod-only 실패 진단: 로컬 재현 안 되면 prod REST/MCP로 직접 재현, 타임아웃 값 일치 확인
 
 ## Files Touched
-- `src/mcp-stateless-fallback.ts` — 신규: handleStatelessMcpRequest() stateless 폴백
-- `src/mcp-stateless-fallback.test.ts` — 신규: 3케이스 TDD
-- `src/remote.ts` — stale 404 분기 → stateless 폴백 호출
-- `src/__tests__/session-health.e2e.test.ts` — stale 기대값 404 → 200 + 세션 미등록
-- `AGENTS.md` — stale 세션 폴백 컨벤션
-- `.claude-project/memory/` — 메모리 2건 + MEMORY.md 인덱스
+- src/dart-api.ts (resolveCorpCode 스냅샷 우선 + lookupInMap 추출)
+- src/dart-api.test.ts (resolveCorpCode 4 케이스 재작성)
+- src/dart-corp-codes.ts (신규, 자동 생성 스냅샷)
+- scripts/harvest-dart-corp-codes.ts (신규, 스냅샷 생성기)
+- AGENTS.md (컨벤션)
