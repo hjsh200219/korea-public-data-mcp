@@ -15,6 +15,7 @@ import type {
   DartDocumentFile,
   CorpCodeEntry,
 } from "./dart-types.js";
+import { getCorpCodeSnapshot } from "./dart-corp-codes.js";
 
 const DART_BASE_URL = "https://opendart.fss.or.kr/api";
 const DART_TIMEOUT_MS = 15000;
@@ -354,12 +355,11 @@ async function getCorpCodeMap(apiKey: string): Promise<Map<string, CorpCodeEntry
   return corpCodeLoadPromise;
 }
 
-export async function resolveCorpCode(
-  apiKey: string,
+/** Map 에서 정확 일치 → 없으면 부분 일치(최대 20건) 조회. */
+function lookupInMap(
+  map: Map<string, CorpCodeEntry[]>,
   corpName: string,
-): Promise<CorpCodeEntry[]> {
-  const map = await getCorpCodeMap(apiKey);
-
+): CorpCodeEntry[] {
   const exact = map.get(corpName);
   if (exact) return exact;
 
@@ -370,6 +370,25 @@ export async function resolveCorpCode(
     }
     if (results.length >= 20) break;
   }
-
   return results;
+}
+
+/**
+ * 회사명 → 고유번호(corp_code) 해석.
+ *
+ * 정적 스냅샷(dart-corp-codes.ts)을 먼저 조회한다. Railway egress 가
+ * opendart.fss.or.kr 에 느려 3.5MB corpCode.xml 라이브 다운로드가 60s 타임아웃
+ * 안에 못 끝나는 문제를 회피하기 위함. 스냅샷에 없을 때만 라이브 corpCode.xml 폴백.
+ */
+export async function resolveCorpCode(
+  apiKey: string,
+  corpName: string,
+): Promise<CorpCodeEntry[]> {
+  const snapshot = getCorpCodeSnapshot();
+  const fromSnapshot = lookupInMap(snapshot, corpName);
+  if (fromSnapshot.length > 0) return fromSnapshot;
+
+  // 스냅샷 미수록 (신규 상장/개명 등) → 라이브 corpCode.xml 폴백
+  const map = await getCorpCodeMap(apiKey);
+  return lookupInMap(map, corpName);
 }

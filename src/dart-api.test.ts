@@ -185,10 +185,32 @@ describe("resolveCorpCode", () => {
     vi.resetModules();
   });
 
-  it("기업명으로corpCode조회_캐시", async () => {
+  it("번들스냅샷에수록된기업_라이브다운로드없이조회", async () => {
+    // 삼성전자는 정적 스냅샷(dart-corp-codes.ts)에 수록 → corpCode.xml 페치 0회여야 함
+    globalThis.fetch = vi.fn() as any;
+
+    const { resolveCorpCode: resolve } = await import("./dart-api.js");
+    const result = await resolve("apikey", "삼성전자");
+
+    expect(result[0]?.corpCode).toBe("00126380");
+    expect((globalThis.fetch as any).mock.calls.length).toBe(0);
+  });
+
+  it("스냅샷부분일치_라이브다운로드없이조회", async () => {
+    globalThis.fetch = vi.fn() as any;
+
+    const { resolveCorpCode: resolve } = await import("./dart-api.js");
+    const result = await resolve("apikey", "삼성전");
+
+    // 부분 일치로 삼성전자 포함
+    expect(result.some((e) => e.corpName === "삼성전자")).toBe(true);
+    expect((globalThis.fetch as any).mock.calls.length).toBe(0);
+  });
+
+  it("스냅샷미수록기업_라이브corpCode_xml폴백", async () => {
     const xml = `<?xml version="1.0"?><result><list>
       <corp_code>12345678</corp_code>
-      <corp_name>테스트주식회사</corp_name>
+      <corp_name>존재하지않는테스트법인XYZ</corp_name>
       <stock_code>000000</stock_code>
       <modify_date>20240101</modify_date>
     </list></result>`;
@@ -203,11 +225,34 @@ describe("resolveCorpCode", () => {
     } as any);
 
     const { resolveCorpCode: resolve } = await import("./dart-api.js");
-    const exact = await resolve("apikey", "테스트주식회사");
-    expect(exact[0]?.corpCode).toBe("12345678");
+    const result = await resolve("apikey", "존재하지않는테스트법인XYZ");
 
+    expect(result[0]?.corpCode).toBe("12345678");
+    // 스냅샷 미수록 → 라이브 다운로드 1회 발생
+    expect((globalThis.fetch as any).mock.calls.length).toBeGreaterThan(0);
+  });
+
+  it("라이브폴백_캐시재사용", async () => {
+    const xml = `<?xml version="1.0"?><result><list>
+      <corp_code>87654321</corp_code>
+      <corp_name>또다른미수록법인QWE</corp_name>
+      <stock_code></stock_code>
+      <modify_date>20240101</modify_date>
+    </list></result>`;
+    const zip = new JSZip();
+    zip.file("CORPCODE.xml", xml);
+    const buf = await zip.generateAsync({ type: "arraybuffer" });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => buf,
+    } as any);
+
+    const { resolveCorpCode: resolve } = await import("./dart-api.js");
+    await resolve("apikey", "또다른미수록법인QWE");
     const fetchCalls = (globalThis.fetch as any).mock.calls.length;
-    await resolve("apikey", "테스트주식회사");
+    await resolve("apikey", "또다른미수록법인QWE");
     expect((globalThis.fetch as any).mock.calls.length).toBe(fetchCalls);
   });
 });

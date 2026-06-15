@@ -58,7 +58,8 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - Dead-code (Knip): 내부 전용 심볼은 `export` 제거, 외부 참조 없는 타입은 삭제
 - `verify-docs.ts` EXPECTED 카운트: 파일 추가/삭제 시 `npm run verify-docs`로 동기화 필수
 - HIRA 지역 코드: 한글 시도/시군구명(Q0/Q1)은 `src/hira-region-codes.ts` 매핑으로 raw `sidoCd`/`sgguCd` 자동 해석 후 호출 — 매칭 실패 시에만 클라이언트 재필터 폴백 (HIRA가 Q0/Q1 무시)
-- 자동 생성 매핑 파일(`hira-region-codes.ts` 등): 직접 수정 금지 — `scripts/harvest-*.ts` 재실행으로만 갱신 (rate-limit-safe delay 내장)
+- 자동 생성 매핑 파일(`hira-region-codes.ts`, `dart-corp-codes.ts` 등): 직접 수정 금지 — `scripts/harvest-*.ts` 재실행으로만 갱신 (rate-limit-safe delay 내장)
+- DART corp_code 해석: 정적 스냅샷(`dart-corp-codes.ts`, gzip+base64 118k건) 우선 조회 후 미수록 시에만 라이브 `corpCode.xml` 폴백 — Railway egress가 opendart.fss.or.kr에 느려 3.5MB ZIP이 60s 타임아웃 초과(작은 JSON도 ~14s). 스냅샷 갱신: `npx tsx scripts/harvest-dart-corp-codes.ts` (신규 상장/개명 반영)
 - 법제처 DRF XML 파싱: 반복 가능 필드는 `ensureArray()` + `.map(str)`로 정규화 (`str(array)` 콤마 결합 함정), 동일 target에 root 분기(`trty` 양자/다자, `admrulOldAndNew` 등)는 fallback chain 필수 — 라이브 curl로 응답 형상 먼저 확인 후 파서 작성
 - 긴 법령 truncation 회피: `get_law_detail` 류 다수 조문 반환 도구는 `article_start`/`article_end` 범위 필터 노출 — 클라이언트가 8000자 한도 내 조회 가능하도록
 
