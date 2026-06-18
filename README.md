@@ -1,7 +1,7 @@
 # K Public Data MCP
 
 대한민국 공공데이터 MCP(Model Context Protocol) 서버입니다.
-법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털 API를 통합하여 법령·판례·기업공시·생활정보를 검색/조회합니다. 비교법 참조용으로 미국 판례(CourtListener) 검색 도구도 포함됩니다.
+법제처 국가법령정보센터, DART 전자공시시스템, 공공데이터포털, 관세청 UNI-PASS, 수출입은행 환율, 농림축산식품부, 금융감독원 금융상품 비교공시, 금융위원회 보험상품 공시, 조달청 나라장터, YouTube 자막·메타데이터, 한국관광공사 KorService2, 쿠팡 파트너스, 국회 Open API, 정부24 plus AI 민원 검색, 해외 판례(CourtListener·OpenLegalData) API를 통합합니다.
 
 ---
 
@@ -59,6 +59,66 @@
 | 32 | 건강기능식품 검색 | `data20_search_health_food` | 건강기능식품 제품 정보 |
 | 33 | 사업자등록 진위확인 | `data20_verify_business` | 사업자번호·대표자명 진위 확인 |
 | 34 | 사업자등록 상태조회 | `data20_check_business_status` | 사업자 상태 (계속/휴업/폐업) |
+
+### 관세청 UNI-PASS (선택)
+
+> `UNIPASS_KEY_API*` 환경변수 설정 시 활성화됩니다 (API 번호별 개별 키, 예: `UNIPASS_KEY_API001`).
+
+`tariff_lookup` 스킬로 관세율·HS코드 조회 / `import_clearance`·`export_clearance` 스킬로 수입·수출 통관 정보 조회 / `trade_entity` 스킬로 무역 업체 조회 / `shipping_logistics` 스킬로 물류·운송 정보 조회.
+
+### 수출입은행 환율 (선택)
+
+> `EXCHANGE_RATE_API_KEY` 환경변수 설정 시 활성화됩니다.
+
+`tariff_lookup` 스킬의 `exchange_rate` 액션으로 기준환율 조회.
+
+### 농림축산식품부 (선택)
+
+> `MAFRA_API_KEY` 환경변수 설정 시 활성화됩니다.
+
+`trade_entity` 스킬로 수입축산물 이력 조회.
+
+### 금융감독원 금융상품 비교공시 (선택)
+
+> `FINLIFE_API_KEY` 환경변수 설정 시 활성화됩니다.
+
+`financial_product` 스킬로 예금·적금·대출·연금·펀드 등 금융상품 비교공시 조회.
+
+### 금융위원회 보험상품 공시 (선택)
+
+`insurance` 스킬로 보험상품 공시 정보 조회 (별도 키 불필요).
+
+### 조달청 나라장터 G2B (선택)
+
+`procurement` 스킬로 입찰공고·낙찰결과 조회 (별도 키 불필요).
+
+### YouTube 자막·메타데이터 (선택)
+
+> 자막 추출은 키 없이 사용 가능. `YOUTUBE_API_KEY` 설정 시 메타데이터·검색·댓글 기능 추가 활성화.
+
+`youtube` 스킬로 YouTube 자막 추출, `product_review` 스킬로 제품 리뷰 검색 (+ 쿠팡 링크 통합).
+
+### 쿠팡 파트너스 (선택)
+
+> `COUPANG_ACCESS_KEY` / `COUPANG_SECRET_KEY` 환경변수 설정 시 활성화됩니다.
+
+`product_review` 스킬의 `coupang_search`·`full_review` 액션으로 쿠팡 상품 검색 및 구매 링크 조회.
+
+### 한국관광공사 KorService2 (선택)
+
+`tourism` 스킬로 관광지·행사·음식점·숙박 정보 조회 (별도 키 불필요).
+
+### 국회 Open API (선택)
+
+> `ASSEMBLY_API_KEY` 환경변수 설정 시 활성화됩니다.
+
+`assembly` 스킬로 의안 검색·표결·국회의원·회의록·일정 조회.
+
+### 정부24 plus AI 민원 검색 (선택)
+
+> `GOV24_AI_ENABLED=true` 환경변수 설정 시 활성화됩니다 (비공식 역방향 엔드포인트, 기본 비활성).
+
+`gov24_ai` 스킬로 정부24 AI 민원 질의응답 검색.
 
 ### 해외 판례 — CourtListener + OpenLegalData (4개 액션, 비교법 참조용)
 
@@ -487,6 +547,20 @@ npm start
 | `LAW_API_OC` | O | 법제처 API 인증코드. [법제처 오픈API](https://open.law.go.kr/LSO/openApi/guideList.do)에서 발급 |
 | `DART_API_KEY` | X | DART API 키. [DART 오픈API](https://opendart.fss.or.kr)에서 발급 |
 | `DATA20_SERVICE_KEY` | X | 공공데이터포털 서비스 키. [공공데이터포털](https://www.data.go.kr)에서 발급 |
+| `UNIPASS_KEY_API*` | X | 관세청 UNI-PASS API 인증키 (API 번호별 개별 키, 예: `UNIPASS_KEY_API001`) |
+| `EXCHANGE_RATE_API_KEY` | X | 수출입은행 환율 API 키 |
+| `MAFRA_API_KEY` | X | 농림축산식품부 API 키 |
+| `FINLIFE_API_KEY` | X | 금융감독원 금융상품 비교공시 API 키 |
+| `YOUTUBE_API_KEY` | X | YouTube Data API v3 키 (없으면 자막 추출만 사용 가능) |
+| `YOUTUBE_COOKIES_FROM_BROWSER` | X | 자막 봇 차단 우회용 로컬 브라우저 (`chrome`/`firefox`/`safari` 등). stdio 로컬 전용 |
+| `YOUTUBE_COOKIES` | X | 자막 봇 차단 우회용 Netscape cookies.txt. Railway 서버 배포용 |
+| `COUPANG_ACCESS_KEY` | X | 쿠팡 파트너스 Access Key |
+| `COUPANG_SECRET_KEY` | X | 쿠팡 파트너스 Secret Key |
+| `ASSEMBLY_API_KEY` | X | 국회 Open API 키 ([open.assembly.go.kr](https://open.assembly.go.kr)) |
+| `COURTLISTENER_API_TOKEN` | X | CourtListener API 토큰 (미국 판례) |
+| `OPENLEGALDATA_API_TOKEN` | X | OpenLegalData 토큰 (독일 판례) |
+| `FOREIGN_CASE_ENABLED` | X | `true` 설정 시 토큰 없이도 독일 판례 활성화 |
+| `GOV24_AI_ENABLED` | X | `true` 설정 시 정부24 plus AI 검색(beta) 활성화 (기본 비활성) |
 | `PORT` | X | HTTP 서버 포트 (기본 3000) |
 
 Railway, Render 등 Node.js를 지원하는 플랫폼에 배포할 수 있습니다.
@@ -496,6 +570,7 @@ Railway, Render 등 Node.js를 지원하는 플랫폼에 배포할 수 있습니
 - TypeScript + Node.js
 - `@modelcontextprotocol/sdk` - MCP 프로토콜 (Streamable HTTP + stdio)
 - `express` - Remote HTTP 서버
+- `cors` - CORS 처리
 - `fast-xml-parser` - XML 응답 파싱
 - `jszip` - DART 기업코드 ZIP 파싱
 - `zod` - 입력 검증
