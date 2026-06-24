@@ -32,7 +32,8 @@
 - [product-review-matches-query-token-matching](product-review-matches-query-token-matching.md) — matchesQuery(): 토큰 분리 + title/description 동시 탐색, exact match 대신
 - [skill-tool-bilingual-title-llm-routing](skill-tool-bilingual-title-llm-routing.md) — 스킬 title/description 강화로 LLM 도구 선택 오류 방지 패턴
 - [mcp-prompt-workflow-guide-pattern](mcp-prompt-workflow-guide-pattern.md) — prompts.ts 워크플로 등록 패턴, full_review 우선 + 전체 요약 지시
-- [youtube-circuit-breaker-thresholds](youtube-circuit-breaker-thresholds.md) — 연속 실패 6회 open, 60초 half-open, NO_SUBTITLES 제외
+- [youtube-circuit-breaker-thresholds](youtube-circuit-breaker-thresholds.md) — 연속 실패 3회 초과 open(2026-06 6→3), 60초 half-open, 종단 throw recordFailure 누락 버그 수정
+- [youtube-502-budget-deadline](youtube-502-budget-deadline.md) — youtube 502 원인(캐스케이드 90s+ > 게이트웨이 한도) + 전역 데드라인/시도당 타임아웃 수정
 - [youtube-cookie-pool-env-structure](youtube-cookie-pool-env-structure.md) — YOUTUBE_COOKIES_POOL JSON 배열, round-robin, 5분 recovery, 우선순위 체인
 - [youtube-health-probe-endpoint](youtube-health-probe-endpoint.md) — /health/youtube 엔드포인트 + 5분 프로브, cookiePool/circuitBreaker 상태 반환
 - [yt-dlp-version-pin-and-nightly-canary](yt-dlp-version-pin-and-nightly-canary.md) — Dockerfile 2026.03.17 고정, nightly canary로 정책 변경 감지

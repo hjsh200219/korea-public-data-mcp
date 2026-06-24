@@ -50,7 +50,8 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - YouTube kill switches: `YOUTUBE_CIRCUIT_BREAKER_ENABLED`, `YOUTUBE_PROBE_ENABLED` (`false`로 즉시 비활성화)
 - YouTube cookies: `.youtube.com` 도메인만 필터링 (Railway 32KB 제한 — `.google.com` 포함 시 초과)
 - YouTube cookie 추출: yt-dlp `--cookies-from-browser`에 **로그인된 프로필 명시 필수** (`chrome:Profile N`) — 프로필 미지정 시 `Default` 읽어 로그아웃 방문자 쿠키만 잡힘. `refresh-youtube-cookies.ts`는 `BROWSER:PROFILE` 형식 파싱 + `findMissingAuthCookies` 가드(LOGIN_INFO/SAPISID/`__Secure-1PSID` 없으면 업로드 중단)
-- YouTube Circuit Breaker `state` getter는 lazy 전이 포함 (open→half-open by `OPEN_DURATION_MS`) — 별도 `currentState` 만들지 말고 단일 게터 재사용 (`isOpen()`도 동일 게터 호출)
+- YouTube Circuit Breaker `state` getter는 lazy 전이 포함 (open→half-open by `OPEN_DURATION_MS`) — 별도 `currentState` 만들지 말고 단일 게터 재사용 (`isOpen()`도 동일 게터 호출). 임계값 `FAILURE_THRESHOLD`=3(2026-06 6→3)
+- YouTube 502 방지 전역 데드라인: `getTranscript`는 `YOUTUBE_TOTAL_BUDGET_MS`(기본 25s) 내 반환 — 각 클라이언트 시도 전 남은 예산 < `BUDGET_FLOOR_MS`(3s)면 캐스케이드 중단, per-attempt 타임아웃 = `min(YTDLP_ATTEMPT_TIMEOUT_MS=8s, 남은예산)`. 게이트웨이 한도(~60-100s) 초과 시 Cloudflare 502가 나므로 데드라인은 그보다 한참 작게 유지. 데이터센터 봇차단 캐스케이드(throw 아닌 `{kind:"cascade"}`)는 종단 `finalize()`에서만 `recordFailure` 1회 — per-client catch와 이중 카운트 금지
 - YouTube Python fallback 성공 경로도 `youtubeCircuitBreaker.recordSuccess()` 명시 호출 — half-open 회복 메커니즘 보존 (누락 시 영구 half-open 잔존)
 - YouTube 헬스 프로브(`youtube-probe.ts` `_runProbe`)는 서빙 경로 `getTranscript()`를 **그대로 호출** — 별도 yt-dlp 명령으로 복제 금지. 복제하면 캐스케이드(android_vr→tv→web)·쿠키 폴백이 빠져 "실제 tool은 정상인데 프로브만 down" 늑대소년 발생(과거 쿠키없는 web `--dump-json`이 데이터센터 IP에서 항상 봇 차단). 서킷 브레이커 결합은 의도적(회복 하트비트)
 - MCP stale 세션(재배포로 인메모리 세션 소실 후 옛 `mcp-session-id` 요청)은 404 거절 금지 — `handleStatelessMcpRequest()`(`mcp-stateless-fallback.ts`) 1회성 stateless 폴백으로 응답. claude.ai 게이트웨이는 404 후 재초기화하지 않고 포기해 대화에서 툴이 통째로 사라짐 (2026-06-12 장애)
