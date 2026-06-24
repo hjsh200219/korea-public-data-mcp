@@ -12,6 +12,8 @@
 | `YOUTUBE_API_KEY` | No | YouTube Data API v3 key (없으면 자막만 사용 가능) |
 | `YOUTUBE_COOKIES_FROM_BROWSER` | No | 자막 봇 차단 우회 — 로컬 브라우저 (`chrome`/`firefox`/`safari`/`brave`/`edge`/`chromium`). 로컬 stdio용 |
 | `YOUTUBE_COOKIES` | No | 자막 봇 차단 우회 — Netscape cookies.txt 텍스트. Railway 서버 배포용. `YOUTUBE_COOKIES_FROM_BROWSER` 설정 시 무시 |
+| `YTDLP_ATTEMPT_TIMEOUT_MS` | No | yt-dlp 시도당 타임아웃 (기본 8000). 데이터센터 IP 봇 차단 시 시도가 매달리지 않도록 짧게 |
+| `YOUTUBE_TOTAL_BUDGET_MS` | No | `get_transcript`/`summarize` 전역 예산 (기본 25000). 게이트웨이 한도 밑에서 항상 반환해 502 대신 깔끔한 에러 |
 | `COURTLISTENER_API_TOKEN` | No | CourtListener API 토큰 (미국 판례, 시간당 5,000건) |
 | `OPENLEGALDATA_API_TOKEN` | No | OpenLegalData 토큰 (독일 판례, 익명 접근 가능) |
 | `FOREIGN_CASE_ENABLED` | No | `true` 설정 시 토큰 없이도 독일 판례 활성화 |

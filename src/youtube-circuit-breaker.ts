@@ -12,8 +12,9 @@ const INFRA_ERRORS = new Set([
 
 const OPEN_DURATION_MS = 60_000;
 
-// 연속 인프라 실패가 이 값을 초과하면 open (7회 이상 실패 시)
-const FAILURE_THRESHOLD = 6;
+// 연속 인프라 실패가 이 값을 초과하면 open (4회째 실패 시)
+// 데이터센터 IP 봇 차단은 시도당 ~8s 소요 — 임계값을 낮춰 502 무한 반복을 빠르게 차단한다.
+const FAILURE_THRESHOLD = 3;
 
 export class YoutubeCircuitBreaker {
   private _state: BreakerState = "closed";
@@ -49,6 +50,13 @@ export class YoutubeCircuitBreaker {
       return;
     }
     // 성공 시 실패 카운터 리셋 (healthy 쿠키 성공 → 인프라 실패 카운터 초기화)
+    this._failureCount = 0;
+  }
+
+  /** 테스트 격리용 — 상태/카운터를 closed로 초기화 @internal */
+  _reset(): void {
+    this._state = "closed";
+    this._openedAt = 0;
     this._failureCount = 0;
   }
 

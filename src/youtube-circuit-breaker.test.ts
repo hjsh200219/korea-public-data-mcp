@@ -21,10 +21,11 @@ describe("YoutubeCircuitBreaker", () => {
     expect(breaker.isOpen()).toBe(false);
   });
 
-  it("인프라 실패 60% 초과 시 open", () => {
-    // trailing 10회 중 7회 실패 = 70% > 60% → open
-    for (let i = 0; i < 3; i++) breaker.recordSuccess();
-    for (let i = 0; i < 7; i++) breaker.recordFailure(TranscriptErrorCode.RATE_LIMITED);
+  it("연속 인프라 실패 4회 시 open (FAILURE_THRESHOLD=3)", () => {
+    // 3회까지는 closed 유지, 4회째 open
+    for (let i = 0; i < 3; i++) breaker.recordFailure(TranscriptErrorCode.RATE_LIMITED);
+    expect(breaker.state).toBe("closed");
+    breaker.recordFailure(TranscriptErrorCode.RATE_LIMITED); // 4회째 → open
     expect(breaker.state).toBe("open");
     expect(breaker.isOpen()).toBe(true);
   });
@@ -35,11 +36,11 @@ describe("YoutubeCircuitBreaker", () => {
   });
 
   it("healthy 쿠키 성공 시 카운터 리셋", () => {
-    for (let i = 0; i < 6; i++) breaker.recordFailure(TranscriptErrorCode.RATE_LIMITED);
+    for (let i = 0; i < 3; i++) breaker.recordFailure(TranscriptErrorCode.RATE_LIMITED);
     breaker.recordSuccess(); // healthy 쿠키 성공 → 리셋
-    // 6회 실패였다가 성공으로 리셋 → 추가 실패 7회 필요 (10회 trailing 기준)
-    for (let i = 0; i < 6; i++) breaker.recordFailure(TranscriptErrorCode.BOT_DETECTED);
-    expect(breaker.state).toBe("closed"); // 리셋 후 6회 실패 = 60% → 미도달
+    // 3회 실패였다가 성공으로 리셋 → 다시 임계값(3)까지는 closed 유지
+    for (let i = 0; i < 3; i++) breaker.recordFailure(TranscriptErrorCode.BOT_DETECTED);
+    expect(breaker.state).toBe("closed"); // 리셋 후 3회 실패 = 임계값 미초과
   });
 
   it("open 상태에서 60초 후 half-open 전환", () => {

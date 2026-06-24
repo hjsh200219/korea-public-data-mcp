@@ -24,6 +24,25 @@ const YT_API_BASE = "https://www.googleapis.com/youtube/v3";
 const TIMEOUT_MS = 15000;
 
 /**
+ * yt-dlp 시도당 타임아웃 (기본 8s). 데이터센터 IP 봇 차단 시 시도가 끝까지 매달리지
+ * 않도록 짧게 잡는다. env YTDLP_ATTEMPT_TIMEOUT_MS로 조정 가능.
+ */
+const YTDLP_ATTEMPT_TIMEOUT_MS = Number(process.env.YTDLP_ATTEMPT_TIMEOUT_MS) || 8000;
+
+/**
+ * getTranscript 핸들러 전역 예산 (기본 25s). 게이트웨이(claude.ai/Cloudflare ~60-100s)
+ * 한도 한참 밑에서 항상 반환해 502 대신 깔끔한 에러를 돌려주기 위한 데드라인.
+ * env YOUTUBE_TOTAL_BUDGET_MS로 조정 가능.
+ */
+const YOUTUBE_TOTAL_BUDGET_MS = Number(process.env.YOUTUBE_TOTAL_BUDGET_MS) || 25000;
+
+/**
+ * 남은 예산이 이 floor 미만이면 새 yt-dlp 시도/Python 폴백을 시작하지 않고 조기 throw.
+ * 시작했다가 게이트웨이 한도를 넘기느니 즉시 깔끔한 에러를 주는 게 낫다.
+ */
+const BUDGET_FLOOR_MS = 3000;
+
+/**
  * YouTube URL 또는 ID에서 videoId 추출
  * 지원 형식: 전체 URL, 단축 URL, 순수 ID
  */
@@ -216,6 +235,7 @@ async function tryYtDlpClient(
   browserCookies: string | undefined,
   cookieFile: string | null,
   tmpDir: string,
+  attemptTimeoutMs: number,
 ): Promise<TryYtDlpOutcome> {
   const ytdlpArgs = [
     "--skip-download",
@@ -233,7 +253,7 @@ async function tryYtDlpClient(
   let ytdlpError: Error | null = null;
   let stdoutBody = "";
   try {
-    const { stdout } = await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 30_000 });
+    const { stdout } = await execFileAsync("yt-dlp", ytdlpArgs, { timeout: attemptTimeoutMs });
     stdoutBody = typeof stdout === "string" ? stdout : "";
   } catch (e) {
     if (!(e instanceof Error)) throw e;
@@ -408,18 +428,29 @@ export async function getTranscript(
     ? ["android_vr", "tv", "web"]
     : ["android_vr", "android"];
 
+  // 전역 데드라인: 이 시점을 넘기지 않도록 시도/폴백을 잘라 게이트웨이 502를 회피한다.
+  const deadline = Date.now() + YOUTUBE_TOTAL_BUDGET_MS;
+
   try {
     // 캐스케이드 동안 가장 구체적인 차단 사유를 보존 (예: tv DRM = BOT_DETECTED, web PO Token = PO_TOKEN_REQUIRED → PO_TOKEN_REQUIRED 보존)
     let lastCascadeReason: CascadeReason = TranscriptErrorCode.NO_SUBTITLES;
     let cascadeOccurred = false;
 
     for (const playerClient of clients) {
+      // 시도 전 남은 예산 확인 — floor 미만이면 남은 클라이언트 + Python 폴백을 건너뛰고 조기 종료.
+      // (시작했다가 게이트웨이 한도를 넘기느니 즉시 깔끔한 에러가 낫다.)
+      const remaining = deadline - Date.now();
+      if (remaining < BUDGET_FLOOR_MS) break;
+
       // 시도마다 별도 디렉터리: 이전 시도 잔여 파일이 다음 시도 결과를 오염시키지 않도록
       const dir = await mkdtemp(join(rootTmp, "attempt-"));
+      // per-attempt 타임아웃을 남은 예산으로 클램프 (둘 중 작은 값)
+      const attemptTimeoutMs = Math.min(YTDLP_ATTEMPT_TIMEOUT_MS, remaining);
       try {
         const outcome = await tryYtDlpClient(
           videoId, langsToTry, subLangArg,
           playerClient, browserCookies, cookieFile, dir,
+          attemptTimeoutMs,
         );
         if (outcome.kind === "success") {
           youtubeCircuitBreaker.recordSuccess();
@@ -442,29 +473,56 @@ export async function getTranscript(
       }
     }
 
-    // 모든 yt-dlp 시도 실패 → Python fallback
-    try {
-      const result = await getTranscriptFallback(videoId, primaryLang);
-      // half-open 상태에서 fallback이 성공해도 breaker가 닫히도록 명시적 리셋
-      // (누락 시 다음 인프라 실패 1건에 즉시 재오픈 — 회복 메커니즘 차단)
-      youtubeCircuitBreaker.recordSuccess();
-      return result;
-    } catch (fallbackErr) {
-      // fallback이 TranscriptError를 던졌다면 cascade 사유와 결합
-      // - cascade가 PO_TOKEN_REQUIRED 등 구체적 사유를 보유 → 그쪽으로 throw (정확한 운영 원인 노출)
-      // - cascade가 NO_SUBTITLES이거나 cascade 자체가 없었음 → fallback의 NO_SUBTITLES 그대로 노출
-      const finalReason: CascadeReason = cascadeOccurred
-        ? lastCascadeReason
-        : TranscriptErrorCode.NO_SUBTITLES;
-      throw new TranscriptError(
-        cascadeMessage(finalReason),
-        finalReason,
-        fallbackErr,
-      );
+    // 남은 예산이 충분할 때만 Python fallback 시도 (부족하면 곧장 종단 throw로)
+    if (deadline - Date.now() >= BUDGET_FLOOR_MS) {
+      try {
+        const result = await getTranscriptFallback(videoId, primaryLang);
+        // half-open 상태에서 fallback이 성공해도 breaker가 닫히도록 명시적 리셋
+        // (누락 시 다음 인프라 실패 1건에 즉시 재오픈 — 회복 메커니즘 차단)
+        youtubeCircuitBreaker.recordSuccess();
+        return result;
+      } catch (fallbackErr) {
+        // fallback이 TranscriptError를 던졌다면 cascade 사유와 결합
+        // - cascade가 PO_TOKEN_REQUIRED 등 구체적 사유를 보유 → 그쪽으로 throw (정확한 운영 원인 노출)
+        // - cascade가 NO_SUBTITLES이거나 cascade 자체가 없었음 → fallback의 NO_SUBTITLES 그대로 노출
+        const finalReason: CascadeReason = cascadeOccurred
+          ? lastCascadeReason
+          : TranscriptErrorCode.NO_SUBTITLES;
+        throw finalize(finalReason, cookieFile, fallbackErr);
+      }
     }
+
+    // 예산 소진으로 Python fallback까지 건너뛴 경로 — 누적된 cascade 사유로 throw.
+    // cascade가 없었으면(첫 시도조차 예산 부족) 봇 차단으로 간주.
+    const finalReason: CascadeReason = cascadeOccurred
+      ? lastCascadeReason
+      : TranscriptErrorCode.BOT_DETECTED;
+    throw finalize(finalReason, cookieFile);
   } finally {
     await rm(rootTmp, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+/**
+ * 종단 실패(폴백까지 실패 또는 예산 소진) 처리 — INFRA 사유를 서킷 브레이커에 기록하고
+ * 쿠키 풀 사용 중이면 실패 쿠키를 마킹한 뒤 TranscriptError를 반환(throw는 호출 측).
+ *
+ * per-client catch의 throw 경로(429/region 등)와는 분리된 경로다. cascade outcome은
+ * catch를 거치지 않으므로 BOT_DETECTED/PO_TOKEN_REQUIRED/COOKIE_EXPIRED가 여기서
+ * 처음이자 유일하게 기록된다(이중 카운트 없음). NO_SUBTITLES는 recordFailure 내부에서
+ * 무시되므로 무조건 호출해도 카운터에 영향 없다.
+ */
+function finalize(
+  finalReason: CascadeReason,
+  cookieFile: string | null,
+  cause?: unknown,
+): TranscriptError {
+  youtubeCircuitBreaker.recordFailure(finalReason);
+  if (finalReason !== TranscriptErrorCode.NO_SUBTITLES
+    && process.env.YOUTUBE_COOKIES_POOL && cookieFile) {
+    youtubeCookiePool.markCurrentFailed(finalReason);
+  }
+  return new TranscriptError(cascadeMessage(finalReason), finalReason, cause);
 }
 
 /**

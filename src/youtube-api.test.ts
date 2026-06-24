@@ -175,6 +175,7 @@ vi.mock("node:fs/promises", () => ({
 import { execFile } from "node:child_process";
 import { readFile, rm, mkdtemp, writeFile } from "node:fs/promises";
 import { getTranscript } from "./youtube-api.js";
+import { youtubeCircuitBreaker } from "./youtube-circuit-breaker.js";
 
 describe("getTranscript (yt-dlp)", () => {
   const mockJson3 = JSON.stringify({
@@ -193,6 +194,8 @@ describe("getTranscript (yt-dlp)", () => {
     vi.resetAllMocks();
     vi.mocked(mkdtemp).mockResolvedValue("/tmp/yt-sub-abc123");
     vi.mocked(rm).mockResolvedValue(undefined);
+    // 종단 throw가 CB를 누적 open으로 만들면 후속 호출이 즉시 throw → 격리 리셋
+    youtubeCircuitBreaker._reset();
   });
 
   it("yt-dlp로 자막 추출 성공", async () => {
@@ -576,6 +579,158 @@ describe("getTranscript (yt-dlp)", () => {
     expect(result.language).toBe("en");
     expect(result.segments[0].text).toBe("Partial success subtitle");
   });
+
+  it("yt-dlp per-attempt 타임아웃은 YTDLP_ATTEMPT_TIMEOUT_MS(기본 8000ms)로 클램프", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+
+    const capturedTimeouts: number[] = [];
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp" && typeof _opts === "object" && _opts) {
+        capturedTimeouts.push((_opts as { timeout?: number }).timeout ?? -1);
+      }
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockResolvedValue(mockJson3);
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    // 첫 시도는 전체 예산이 충분하므로 8000ms로 클램프 (이전 하드코딩 30000 아님)
+    expect(capturedTimeouts[0]).toBe(8000);
+
+    vi.unstubAllEnvs();
+  });
+});
+
+// ── getTranscript 전역 예산(데드라인) + 서킷 브레이커 통합 ──
+
+describe("getTranscript 예산/서킷브레이커 통합 (502 방지)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(mkdtemp).mockResolvedValue("/tmp/yt-sub-budget");
+    vi.mocked(rm).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    // 브레이커 상태 초기화 (다른 테스트 누적 카운터 영향 차단)
+    youtubeCircuitBreaker._reset();
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+    vi.stubEnv("YOUTUBE_COOKIES", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    // 종단 throw가 CB를 open으로 누적 → 후속 describe 오염 방지로 reset
+    youtubeCircuitBreaker._reset();
+  });
+
+  /** 봇 차단(cascade BOT_DETECTED) — yt-dlp exit 1, 파일 없음, python fallback도 실패 */
+  function mockBotDetectedCascade(onYtDlp?: () => void) {
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        onYtDlp?.();
+        // DRM/봇 감지 사유 미상 → cascade BOT_DETECTED
+        const err = new Error("ERROR: Some random extraction failure");
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
+      } else {
+        // python3 fallback도 실패
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+  }
+
+  it("종단 봇차단(BOT_DETECTED) throw 시 recordFailure로 CB 카운터 증가 — 4회 연속이면 open", async () => {
+    mockBotDetectedCascade();
+
+    // 1~3회: 실패하지만 아직 open 아님
+    for (let i = 0; i < 3; i++) {
+      const thrown = await getTranscript("gc297hx4F7o", "ko").catch((e) => e);
+      expect(thrown).toBeInstanceOf(TranscriptError);
+      expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
+    }
+    expect(youtubeCircuitBreaker.isOpen()).toBe(false);
+
+    // 4회째 → open
+    await getTranscript("gc297hx4F7o", "ko").catch((e) => e);
+    expect(youtubeCircuitBreaker.isOpen()).toBe(true);
+  });
+
+  it("종단 throw 경로에서 recordFailure는 호출당 1회만 (이중 카운트 금지)", async () => {
+    mockBotDetectedCascade();
+    const spy = vi.spyOn(youtubeCircuitBreaker, "recordFailure");
+
+    await getTranscript("gc297hx4F7o", "ko").catch(() => {});
+
+    // cascade(BOT_DETECTED)는 per-client catch throw가 아니라 종단 throw 경로 →
+    // recordFailure가 정확히 1회만 호출돼야 함
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(TranscriptErrorCode.BOT_DETECTED);
+
+    spy.mockRestore();
+  });
+
+  it("CB가 open이면 yt-dlp를 호출하지 않고 즉시 throw (기존 동작 회귀 방지)", async () => {
+    mockBotDetectedCascade();
+    // 4회 연속 실패로 open 만들기
+    for (let i = 0; i < 4; i++) await getTranscript("gc297hx4F7o", "ko").catch(() => {});
+    expect(youtubeCircuitBreaker.isOpen()).toBe(true);
+
+    vi.mocked(execFile).mockClear();
+    const thrown = await getTranscript("gc297hx4F7o", "ko").catch((e) => e);
+
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    const ytdlpCalls = vi.mocked(execFile).mock.calls.filter((c) => c[0] === "yt-dlp");
+    expect(ytdlpCalls).toHaveLength(0);
+  });
+
+  it("전역 예산 소진 시 남은 클라이언트 + python fallback 건너뛰고 즉시 throw + recordFailure", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome"); // android_vr→tv→web 3-client 캐스케이드
+
+    let ytdlpCallCount = 0;
+    let python3Called = false;
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        ytdlpCallCount += 1;
+        // 각 yt-dlp 시도가 예산을 크게 소모하도록 시간 진행 (시도당 20초)
+        vi.advanceTimersByTime(20_000);
+        const err = new Error("ERROR: bot block");
+        (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
+      } else {
+        python3Called = true;
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+    const spy = vi.spyOn(youtubeCircuitBreaker, "recordFailure");
+
+    const promise = getTranscript("gc297hx4F7o", "ko");
+    const thrown = await promise.catch((e) => e);
+
+    // 예산(25s)이 첫 시도(20s 소모) 후 floor(3s) 미만이 되어 나머지 클라이언트 + fallback 건너뜀
+    expect(ytdlpCallCount).toBeLessThan(3); // 3개 클라이언트 전부 돌지 않음
+    expect(python3Called).toBe(false); // python fallback 생략
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
+    // 조기 throw 경로도 recordFailure 1회 호출
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(TranscriptErrorCode.BOT_DETECTED);
+
+    spy.mockRestore();
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
 });
 
 // ── getTranscriptFallback 단독 테스트 ──
@@ -732,6 +887,8 @@ describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
     vi.resetAllMocks();
     vi.mocked(mkdtemp).mockResolvedValue("/tmp/yt-sub-abc123");
     vi.mocked(rm).mockResolvedValue(undefined);
+    // 종단 throw가 CB를 누적 open으로 만들면 후속 호출이 즉시 throw → 격리 리셋
+    youtubeCircuitBreaker._reset();
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
     vi.stubEnv("YOUTUBE_COOKIES", "");
   });
