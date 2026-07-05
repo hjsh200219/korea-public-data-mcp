@@ -1,30 +1,33 @@
 ---
-created: 2026-06-27T00:00:00+09:00
+created: 2026-07-05T18:10:00+09:00
 project: k-public-data-mcp
-summary: AI Hub 판결서 익명처리 데이터셋(docs/reference/aihub, 199MB untracked) 검증 — caseNoID가 law.go.kr 판례일련번호(case_research case_id)와 1:1 동일 확인 후 폴더 삭제. 코드 변경 0건.
+summary: HIRA 보건의료빅데이터 진료통계 API 카탈로그 조사 완료(미구현) — REST 3종 연동 후보 확정, 문서만 커밋
 ---
 
 ## Session Digest
-`docs/reference/aihub`에 다운로드돼 있던 AI Hub 「판결서 익명처리 데이터」(zip 8개, 199MB, **git untracked**)가 K-Data MCP `case_research`(=법제처 law.go.kr)와 같은 판례를 가져오는지 실측 검증. 결론: AI Hub 데이터 = law.go.kr 판례를 **본문만 익명화한 가공본**, 동일 원천. JSON `info.caseNoID`가 law.go.kr 판례일련번호(`get_case_detail`의 `case_id`)와 완전 동일 → 1:1 매칭 100%. 검증 후 사용자 요청으로 폴더 삭제(untracked라 git 변경 0건).
+Threads 게시물(K Public Data MCP 소개, 2026-07-02, 조회 13,661) 댓글에서 사용자 prof.coconut가 "HIRA 보건의료빅데이터개방시스템 진료통계 연동" 기능 요청. 현재 MCP HIRA 도구는 요양기관(약국/병원) 위치검색 마스터만 제공 — 진료 실적 통계는 별개 데이터셋. data.go.kr 개방 현황 조사 후 레퍼런스 문서로 정리. 구현 미착수("조사까지만").
 
 ## Progress
-- [x] aihub zip 구조 분석: Training/Validation × 원천/라벨링, JSON 1500+개. 파일명 UTF-8(Python zipfile 그대로, cp437 재인코딩 불필요)
-- [x] JSON 스키마 파악: `info`(caseNo/caseNoID/courtType/jdgmn/Reference_info) + `sections`(판시사항/판결요지/판례내용) + `annotations`(익명화 span·method·rule·entity)
-- [x] 사건번호·일련번호 노출률 100% 확인 (Validation 2100건 전수). 익명화는 본문 내 인명·기관만(`전주지법`→`조직-1`, GENERALIZE/R7)
-- [x] K-Data MCP 교차 검증 3건 100% 매칭: 대법원 2000므612=case_id 216027 / 하급심 95느2952=145932 / 대법원 2025두33647(2025최신)=612981
-- [x] 차이 확인: K-Data=실명 노출(변호사·판사·법원), AI Hub=익명화본 + NLP 학습용 annotation 라벨
-- [x] `docs/reference/aihub` 199MB 삭제 (untracked → git 무영향)
+- [x] HIRA 통계 API 카탈로그 조사 → `docs/reference/hira-medical-statistics-api-catalog.md` (커밋 c16fc97, 푸시됨)
+- [x] REST API vs 파일데이터 구분, data.go.kr 데이터셋 ID·EDB 우선순위 확정
+- [ ] 실제 연동 구현 (스킬 도구 추가) — 손 안 댐
 
 ## Next Steps
-- 없음. 검증·삭제 완료. 코드 변경 없어 코드 푸시 단계 스킵됨.
+1. **의약품사용정보조회서비스(data.go.kr 15047819) 먼저 구현** — EDB 본업(처방·조제) 직결, 상권분석 처방수요지수 강화. 우선순위 1
+2. 질병정보서비스(15119055) — 요청자 니즈 + 상권 질병수요
+3. 진료행위정보서비스(15001701) — 보조
+4. 구현 전 data.go.kr 활용신청(개발계정 즉시) → Swagger/활용가이드 docx로 실제 파라미터명·응답 필드 확보 (조사 문서엔 오퍼레이션명까지만)
+5. (shconsulting 별건) prof.coconut Threads 댓글에 "연동 검토 중" 답글 — 아직 미발송
 
 ## Blockers
-- 없음.
+- 없음. 미확인 항목(파라미터명·응답 필드)은 구현 단계 Swagger에서 확보 가능.
 
 ## Watch Out
-- aihub 데이터는 **git 미추적**이었음 — 재다운로드해도 커밋되지 않음(199MB, 학습 코퍼스). 재검증 시 caseNoID로 `case_research get_case_detail` 호출하면 동일.
-- AI Hub 판례 ⊂ K-Data(law.go.kr) 전체 풀의 부분집합. 인용 정본은 K-Data MCP(실명·실시간·전체), AI Hub는 학습용.
+- 지역 파라미터는 raw sidoCd/sgguCd일 가능성 높음 → 기존 `src/hira-region-codes.ts`(한글 시도/시군구 → raw 코드 매핑) 재활용. 새 harvest 불필요
+- 발급처 data.go.kr = 기존 `DATA20_SERVICE_KEY` 재활용. REST/XML, 개발계정 10,000건/일
+- 스킬 도구는 `registerSkillTool()` + 이중언어 title/description, TDD 필수 (CLAUDE.md 규칙)
+- 상세 카탈로그는 `docs/reference/hira-medical-statistics-api-catalog.md` 참조 (SSOT)
 
 ## Files Touched
-- docs/reference/aihub/ (삭제 — git untracked, 변경 추적 안 됨)
-- .claude-project/HANDOFF.md, .claude-project/memory/ (이 Pack)
+- docs/reference/hira-medical-statistics-api-catalog.md (신규, 조사 문서)
+- .claude-project/HANDOFF.md (이 Pack)
