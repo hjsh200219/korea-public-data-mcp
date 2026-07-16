@@ -113,6 +113,17 @@ describe("public_data 스킬", () => {
     expect(result.content[0].text).toContain("15001699");
   });
 
+  it("get_hospital_detail_전섹션HTTP403_활용신청안내", async () => {
+    // Railway egress는 평문 Forbidden 대신 HTTP 403으로 응답
+    vi.mocked(getHospitalDetail).mockResolvedValue([
+      { label: "세부정보", items: [], error: "API 오류: HTTP 403" },
+      { label: "진료과목정보", items: [], error: "API 오류: HTTP 403" },
+    ] as any);
+
+    const result = await handler({ action: "get_hospital_detail", ykiho: "ENC999" });
+    expect(result.content[0].text).toContain("활용신청");
+  });
+
   it("search_animal_hospital_유효한결과_searchHospital호출", async () => {
     vi.mocked(searchHospital).mockResolvedValue({
       items: [{ yadmNm: "해피동물병원", clCdNm: "동물병원", addr: "서울시 마포구", telno: "02-3333" }],

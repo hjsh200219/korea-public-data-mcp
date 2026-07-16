@@ -278,8 +278,9 @@ function handleGetHospitalDetail(serviceKey: string) {
     try {
       const ykiho = p.ykiho!.trim();
       const sections = await getHospitalDetail(serviceKey, ykiho);
-      // 전 섹션이 Forbidden → 활용신청 미승인 안내
-      if (sections.every((sec) => sec.error && /forbidden/i.test(sec.error))) {
+      // 전 섹션이 접근거부(평문 Forbidden 또는 HTTP 403) → 활용신청 미승인 안내
+      // (로컬 egress는 평문 "Forbidden", Railway egress는 HTTP 403으로 응답)
+      if (sections.every((sec) => sec.error && /forbidden|403/i.test(sec.error))) {
         return {
           content: [{
             type: "text",
