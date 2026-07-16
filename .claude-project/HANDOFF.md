@@ -1,33 +1,36 @@
 ---
-created: 2026-07-05T18:10:00+09:00
+created: 2026-07-16T16:04:00+09:00
 project: k-public-data-mcp
-summary: HIRA 보건의료빅데이터 진료통계 API 카탈로그 조사 완료(미구현) — REST 3종 연동 후보 확정, 문서만 커밋
+summary: 병원 상세정보 더보기(15001699/MadmDtlInfoService2.8) 통합 — ykiho 노출 + get_hospital_detail 5 op 팬아웃, 배포·프로덕션 E2E 완료
 ---
 
 ## Session Digest
-Threads 게시물(K Public Data MCP 소개, 2026-07-02, 조회 13,661) 댓글에서 사용자 prof.coconut가 "HIRA 보건의료빅데이터개방시스템 진료통계 연동" 기능 요청. 현재 MCP HIRA 도구는 요양기관(약국/병원) 위치검색 마스터만 제공 — 진료 실적 통계는 별개 데이터셋. data.go.kr 개방 현황 조사 후 레퍼런스 문서로 정리. 구현 미착수("조사까지만").
+공공데이터포털 15001699(건강보험심사평가원 의료기관별상세정보서비스)를 K-Data MCP에 통합. `search_hospital` 응답에 `ykiho`(암호화 요양기호) 노출 + `get_hospital_detail(ykiho)` action 신설 — 시설/세부/진료과목/의료장비/교통 5개 오퍼레이션 병렬 팬아웃. Railway 배포 후 프로덕션 E2E 검증 완료. 커밋 4개(3fa92dd→a1f8e9b) master 푸시, CI green.
 
 ## Progress
-- [x] HIRA 통계 API 카탈로그 조사 → `docs/reference/hira-medical-statistics-api-catalog.md` (커밋 c16fc97, 푸시됨)
-- [x] REST API vs 파일데이터 구분, data.go.kr 데이터셋 ID·EDB 우선순위 확정
-- [ ] 실제 연동 구현 (스킬 도구 추가) — 손 안 댐
+- [x] `HospitalItem.ykiho` 타입 추가 — getHospBasisList가 원래 반환하나 타입에서 누락되던 것 노출 (3fa92dd)
+- [x] `get_hospital_detail` action + `getHospitalDetail()` 5 op 병렬 팬아웃, generic key=value 렌더(온비드 패턴)
+- [x] fetchXml 평문응답 가드(Forbidden/API not found → 명시 에러), 전 섹션 접근거부 시 활용신청 안내
+- [x] REST(/data20/hospital/detail) + OpenAPI 경로 미러
+- [x] 버전 함정 수정: MadmDtlInfoService**2.7 폐기(403)→2.8** + http→https + `_type=xml`, 라벨 교정 (a1f8e9b)
+- [x] Knip dead-code(HOSPITAL_DETAIL_OPS export 제거) CI 복구 (807014b)
+- [x] 배포·프로덕션 E2E: 삼성서울병원 시설 1·진료과목 29(내과 전문의 213)·의료장비 16(PET 4대)
+- [x] 검증: tsc·knip·verify-docs·76테스트·CI green 전부 통과
 
 ## Next Steps
-1. **의약품사용정보조회서비스(data.go.kr 15047819) 먼저 구현** — EDB 본업(처방·조제) 직결, 상권분석 처방수요지수 강화. 우선순위 1
-2. 질병정보서비스(15119055) — 요청자 니즈 + 상권 질병수요
-3. 진료행위정보서비스(15001701) — 보조
-4. 구현 전 data.go.kr 활용신청(개발계정 즉시) → Swagger/활용가이드 docx로 실제 파라미터명·응답 필드 확보 (조사 문서엔 오퍼레이션명까지만)
-5. (shconsulting 별건) prof.coconut Threads 댓글에 "연동 검토 중" 답글 — 아직 미발송
+1. (선택) 약국 상세정보 — 동일 ykiho 패턴을 PharmacyItem에도 적용 가능(현재 병원만)
+2. (선택) getDtlInfo2.8·getTrnsprtInfo2.8은 삼성서울병원서 0건 — 다른 기관으로 실데이터 형상 추가 확인
+3. HANDOFF 이전 항목(통계 API 15047819/15119055 등 미구현 조사)은 여전히 백로그
 
 ## Blockers
-- 없음. 미확인 항목(파라미터명·응답 필드)은 구현 단계 Swagger에서 확보 가능.
+- 없음.
 
 ## Watch Out
-- 지역 파라미터는 raw sidoCd/sgguCd일 가능성 높음 → 기존 `src/hira-region-codes.ts`(한글 시도/시군구 → raw 코드 매핑) 재활용. 새 harvest 불필요
-- 발급처 data.go.kr = 기존 `DATA20_SERVICE_KEY` 재활용. REST/XML, 개발계정 10,000건/일
-- 스킬 도구는 `registerSkillTool()` + 이중언어 title/description, TDD 필수 (CLAUDE.md 규칙)
-- 상세 카탈로그는 `docs/reference/hira-medical-statistics-api-catalog.md` 참조 (SSOT)
+- **op명↔의미 반대**: `getEqpInfo2.8`=시설정보(병상), `getMedOftInfo2.8`=의료장비정보(PET/CT). 라벨 헷갈리지 말 것
+- **data.go.kr 403은 활용신청 미승인이 아니라 폐기 버전 호출일 수 있음** — 정상 서비스(병원 hospInfoServicev2)가 같은 키로 00이면 인증 유효, 버전·op명 먼저 확인 (메모리 reference_datago_403_deprecated_version)
+- 상세 op 응답 필드는 op별 상이 → generic 렌더 유지(하드코딩 필드 매핑 금지)
 
 ## Files Touched
-- docs/reference/hira-medical-statistics-api-catalog.md (신규, 조사 문서)
-- .claude-project/HANDOFF.md (이 Pack)
+- src/data20-types.ts, src/data20-api.ts, src/tools/skills/public-data.ts
+- src/routes/data20-routes.ts, src/openapi/data20-paths.ts
+- src/data20-api.test.ts, src/tools/skills/public-data.test.ts
