@@ -210,7 +210,7 @@ export async function searchHospital(
 const MADM_DTL_BASE = "http://apis.data.go.kr/B551182/MadmDtlInfoService2.7";
 
 /** 상세정보 오퍼레이션 → 한글 라벨 (라이브 curl로 op명 확인) */
-export const HOSPITAL_DETAIL_OPS: { op: string; label: string }[] = [
+const HOSPITAL_DETAIL_OPS: { op: string; label: string }[] = [
   { op: "getDtlInfo2.7", label: "세부정보" },
   { op: "getDgsbjtInfo2.7", label: "진료과목정보" },
   { op: "getMedOftInfo2.7", label: "의료인력정보" },
