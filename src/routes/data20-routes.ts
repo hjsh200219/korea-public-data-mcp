@@ -7,6 +7,7 @@ import { handle } from "./route-helpers.js";
 import {
   searchPharmacy,
   searchHospital,
+  getHospitalDetail,
   searchStockDividend,
   searchRareMedicine,
   searchHealthFood,
@@ -41,6 +42,15 @@ export function registerData20Routes(router: Router, d20: string): void {
       pageNo: Number(q.pageNo) || 1,
       numOfRows: Number(q.numOfRows) || 10,
     });
+  }));
+
+  router.get("/data20/hospital/detail", handle(async (req) => {
+    const q = req.query as Record<string, unknown>;
+    const ykiho = (q.ykiho as string | undefined)?.trim();
+    if (!ykiho) {
+      throw new Error("ykiho(암호화 요양기호)는 필수입니다. /data20/hospital 응답의 ykiho 값을 사용하세요.");
+    }
+    return getHospitalDetail(d20, ykiho);
   }));
 
   router.get("/data20/stock-dividend", handle(async (req) => {

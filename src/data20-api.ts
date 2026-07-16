@@ -9,6 +9,7 @@ import type {
   DataGoKrResult,
   PharmacyItem,
   HospitalItem,
+  HospitalDetailSection,
   StockDividendItem,
   RareMedicineItem,
   HealthFoodItem,
@@ -74,6 +75,10 @@ async function fetchXml<T>(
   if (!response.ok) throw new Error(`API 오류: HTTP ${response.status}`);
 
   const text = await response.text();
+  // 게이트웨이 평문 응답(Forbidden=활용신청 미승인, API not found=잘못된 오퍼레이션 등)은 XML이 아님
+  if (!text.trimStart().startsWith("<")) {
+    throw new Error(text.trim().slice(0, 120) || "빈 응답");
+  }
   const parsed = xmlParser.parse(text) as {
     response?: {
       header?: { resultCode?: string | number; resultMsg?: string };
@@ -195,6 +200,54 @@ export async function searchHospital(
       pageNo: String(params.pageNo || 1),
       numOfRows: String(params.numOfRows || 10),
     },
+  );
+}
+
+// --- 의료기관별상세정보서비스 (MadmDtlInfoService2.7, data.go.kr 15001699) ---
+// ykiho(암호화 요양기호)로 시설/세부/진료과목/장비/교통 상세 조회.
+// ykiho 는 searchHospital(getHospBasisList) 응답 항목에 포함됨.
+
+const MADM_DTL_BASE = "http://apis.data.go.kr/B551182/MadmDtlInfoService2.7";
+
+/** 상세정보 오퍼레이션 → 한글 라벨 (라이브 curl로 op명 확인) */
+export const HOSPITAL_DETAIL_OPS: { op: string; label: string }[] = [
+  { op: "getDtlInfo2.7", label: "세부정보" },
+  { op: "getDgsbjtInfo2.7", label: "진료과목정보" },
+  { op: "getMedOftInfo2.7", label: "의료인력정보" },
+  { op: "getEqpInfo2.7", label: "의료장비정보" },
+  { op: "getTrnsprtInfo2.7", label: "교통정보" },
+];
+
+async function fetchHospitalDetailSection(
+  serviceKey: string,
+  ykiho: string,
+  op: string,
+  label: string,
+): Promise<HospitalDetailSection> {
+  try {
+    const result = await fetchXml<Record<string, unknown>>(
+      `${MADM_DTL_BASE}/${op}`,
+      serviceKey,
+      { ykiho, pageNo: "1", numOfRows: "100" },
+    );
+    return { label, items: result.items };
+  } catch (error) {
+    return { label, items: [], error: (error as Error).message };
+  }
+}
+
+/**
+ * ykiho 로 의료기관 상세정보 전체 섹션을 병렬 조회.
+ * 개별 오퍼레이션 실패(활용신청 미승인 등)는 해당 섹션 error로만 격리 — 전체 실패 아님.
+ */
+export async function getHospitalDetail(
+  serviceKey: string,
+  ykiho: string,
+): Promise<HospitalDetailSection[]> {
+  return Promise.all(
+    HOSPITAL_DETAIL_OPS.map(({ op, label }) =>
+      fetchHospitalDetailSection(serviceKey, ykiho, op, label),
+    ),
   );
 }
 

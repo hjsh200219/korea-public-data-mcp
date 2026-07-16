@@ -11,7 +11,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
-  searchPharmacy, searchHospital,
+  searchPharmacy, searchHospital, getHospitalDetail,
   searchRareMedicine, searchHealthFood,
   searchBioEquivalence, searchMedicinePatent,
   verifyBusiness, checkBusinessStatus,
@@ -26,6 +26,7 @@ import { createDispatcher, requireParam, registerSkillTool, type SkillResult } f
 const ACTIONS = [
   "search_pharmacy",
   "search_hospital",
+  "get_hospital_detail",
   "search_animal_hospital",
   "search_rare_medicine",
   "search_health_food",
@@ -47,6 +48,8 @@ type PublicDataParams = {
   sgguCd?: string;
   clCd?: string;
   dgsbjtCd?: string;
+  /** 암호화 요양기호 — get_hospital_detail 상세조회 키 (search_hospital 결과에서 획득) */
+  ykiho?: string;
   item_name?: string;
   item_eng_name?: string;
   entp_name?: string;
@@ -245,11 +248,56 @@ function handleSearchHospital(serviceKey: string) {
         : `${result.pageNo}페이지`;
       const header = `${note}병원 검색결과 — 총 ${displayTotal}건 (${pageInfo})\n`;
       const lines = filtered.map((h) =>
-        `• ${s(h.yadmNm)} (${s(h.clCdNm)})\n  주소: ${s(h.addr)}\n  전화: ${s(h.telno)}\n  진료과목: ${s(h.dgsbjtCdNm)}\n  의사수: ${s(h.drTotCnt)}명`,
+        `• ${s(h.yadmNm)} (${s(h.clCdNm)})\n  주소: ${s(h.addr)}\n  전화: ${s(h.telno)}\n  진료과목: ${s(h.dgsbjtCdNm)}\n  의사수: ${s(h.drTotCnt)}명\n  ykiho: ${s(h.ykiho)}`,
       );
-      return { content: [{ type: "text", text: truncate(header + "\n" + lines.join("\n\n")) }] };
+      const footer =
+        "\n\n[상세정보 더보기] action=get_hospital_detail, ykiho=위 값 → 세부·진료과목·의료장비·교통 상세 조회";
+      return { content: [{ type: "text", text: truncate(header + "\n" + lines.join("\n\n") + footer) }] };
     } catch (error) {
       return errorResponse("병원 검색", error);
+    }
+  };
+}
+
+/** 상세 섹션 항목을 key=value 압축 렌더 (오퍼레이션별 필드 상이 → 제네릭) */
+function renderDetailItems(items: Record<string, unknown>[]): string {
+  return items
+    .map((it, idx) => {
+      const pairs = Object.entries(it)
+        .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "")
+        .map(([k, v]) => `${k}=${String(v).trim()}`);
+      return `    [${idx + 1}] ${pairs.join(", ")}`;
+    })
+    .join("\n");
+}
+
+function handleGetHospitalDetail(serviceKey: string) {
+  return async (p: PublicDataParams): Promise<SkillResult> => {
+    const err = requireParam(p as Record<string, unknown>, "ykiho", "get_hospital_detail");
+    if (err) return err;
+    try {
+      const ykiho = p.ykiho!.trim();
+      const sections = await getHospitalDetail(serviceKey, ykiho);
+      // 전 섹션이 Forbidden → 활용신청 미승인 안내
+      if (sections.every((sec) => sec.error && /forbidden/i.test(sec.error))) {
+        return {
+          content: [{
+            type: "text",
+            text:
+              "의료기관별상세정보서비스(data.go.kr 15001699) 활용신청이 승인되지 않았습니다. " +
+              "DATA20_SERVICE_KEY 소유 계정으로 15001699 활용신청 후(개발계정 즉시 승인, 게이트웨이 반영 최대 수십 분) 재시도하세요.",
+          }],
+        };
+      }
+      const blocks = sections.map((sec) => {
+        if (sec.error) return `■ ${sec.label}\n    (조회 실패: ${sec.error})`;
+        if (sec.items.length === 0) return `■ ${sec.label}\n    (데이터 없음)`;
+        return `■ ${sec.label} — ${sec.items.length}건\n${renderDetailItems(sec.items)}`;
+      });
+      const header = `의료기관 상세정보 (ykiho=${truncate(ykiho, 40)})\n`;
+      return { content: [{ type: "text", text: truncate(header + "\n" + blocks.join("\n\n")) }] };
+    } catch (error) {
+      return errorResponse("의료기관 상세정보 조회", error);
     }
   };
 }
@@ -495,6 +543,7 @@ export function createPublicDataHandler(serviceKey: string) {
   return createDispatcher<PublicDataParams>("public_data", {
     search_pharmacy: handleSearchPharmacy(serviceKey),
     search_hospital: handleSearchHospital(serviceKey),
+    get_hospital_detail: handleGetHospitalDetail(serviceKey),
     search_animal_hospital: handleSearchAnimalHospital(serviceKey),
     search_rare_medicine: handleSearchRareMedicine(serviceKey),
     search_health_food: handleSearchHealthFood(serviceKey),
@@ -519,7 +568,7 @@ export function registerPublicData(
     description: "Public Data — pharmacies, hospitals, veterinary clinics, rare drugs, health foods, bioequivalence items, drug patents, OnBid auction listings, and business registration verification. / 공공데이터 — 약국, 병원, 동물병원, 희귀의약품, 건강식품, 생동성인정품목, 의약품 특허, 온비드 공고목록/공고물건상세, 사업자등록 진위확인/상태조회 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
-        "search_pharmacy=약국검색(Q0=시도명한글,Q1=시군구명한글) | search_hospital=병원검색(yadmNm=병원명, Q0/Q1=지역재필터) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_list=온비드공고목록(선택:onbid_list_filters_json) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
+        "search_pharmacy=약국검색(Q0=시도명한글,Q1=시군구명한글) | search_hospital=병원검색(yadmNm=병원명, Q0/Q1=지역재필터, 결과에 ykiho 포함) | get_hospital_detail=병원상세정보더보기(ykiho필수 — 세부·진료과목·의료장비·교통) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_list=온비드공고목록(선택:onbid_list_filters_json) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
       ),
       Q0: z.string().optional().describe(
         "시도명 한글 텍스트 (예: '서울', '경기'). search_pharmacy/search_hospital의 지역 필터. HIRA 원격 API가 무시하는 경우가 잦아 클라이언트에서 응답의 sidoCdNm으로 부분일치 재필터됨",
@@ -540,6 +589,9 @@ export function registerPublicData(
       ),
       dgsbjtCd: z.string().optional().describe(
         "HIRA 진료과목코드 — 01=내과, 02=신경과, 03=정신건강의학과, 04=외과, 05=정형외과, 14=재활의학과 등",
+      ),
+      ykiho: z.string().optional().describe(
+        "암호화 요양기호 (get_hospital_detail 필수). search_hospital 결과의 ykiho 값을 그대로 사용",
       ),
       item_name: z.string().optional().describe("품목/제품명"),
       item_eng_name: z.string().optional().describe("품목 영문명"),

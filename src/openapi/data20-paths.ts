@@ -71,6 +71,14 @@ export function getData20Paths(): OpenApiPaths {
       responses: jsonResponse("병원 검색 결과"),
     }),
     ...apiPath({
+      path: "/api/data20/hospital/detail",
+      operationId: "data20GetHospitalDetail",
+      summary: "병원 상세정보 더보기",
+      description: "병원 검색 결과의 ykiho(암호화 요양기호)로 세부·진료과목·의료장비·교통 상세정보를 조회합니다. (data.go.kr 15001699)",
+      parameters: [param("ykiho", "암호화 요양기호 (병원 검색 결과의 ykiho 값)", { required: true })],
+      responses: jsonResponse("병원 상세정보 섹션 배열"),
+    }),
+    ...apiPath({
       path: "/api/data20/stock-dividend",
       operationId: "data20SearchStockDividend",
       summary: "주식배당정보 조회",

@@ -43,6 +43,20 @@ export interface HospitalItem {
   hospUrl: string;
   estbDd: string;
   drTotCnt: string;
+  /** 암호화된 요양기호 — 의료기관별상세정보서비스(15001699) 상세조회 키 */
+  ykiho: string;
+}
+
+// --- 의료기관 상세정보 (MadmDtlInfoService2.7, 15001699) ---
+
+/** 상세정보 한 섹션(오퍼레이션)의 결과 */
+export interface HospitalDetailSection {
+  /** 섹션 라벨 (예: '세부정보', '진료과목정보') */
+  label: string;
+  /** ykiho 로 조회한 항목들 (필드는 오퍼레이션별로 상이 — 원본 그대로) */
+  items: Record<string, unknown>[];
+  /** 조회 실패 시 사유 (활용신청 미승인 등) */
+  error?: string;
 }
 
 // --- 주식배당정보 ---

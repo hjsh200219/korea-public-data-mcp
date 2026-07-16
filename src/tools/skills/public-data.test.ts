@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../../data20-api.js", () => ({
   searchPharmacy: vi.fn(),
   searchHospital: vi.fn(),
+  getHospitalDetail: vi.fn(),
   searchRareMedicine: vi.fn(),
   searchHealthFood: vi.fn(),
   searchBioEquivalence: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("../../data20-api.js", () => ({
 import {
   searchPharmacy,
   searchHospital,
+  getHospitalDetail,
   searchRareMedicine,
   searchHealthFood,
   searchBioEquivalence,
@@ -61,7 +63,7 @@ describe("public_data 스킬", () => {
 
   it("search_hospital_유효한결과_포맷팅반환", async () => {
     vi.mocked(searchHospital).mockResolvedValue({
-      items: [{ yadmNm: "서울대병원", clCdNm: "상급종합", addr: "서울시 종로구", telno: "02-2072", dgsbjtCdNm: "내과", drTotCnt: 500 }],
+      items: [{ yadmNm: "서울대병원", clCdNm: "상급종합", addr: "서울시 종로구", telno: "02-2072", dgsbjtCdNm: "내과", drTotCnt: 500, ykiho: "ENC999" }],
       totalCount: 1,
       pageNo: 1,
       numOfRows: 10,
@@ -72,7 +74,43 @@ describe("public_data 스킬", () => {
     expect(result.content[0].text).toContain("병원 검색결과");
     expect(result.content[0].text).toContain("서울대병원");
     expect(result.content[0].text).toContain("의사수");
+    // ykiho 노출 + 더보기 힌트
+    expect(result.content[0].text).toContain("ykiho: ENC999");
+    expect(result.content[0].text).toContain("get_hospital_detail");
     expect(searchHospital).toHaveBeenCalledWith(MOCK_KEY, expect.objectContaining({ yadmNm: "서울대" }));
+  });
+
+  it("get_hospital_detail_ykiho누락_isError", async () => {
+    const result = await handler({ action: "get_hospital_detail" });
+    expect(result.isError).toBe(true);
+    expect(getHospitalDetail).not.toHaveBeenCalled();
+  });
+
+  it("get_hospital_detail_섹션렌더링", async () => {
+    vi.mocked(getHospitalDetail).mockResolvedValue([
+      { label: "세부정보", items: [{ pntCnt: 500 }] },
+      { label: "진료과목정보", items: [{ dgsbjtCdNm: "내과" }, { dgsbjtCdNm: "외과" }] },
+      { label: "의료장비정보", items: [] },
+    ] as any);
+
+    const result = await handler({ action: "get_hospital_detail", ykiho: "ENC999" });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("의료기관 상세정보");
+    expect(result.content[0].text).toContain("세부정보 — 1건");
+    expect(result.content[0].text).toContain("진료과목정보 — 2건");
+    expect(result.content[0].text).toContain("데이터 없음");
+    expect(getHospitalDetail).toHaveBeenCalledWith(MOCK_KEY, "ENC999");
+  });
+
+  it("get_hospital_detail_전섹션Forbidden_활용신청안내", async () => {
+    vi.mocked(getHospitalDetail).mockResolvedValue([
+      { label: "세부정보", items: [], error: "Forbidden" },
+      { label: "진료과목정보", items: [], error: "Forbidden" },
+    ] as any);
+
+    const result = await handler({ action: "get_hospital_detail", ykiho: "ENC999" });
+    expect(result.content[0].text).toContain("활용신청");
+    expect(result.content[0].text).toContain("15001699");
   });
 
   it("search_animal_hospital_유효한결과_searchHospital호출", async () => {

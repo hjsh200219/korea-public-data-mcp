@@ -15,6 +15,7 @@ vi.mock("./http-client.js", () => ({
 import {
   searchPharmacy,
   searchHospital,
+  getHospitalDetail,
   searchRareMedicine,
   searchHealthFood,
   searchBioEquivalence,
@@ -147,6 +148,57 @@ describe("searchHospital", () => {
     const url = fetchWithRetry.mock.calls[0][0] as string;
     expect(url).toContain("hospInfoServicev2/getHospBasisList");
     expect(url).toContain("yadmNm=");
+  });
+
+  it("ykiho_필드_노출됨", async () => {
+    const itemXml = `<item>
+      <yadmNm>삼성서울병원</yadmNm>
+      <clCdNm>상급종합</clCdNm>
+      <ykiho>ENC123ABC</ykiho>
+    </item>`;
+    fetchWithRetry.mockResolvedValueOnce(xmlResponseWithItems(itemXml));
+
+    const result = await searchHospital(SERVICE_KEY, { yadmNm: "삼성서울" });
+
+    expect(result.items[0].ykiho).toBe("ENC123ABC");
+  });
+});
+
+// --- 의료기관 상세정보 (MadmDtlInfoService2.7) ---
+
+describe("getHospitalDetail", () => {
+  it("각_오퍼레이션을_병렬조회해_섹션배열반환", async () => {
+    const detailXml = (inner: string) =>
+      xmlResponseWithItems(`<item>${inner}</item>`);
+    // HOSPITAL_DETAIL_OPS 순서대로 5회 응답
+    fetchWithRetry
+      .mockResolvedValueOnce(detailXml("<pntCnt>500</pntCnt>"))
+      .mockResolvedValueOnce(detailXml("<dgsbjtCdNm>내과</dgsbjtCdNm>"))
+      .mockResolvedValueOnce(detailXml("<detyResdntCnt>5</detyResdntCnt>"))
+      .mockResolvedValueOnce(detailXml("<eqpNm>MRI</eqpNm>"))
+      .mockResolvedValueOnce(detailXml("<trafNm>지하철</trafNm>"));
+
+    const sections = await getHospitalDetail(SERVICE_KEY, "ENC123ABC");
+
+    expect(sections).toHaveLength(5);
+    expect(sections[0].label).toBe("세부정보");
+    expect(sections[0].items[0].pntCnt).toBe(500);
+    expect(sections[1].label).toBe("진료과목정보");
+    // ykiho 파라미터 전달 확인
+    const url = fetchWithRetry.mock.calls[0][0] as string;
+    expect(url).toContain("MadmDtlInfoService2.7/getDtlInfo2.7");
+    expect(url).toContain("ykiho=ENC123ABC");
+  });
+
+  it("일부_오퍼레이션_실패는_해당섹션_error로_격리", async () => {
+    // 첫 op는 평문 Forbidden(활용신청 미승인), 나머지는 정상
+    fetchWithRetry.mockResolvedValue({ ok: true, status: 200, text: async () => "Forbidden" });
+
+    const sections = await getHospitalDetail(SERVICE_KEY, "ENC123ABC");
+
+    expect(sections).toHaveLength(5);
+    expect(sections[0].error).toBe("Forbidden");
+    expect(sections[0].items).toEqual([]);
   });
 });
 
