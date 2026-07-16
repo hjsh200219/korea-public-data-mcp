@@ -183,10 +183,11 @@ describe("getHospitalDetail", () => {
     expect(sections).toHaveLength(5);
     expect(sections[0].label).toBe("세부정보");
     expect(sections[0].items[0].pntCnt).toBe(500);
-    expect(sections[1].label).toBe("진료과목정보");
-    // ykiho 파라미터 전달 확인
+    expect(sections[1].label).toBe("시설정보");
+    expect(sections[2].label).toBe("진료과목정보");
+    // ykiho 파라미터 전달 확인 (v2.8)
     const url = fetchWithRetry.mock.calls[0][0] as string;
-    expect(url).toContain("MadmDtlInfoService2.7/getDtlInfo2.7");
+    expect(url).toContain("MadmDtlInfoService2.8/getDtlInfo2.8");
     expect(url).toContain("ykiho=ENC123ABC");
   });
 

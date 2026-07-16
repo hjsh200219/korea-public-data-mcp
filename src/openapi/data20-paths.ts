@@ -74,7 +74,7 @@ export function getData20Paths(): OpenApiPaths {
       path: "/api/data20/hospital/detail",
       operationId: "data20GetHospitalDetail",
       summary: "병원 상세정보 더보기",
-      description: "병원 검색 결과의 ykiho(암호화 요양기호)로 세부·진료과목·의료장비·교통 상세정보를 조회합니다. (data.go.kr 15001699)",
+      description: "병원 검색 결과의 ykiho(암호화 요양기호)로 세부·시설·진료과목·의료장비·교통 상세정보를 조회합니다. (data.go.kr 15001699, MadmDtlInfoService2.8)",
       parameters: [param("ykiho", "암호화 요양기호 (병원 검색 결과의 ykiho 값)", { required: true })],
       responses: jsonResponse("병원 상세정보 섹션 배열"),
     }),

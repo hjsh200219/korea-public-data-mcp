@@ -251,7 +251,7 @@ function handleSearchHospital(serviceKey: string) {
         `• ${s(h.yadmNm)} (${s(h.clCdNm)})\n  주소: ${s(h.addr)}\n  전화: ${s(h.telno)}\n  진료과목: ${s(h.dgsbjtCdNm)}\n  의사수: ${s(h.drTotCnt)}명\n  ykiho: ${s(h.ykiho)}`,
       );
       const footer =
-        "\n\n[상세정보 더보기] action=get_hospital_detail, ykiho=위 값 → 세부·진료과목·의료장비·교통 상세 조회";
+        "\n\n[상세정보 더보기] action=get_hospital_detail, ykiho=위 값 → 세부·시설·진료과목·의료장비·교통 상세 조회";
       return { content: [{ type: "text", text: truncate(header + "\n" + lines.join("\n\n") + footer) }] };
     } catch (error) {
       return errorResponse("병원 검색", error);
@@ -569,7 +569,7 @@ export function registerPublicData(
     description: "Public Data — pharmacies, hospitals, veterinary clinics, rare drugs, health foods, bioequivalence items, drug patents, OnBid auction listings, and business registration verification. / 공공데이터 — 약국, 병원, 동물병원, 희귀의약품, 건강식품, 생동성인정품목, 의약품 특허, 온비드 공고목록/공고물건상세, 사업자등록 진위확인/상태조회 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
-        "search_pharmacy=약국검색(Q0=시도명한글,Q1=시군구명한글) | search_hospital=병원검색(yadmNm=병원명, Q0/Q1=지역재필터, 결과에 ykiho 포함) | get_hospital_detail=병원상세정보더보기(ykiho필수 — 세부·진료과목·의료장비·교통) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_list=온비드공고목록(선택:onbid_list_filters_json) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
+        "search_pharmacy=약국검색(Q0=시도명한글,Q1=시군구명한글) | search_hospital=병원검색(yadmNm=병원명, Q0/Q1=지역재필터, 결과에 ykiho 포함) | get_hospital_detail=병원상세정보더보기(ykiho필수 — 세부·시설·진료과목·의료장비·교통) | search_animal_hospital=동물병원검색(QN=병원명) | search_rare_medicine=희귀의약품검색(item_name) | search_health_food=건강기능식품검색(prdlst_nm) | search_bio_equivalence=생동성인정품목검색(item_name) | search_medicine_patent=의약품특허정보검색(item_name) | search_onbid_pbanc_list=온비드공고목록(선택:onbid_list_filters_json) | search_onbid_pbanc_cltr_detail=온비드공고물건상세(pbancMngNo필수) | verify_business=사업자등록진위확인(b_no필수) | check_business_status=사업자등록상태조회(b_no필수)",
       ),
       Q0: z.string().optional().describe(
         "시도명 한글 텍스트 (예: '서울', '경기'). search_pharmacy/search_hospital의 지역 필터. HIRA 원격 API가 무시하는 경우가 잦아 클라이언트에서 응답의 sidoCdNm으로 부분일치 재필터됨",

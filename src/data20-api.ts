@@ -207,15 +207,18 @@ export async function searchHospital(
 // ykiho(암호화 요양기호)로 시설/세부/진료과목/장비/교통 상세 조회.
 // ykiho 는 searchHospital(getHospBasisList) 응답 항목에 포함됨.
 
-const MADM_DTL_BASE = "http://apis.data.go.kr/B551182/MadmDtlInfoService2.7";
+const MADM_DTL_BASE = "https://apis.data.go.kr/B551182/MadmDtlInfoService2.8";
 
-/** 상세정보 오퍼레이션 → 한글 라벨 (라이브 curl로 op명 확인) */
+/**
+ * 상세정보 오퍼레이션 → 한글 라벨 (라이브 curl로 op명·응답필드 확인, 2026-07 기준 v2.8).
+ * op명이 데이터 의미와 반대인 것 주의: getEqpInfo=시설(병상), getMedOftInfo=의료장비(PET/CT).
+ */
 const HOSPITAL_DETAIL_OPS: { op: string; label: string }[] = [
-  { op: "getDtlInfo2.7", label: "세부정보" },
-  { op: "getDgsbjtInfo2.7", label: "진료과목정보" },
-  { op: "getMedOftInfo2.7", label: "의료인력정보" },
-  { op: "getEqpInfo2.7", label: "의료장비정보" },
-  { op: "getTrnsprtInfo2.7", label: "교통정보" },
+  { op: "getDtlInfo2.8", label: "세부정보" },
+  { op: "getEqpInfo2.8", label: "시설정보" },
+  { op: "getDgsbjtInfo2.8", label: "진료과목정보" },
+  { op: "getMedOftInfo2.8", label: "의료장비정보" },
+  { op: "getTrnsprtInfo2.8", label: "교통정보" },
 ];
 
 async function fetchHospitalDetailSection(
@@ -228,7 +231,7 @@ async function fetchHospitalDetailSection(
     const result = await fetchXml<Record<string, unknown>>(
       `${MADM_DTL_BASE}/${op}`,
       serviceKey,
-      { ykiho, pageNo: "1", numOfRows: "100" },
+      { ykiho, pageNo: "1", numOfRows: "100", _type: "xml" },
     );
     return { label, items: result.items };
   } catch (error) {
