@@ -4,6 +4,8 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
+Layer note: These four principles are the behavioral/judgment layer. They complement — not duplicate — the tool-enforced invariants (P3 lint, P6 layer-rules, P7 knip dead-code). Tools catch mechanical violations after code exists; these guide the decisions tools cannot check (surfacing assumptions, avoiding over-building, not touching adjacent code, defining verifiable goals). All four are judgment, not lint targets.
+
 ## 1. Think Before Coding
 
 Don't assume. Don't hide confusion. Surface tradeoffs.
