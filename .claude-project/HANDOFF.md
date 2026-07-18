@@ -1,36 +1,52 @@
 ---
-created: 2026-07-16T16:04:00+09:00
+created: 2026-07-18T19:55:16+09:00
 project: k-public-data-mcp
-summary: 병원 상세정보 더보기(15001699/MadmDtlInfoService2.8) 통합 — ykiho 노출 + get_hospital_detail 5 op 팬아웃, 배포·프로덕션 E2E 완료
+summary: KIPRIS 특허검색 API 통합 사전 조사 — 접근경로·스펙 확보, 무료 서비스 신청(승인 대기), 코드 미착수
 ---
 
 ## Session Digest
-공공데이터포털 15001699(건강보험심사평가원 의료기관별상세정보서비스)를 K-Data MCP에 통합. `search_hospital` 응답에 `ykiho`(암호화 요양기호) 노출 + `get_hospital_detail(ykiho)` action 신설 — 시설/세부/진료과목/의료장비/교통 5개 오퍼레이션 병렬 팬아웃. Railway 배포 후 프로덕션 E2E 검증 완료. 커밋 4개(3fa92dd→a1f8e9b) master 푸시, CI green.
+KIPRIS 특허 검색 기능을 K-Data MCP에 새 도메인으로 추가하기 위한 사전 조사 세션. **코드 변경 없음**(브라우저 조사만). KIPRIS Plus 계정 API 접근 경로를 규명하고, 엔드포인트·응답 스펙을 확보했으며, 신승호가 무료 서비스를 신청함(관리자 승인 대기).
 
 ## Progress
-- [x] `HospitalItem.ykiho` 타입 추가 — getHospBasisList가 원래 반환하나 타입에서 누락되던 것 노출 (3fa92dd)
-- [x] `get_hospital_detail` action + `getHospitalDetail()` 5 op 병렬 팬아웃, generic key=value 렌더(온비드 패턴)
-- [x] fetchXml 평문응답 가드(Forbidden/API not found → 명시 에러), 전 섹션 접근거부 시 활용신청 안내
-- [x] REST(/data20/hospital/detail) + OpenAPI 경로 미러
-- [x] 버전 함정 수정: MadmDtlInfoService**2.7 폐기(403)→2.8** + http→https + `_type=xml`, 라벨 교정 (a1f8e9b)
-- [x] Knip dead-code(HOSPITAL_DETAIL_OPS export 제거) CI 복구 (807014b)
-- [x] 배포·프로덕션 E2E: 삼성서울병원 시설 1·진료과목 29(내과 전문의 213)·의료장비 16(PET 4대)
-- [x] 검증: tsc·knip·verify-docs·76테스트·CI green 전부 통과
+- [x] K-Data MCP 기존 특허 지원 조사 — `public_data.search_medicine_patent`(의약품 특허만), 범용 특허검색 없음
+- [x] KIPRIS 정보검색 API 접근 경로 규명 — plus.kipris.or.kr `kipo-api/kipi/patUtiModInfoSearchSevice`
+- [x] 원인 진단 — 신승호 AccessKey는 유효하나 `resultCode 31 DEADLINE_HAS_EXPIRED`(서비스 활용기간 만료)
+- [x] 무료 신청 대상 특정 — "특허·실용 공개·등록공보"(국내 IP데이터>공보>특허·실용) 서비스가 정보검색 API 원천
+- [x] 응답 스펙 확보(아래 API Spec)
+- [x] 신승호가 "특허·실용 공개·등록공보" 무료(월 1,000건) 신청 제출
+- [ ] KIPRIS 관리자 승인 대기 (영업일 1~3일)
+- [ ] MCP 도구 구현
+- [ ] 라이브 검증 + Railway 배포
 
-## Next Steps
-1. (선택) 약국 상세정보 — 동일 ykiho 패턴을 PharmacyItem에도 적용 가능(현재 병원만)
-2. (선택) getDtlInfo2.8·getTrnsprtInfo2.8은 삼성서울병원서 0건 — 다른 기관으로 실데이터 형상 추가 확인
-3. HANDOFF 이전 항목(통계 API 15047819/15119055 등 미구현 조사)은 여전히 백로그
+## Next Steps (승인 후 착수)
+1. 라이브 검증: `getAdvancedSearch` 실호출로 `resultCode 00 NORMAL SERVICE` 확인 (신승호 AccessKey)
+2. `.env`에 `KIPRIS_API_KEY` 저장 (현재 미저장 — 만료 상태라 보류했음)
+3. TDD 구현 (repo 도메인 패턴):
+   - `src/kipris-api.ts` + `src/kipris-types.ts`
+   - `src/kipris-api.test.ts` + `src/kipris-api.contract.test.ts`(`describe.skipIf(!process.env.KIPRIS_API_KEY)`)
+   - `src/tools/skills/kipris.ts`(`registerSkillTool()`, action enum, 이중언어 title/desc) + test
+4. 배선: `src/config.ts`(`kiprisApiKey?` + env 로드 + 미설정 warn, `assemblyApiKey` 패턴 복제), `src/tools/skills/index.ts`(키 있을 때만 `registerKipris`)
+5. 문서: `.env` / `docs/env.md` / `docs/source-map.md` / `README.md` + `npm run verify-docs`, `npm run build`, `npm test`
+6. Railway env `KIPRIS_API_KEY` 설정 + redeploy (stateless 폴백으로 claude.ai 커넥터 자동 인식)
 
 ## Blockers
-- 없음.
+- **KIPRIS 서비스 승인 대기** — 관리자 승인 영업일 1~3일. 승인 전까지 API가 `code 31 DEADLINE_HAS_EXPIRED` 반환. 사용자가 승인되면 알려주기로 함.
 
 ## Watch Out
-- **op명↔의미 반대**: `getEqpInfo2.8`=시설정보(병상), `getMedOftInfo2.8`=의료장비정보(PET/CT). 라벨 헷갈리지 말 것
-- **data.go.kr 403은 활용신청 미승인이 아니라 폐기 버전 호출일 수 있음** — 정상 서비스(병원 hospInfoServicev2)가 같은 키로 00이면 인증 유효, 버전·op명 먼저 확인 (메모리 reference_datago_403_deprecated_version)
-- 상세 op 응답 필드는 op별 상이 → generic 렌더 유지(하드코딩 필드 매핑 금지)
+- 무료 티어 = **월 1,000 호출 제한**(dropdown value `KP242`). 유료(무제한)=`KP241`. 신청 폼 기본값이 유료라 무료 변경 필수했음.
+- `getWordSearch`는 **폐기예정** → 구현은 `getAdvancedSearch`(항목별검색) 기준.
+- data.go.kr의 KIPRIS 특허검색 항목은 plus.kipris.or.kr로 리다이렉트 = 원천은 KIPRIS Plus(별도 data.go.kr API 아님).
+- KIPRIS AccessKey는 시크릿 — `.env`에만, 커밋 금지(`.env`는 gitignore 확인됨).
+- 장바구니 "담기" 클릭 시 blocking JS dialog 발생 → navigate로 우회.
+
+## API Spec (구현용, DBII_000000000000001 상세페이지 기준)
+- Base: `http://plus.kipris.or.kr/kipo-api/kipi/patUtiModInfoSearchSevice/`
+- Ops: `getWordSearch`(단어, 폐기예정), `getAdvancedSearch`(항목별), `getBibliographyDetailInfoSearch`(서지)
+- `getWordSearch` params: `word`(검색단어), `year`(0~10), `patent`(bool), `utility`(bool), `numOfRows`(기본30·최대500), `pageNo`, `ServiceKey`
+- 응답 envelope(XML): `<response><header>successYN,resultCode,resultMsg</header><body><items><item>…</item></items><count>…</count></body></response>`
+- item 필드(16): indexNo, registerStatus, inventionTitle(발명명·한글), ipcNumber, registerNumber, registerDate, applicationNumber(출원번호), applicationDate, openNumber, openDate, publicationNumber, publicationDate, astrtCont(초록), drawing(이미지경로), bigDrawing, applicantName(출원인)
+- count: numOfRows, pageNo, totalCount
+- 성공 시 `<resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg>`
 
 ## Files Touched
-- src/data20-types.ts, src/data20-api.ts, src/tools/skills/public-data.ts
-- src/routes/data20-routes.ts, src/openapi/data20-paths.ts
-- src/data20-api.test.ts, src/tools/skills/public-data.test.ts
+- (없음 — 조사 세션, 코드 미변경)

@@ -8,6 +8,7 @@
 - [express-5-req-params-string-array](memory/express-5-req-params-string-array.md) — Express 5에서 req.params.X는 string | string[] — 항상 String() 캐스트
 - [fetch-mock-convention-vi-stubglobal](memory/fetch-mock-convention-vi-stubglobal.md) — HTTP 목은 vi.stubGlobal("fetch", ...) — nock은 사용하지 않음
 - [fetch-with-retry-429-test-timeout](memory/fetch-with-retry-429-test-timeout.md) — 429 응답 모킹 테스트는 vitest 기본 5s 타임아웃을 늘려야 함 (재시도 백오프 7s 소요)
+- [kipris-patent-api-access](memory/kipris-patent-api-access.md) — KIPRIS 특허검색 API = "특허·실용 공개·등록공보" 무료신청(월 1,000건, KP242), patUtiModInfoSearchSevice, code 31=활용기간 만료
 - [korservice2-data20-key-reuse](memory/korservice2-data20-key-reuse.md) — 한국관광공사 KorService2 API는 DATA20_SERVICE_KEY를 그대로 재사용 (별도 환경변수 불필요)
 - [master-direct-push-railway-autodeploy](memory/master-direct-push-railway-autodeploy.md) — 이 레포는 PR 없이 master 직접 push, GitHub→Railway 자동 배포
 - [openlegaldata-de-anonymous-mit](memory/openlegaldata-de-anonymous-mit.md) — OpenLegalData (de.openlegaldata.io) — anonymous OK, MIT 라이선스, 활성 유지보수
