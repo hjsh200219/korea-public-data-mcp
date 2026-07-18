@@ -14,20 +14,21 @@ KIPRIS 특허 검색 기능을 K-Data MCP에 새 도메인으로 추가하기 �
 - [x] 무료 신청 대상 특정 — "특허·실용 공개·등록공보"(국내 IP데이터>공보>특허·실용) 서비스가 정보검색 API 원천
 - [x] 응답 스펙 확보(아래 API Spec)
 - [x] 신승호가 "특허·실용 공개·등록공보" 무료(월 1,000건) 신청 제출
+- [x] `KIPRIS_API_KEY` 저장 완료 — 로컬 `.env`(gitignore) + Railway production(korea-public-data-mcp, `--skip-deploys`). 키 값 영구불변, 승인만 대기
 - [ ] KIPRIS 관리자 승인 대기 (영업일 1~3일)
 - [ ] MCP 도구 구현
 - [ ] 라이브 검증 + Railway 배포
 
 ## Next Steps (승인 후 착수)
 1. 라이브 검증: `getAdvancedSearch` 실호출로 `resultCode 00 NORMAL SERVICE` 확인 (신승호 AccessKey)
-2. `.env`에 `KIPRIS_API_KEY` 저장 (현재 미저장 — 만료 상태라 보류했음)
-3. TDD 구현 (repo 도메인 패턴):
+   - `KIPRIS_API_KEY`는 `.env` + Railway 저장 완료 — 승인 후 별도 저장 불필요
+2. TDD 구현 (repo 도메인 패턴):
    - `src/kipris-api.ts` + `src/kipris-types.ts`
    - `src/kipris-api.test.ts` + `src/kipris-api.contract.test.ts`(`describe.skipIf(!process.env.KIPRIS_API_KEY)`)
    - `src/tools/skills/kipris.ts`(`registerSkillTool()`, action enum, 이중언어 title/desc) + test
-4. 배선: `src/config.ts`(`kiprisApiKey?` + env 로드 + 미설정 warn, `assemblyApiKey` 패턴 복제), `src/tools/skills/index.ts`(키 있을 때만 `registerKipris`)
-5. 문서: `.env` / `docs/env.md` / `docs/source-map.md` / `README.md` + `npm run verify-docs`, `npm run build`, `npm test`
-6. Railway env `KIPRIS_API_KEY` 설정 + redeploy (stateless 폴백으로 claude.ai 커넥터 자동 인식)
+3. 배선: `src/config.ts`(`kiprisApiKey?` + env 로드 + 미설정 warn, `assemblyApiKey` 패턴 복제), `src/tools/skills/index.ts`(키 있을 때만 `registerKipris`)
+4. 문서: `docs/env.md` / `docs/source-map.md` / `README.md` + `npm run verify-docs`, `npm run build`, `npm test`
+5. master push → Railway autodeploy (env `KIPRIS_API_KEY` 이미 설정됨, stateless 폴백으로 claude.ai 커넥터 자동 인식)
 
 ## Blockers
 - **KIPRIS 서비스 승인 대기** — 관리자 승인 영업일 1~3일. 승인 전까지 API가 `code 31 DEADLINE_HAS_EXPIRED` 반환. 사용자가 승인되면 알려주기로 함.
