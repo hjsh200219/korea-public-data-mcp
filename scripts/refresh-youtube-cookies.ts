@@ -6,7 +6,7 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 
@@ -14,6 +14,8 @@ const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
 const RAW_COOKIE_PATH = "/tmp/yt_raw_cookies.txt";
 const FILTERED_COOKIE_PATH = "/tmp/yt_filtered.txt";
 const ALLOWED_DOMAINS = [".youtube.com"];
+// 쿠키 유효성 확인용 실요청 대상 (자막 있는 저트래픽 영상)
+const PROBE_VIDEO_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw";
 
 // 20KB 경고 임계값
 const WARN_SIZE_BYTES = 20 * 1024;
@@ -91,13 +93,20 @@ async function main(): Promise<void> {
 
   console.log(`브라우저 쿠키 추출 중: ${browser}`);
 
+  // yt-dlp의 `--cookies`는 읽기 겸 쓰기 — 기존 파일이 있으면 그 쿠키를 쿠키 항아리에
+  // 먼저 로드한 뒤 브라우저 쿠키와 병합한다. 직전 실행에서 남은 죽은 세션이 살아있는
+  // 브라우저 쿠키를 덮어써 인증 쿠키가 통째로 빠지므로(재현: 파일 재사용 0/3 vs 새 파일 3/3)
+  // 매 실행 전에 반드시 삭제한다.
+  rmSync(RAW_COOKIE_PATH, { force: true });
+
   // yt-dlp로 브라우저 쿠키 export
   try {
     await execFileAsync("yt-dlp", [
       "--cookies-from-browser", browser,
       "--cookies", RAW_COOKIE_PATH,
       "--skip-download",
-      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      // 세션 생사 판별용 실요청. dQw4w9WgXcQ는 봇 트래픽이 몰려 상시 429라 부적합.
+      PROBE_VIDEO_URL,
     ]);
   } catch (err) {
     console.error("yt-dlp 실행 실패:", err);
