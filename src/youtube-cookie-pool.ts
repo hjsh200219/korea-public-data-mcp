@@ -36,6 +36,23 @@ const AUTH_COOKIE_NAMES = new Set([
   "__Secure-3PAPISID",
 ]);
 
+// Chrome 에포크(1601-01-01) → unix 에포크 오프셋 (ms)
+const CHROME_EPOCH_OFFSET_MS = 11644473600000;
+// unix 초로 볼 수 있는 상한. 이를 넘으면 Chrome 원본 타임스탬프(1601 기준 마이크로초)로 간주.
+// unix 초 4e9 ≈ 2096년, Chrome 마이크로초는 1.3e16 수준이라 구간이 겹치지 않는다.
+const UNIX_SECONDS_MAX = 1e14;
+
+/**
+ * Netscape 쿠키의 만료 필드를 unix ms로 정규화.
+ * yt-dlp는 브라우저에서 직접 읽은 쿠키에 Chrome 원본 타임스탬프를 그대로 적고,
+ * 서버가 Set-Cookie로 갱신한 쿠키에는 unix 초를 적어 한 파일에 두 형식이 섞인다.
+ */
+function normalizeExpiryMs(expiry: number): number {
+  return expiry > UNIX_SECONDS_MAX
+    ? expiry / 1000 - CHROME_EPOCH_OFFSET_MS
+    : expiry * 1000;
+}
+
 /**
  * Netscape 쿠키에서 인증 쿠키 기준 최소 만료 타임스탬프 파싱.
  * 인증 쿠키가 하나도 없으면(로그아웃 방문자 쿠키만 있는 경우) 전체 최소값으로 폴백 —
@@ -50,9 +67,9 @@ function parseMinExpiry(cookieContent: string): number | undefined {
     if (line.startsWith("#") || !line.trim()) continue;
     const parts = line.split("\t");
     if (parts.length >= 5) {
-      const expiry = parseInt(parts[4], 10);
-      if (!isNaN(expiry) && expiry > 0) {
-        const expiryMs = expiry * 1000;
+      const expiry = Number(parts[4]);
+      if (Number.isFinite(expiry) && expiry > 0) {
+        const expiryMs = normalizeExpiryMs(expiry);
         if (minAnyExpiry === undefined || expiryMs < minAnyExpiry) minAnyExpiry = expiryMs;
         if (parts[5] && AUTH_COOKIE_NAMES.has(parts[5])) {
           if (minAuthExpiry === undefined || expiryMs < minAuthExpiry) minAuthExpiry = expiryMs;

@@ -255,6 +255,48 @@ describe("YoutubeCookiePool", () => {
       expect(parseInt(health[0].expiresIn ?? "", 10)).toBeLessThanOrEqual(400);
     });
 
+    it("Chrome 에포크(1601 기준 마이크로초) 만료값을 unix 시간으로 정규화", () => {
+      // yt-dlp가 브라우저에서 바로 가져온 쿠키는 Chrome 원본 타임스탬프
+      // (1601-01-01 기준 마이크로초)를 그대로 적는다. unix 초로 오인하면
+      // 1.5억일 같은 값이 나와 만료 경고가 영영 안 뜬다.
+      const toChromeEpoch = (ms: number) => (ms + 11644473600000) * 1000;
+      const now = Date.now();
+      const line = (expiry: number, name: string) =>
+        `.youtube.com\tTRUE\t/\tFALSE\t${expiry}\t${name}\tDUMMY`;
+      const cookie = [
+        line(toChromeEpoch(now + 30 * 60 * 1000), "GPS"), // 30분, 비인증
+        line(toChromeEpoch(now + 400 * 24 * 60 * 60 * 1000), "LOGIN_INFO"),
+        line(toChromeEpoch(now + 730 * 24 * 60 * 60 * 1000), "SID"),
+        line(toChromeEpoch(now + 730 * 24 * 60 * 60 * 1000), "SAPISID"),
+        line(toChromeEpoch(now + 730 * 24 * 60 * 60 * 1000), "__Secure-1PSID"),
+      ].join("\n");
+
+      vi.stubEnv("YOUTUBE_COOKIES_POOL", JSON.stringify([cookie]));
+      vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+
+      const pool = new YoutubeCookiePool();
+      const health = pool.getHealthInfo();
+
+      expect(health[0].warning).toBeUndefined();
+      expect(parseInt(health[0].expiresIn ?? "", 10)).toBeGreaterThanOrEqual(399);
+      expect(parseInt(health[0].expiresIn ?? "", 10)).toBeLessThanOrEqual(400);
+    });
+
+    it("Chrome 에포크로 이미 만료된 인증 쿠키도 expired로 감지", () => {
+      const toChromeEpoch = (ms: number) => (ms + 11644473600000) * 1000;
+      const now = Date.now();
+      const cookie = `.youtube.com\tTRUE\t/\tFALSE\t${toChromeEpoch(now - 3 * 24 * 60 * 60 * 1000)}\tSID\tDUMMY`;
+
+      vi.stubEnv("YOUTUBE_COOKIES_POOL", JSON.stringify([cookie]));
+      vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+
+      const pool = new YoutubeCookiePool();
+      const health = pool.getHealthInfo();
+
+      expect(health[0].status).toBe("expired");
+      expect(health[0].warning).toBe("expired");
+    });
+
     it("인증 쿠키가 하나도 없으면 전체 최소 만료로 폴백 (로그아웃 쿠키 감지)", () => {
       const now = Date.now();
       const sec = (ms: number) => Math.floor((now + ms) / 1000);
