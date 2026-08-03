@@ -212,6 +212,69 @@ describe("YoutubeCookiePool", () => {
       expect(health[0].expiresIn).toBeUndefined();
     });
 
+    it("만료는 인증 쿠키 기준 — 수명 짧은 비인증 쿠키(GPS/YSC)는 무시", () => {
+      // 실제 업로드되는 /tmp/yt_filtered.txt 형상 재현 (값은 전부 더미).
+      // GPS는 30분, YSC는 세션 쿠키라 최소값으로 잡으면 항상 expires_soon 오탐.
+      const now = Date.now();
+      const sec = (ms: number) => Math.floor((now + ms) / 1000);
+      const day = 24 * 60 * 60 * 1000;
+      const line = (expiry: number, name: string) =>
+        `.youtube.com\tTRUE\t/\tFALSE\t${expiry}\t${name}\tDUMMY`;
+      const cookie = [
+        line(0, "YSC"), // 세션 쿠키
+        line(sec(30 * 60 * 1000), "GPS"), // 30분
+        line(sec(180 * day), "VISITOR_INFO1_LIVE"),
+        line(sec(180 * day), "VISITOR_PRIVACY_METADATA"),
+        line(sec(180 * day), "__Secure-ROLLOUT_TOKEN"),
+        line(sec(180 * day), "__Secure-YNID"),
+        line(sec(240 * day), "PREF"),
+        line(sec(365 * day), "SIDCC"),
+        line(sec(365 * day), "__Secure-1PSIDCC"),
+        line(sec(400 * day), "LOGIN_INFO"), // 인증 쿠키 중 최소
+        line(sec(730 * day), "SID"),
+        line(sec(730 * day), "HSID"),
+        line(sec(730 * day), "SSID"),
+        line(sec(730 * day), "APISID"),
+        line(sec(730 * day), "SAPISID"),
+        line(sec(730 * day), "__Secure-1PSID"),
+        line(sec(730 * day), "__Secure-3PSID"),
+        line(sec(730 * day), "__Secure-1PAPISID"),
+        line(sec(730 * day), "__Secure-3PAPISID"),
+        line(13598229349, "ST-1pvpnzl"), // yt-dlp가 붙이는 먼 미래 잡쿠키
+      ].join("\n");
+
+      vi.stubEnv("YOUTUBE_COOKIES_POOL", JSON.stringify([cookie]));
+      vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+
+      const pool = new YoutubeCookiePool();
+      const health = pool.getHealthInfo();
+
+      expect(health[0].warning).toBeUndefined();
+      // LOGIN_INFO(400일)가 인증 쿠키 중 최소 — 초 단위 floor로 399d/400d 모두 허용
+      expect(parseInt(health[0].expiresIn ?? "", 10)).toBeGreaterThanOrEqual(399);
+      expect(parseInt(health[0].expiresIn ?? "", 10)).toBeLessThanOrEqual(400);
+    });
+
+    it("인증 쿠키가 하나도 없으면 전체 최소 만료로 폴백 (로그아웃 쿠키 감지)", () => {
+      const now = Date.now();
+      const sec = (ms: number) => Math.floor((now + ms) / 1000);
+      const line = (expiry: number, name: string) =>
+        `.youtube.com\tTRUE\t/\tFALSE\t${expiry}\t${name}\tDUMMY`;
+      const cookie = [
+        line(sec(30 * 60 * 1000), "GPS"),
+        line(sec(180 * 24 * 60 * 60 * 1000), "VISITOR_INFO1_LIVE"),
+      ].join("\n");
+
+      vi.stubEnv("YOUTUBE_COOKIES_POOL", JSON.stringify([cookie]));
+      vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
+
+      const pool = new YoutubeCookiePool();
+      const health = pool.getHealthInfo();
+
+      expect(health[0].warning).toBe("expires_soon");
+      expect(health[0].expiresIn).toBe("0d");
+    });
+
     it("이미 만료된 쿠키(expiresAt < now)는 status='expired', warning='expired'", () => {
       const now = Date.now();
       // 12일 전 만료 (음수 days)

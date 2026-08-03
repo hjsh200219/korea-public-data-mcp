@@ -18,11 +18,34 @@ const RECOVERY_MS = 5 * 60 * 1000; // 5분
 const EXPIRY_WARN_MS = 7 * 24 * 60 * 60 * 1000; // 7일
 const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
 
-/** Netscape 쿠키에서 최소 만료 타임스탬프 파싱 */
+// 로그인 세션을 구성하는 인증 쿠키 — 만료 헬스는 이것만 기준으로 판단한다.
+// GPS(30분)·YSC(세션) 같은 수명 짧은 비인증 쿠키가 섞여 있어 전체 최소값을 쓰면
+// 항상 `expiresIn: "0d" / expires_soon`으로 나와 경고가 무의미해짐.
+// (sync 쪽 `scripts/refresh-youtube-cookies.ts`의 REQUIRED_AUTH_COOKIES는 업로드 차단용
+//  최소 집합이라 목적이 다름 — 여기는 만료 계산용 전체 자격증명 집합)
+const AUTH_COOKIE_NAMES = new Set([
+  "SID",
+  "HSID",
+  "SSID",
+  "APISID",
+  "SAPISID",
+  "LOGIN_INFO",
+  "__Secure-1PSID",
+  "__Secure-3PSID",
+  "__Secure-1PAPISID",
+  "__Secure-3PAPISID",
+]);
+
+/**
+ * Netscape 쿠키에서 인증 쿠키 기준 최소 만료 타임스탬프 파싱.
+ * 인증 쿠키가 하나도 없으면(로그아웃 방문자 쿠키만 있는 경우) 전체 최소값으로 폴백 —
+ * 이 경우 임박 경고가 뜨는 것이 오히려 올바른 신호다.
+ */
 function parseMinExpiry(cookieContent: string): number | undefined {
   // Netscape 형식: domain flag path secure expiry name value
-  // expiry는 5번째 필드 (0-indexed: 4)
-  let minExpiry: number | undefined;
+  // expiry는 5번째 필드 (0-indexed: 4), name은 6번째 (0-indexed: 5)
+  let minAuthExpiry: number | undefined;
+  let minAnyExpiry: number | undefined;
   for (const line of cookieContent.split("\n")) {
     if (line.startsWith("#") || !line.trim()) continue;
     const parts = line.split("\t");
@@ -30,11 +53,14 @@ function parseMinExpiry(cookieContent: string): number | undefined {
       const expiry = parseInt(parts[4], 10);
       if (!isNaN(expiry) && expiry > 0) {
         const expiryMs = expiry * 1000;
-        if (minExpiry === undefined || expiryMs < minExpiry) minExpiry = expiryMs;
+        if (minAnyExpiry === undefined || expiryMs < minAnyExpiry) minAnyExpiry = expiryMs;
+        if (parts[5] && AUTH_COOKIE_NAMES.has(parts[5])) {
+          if (minAuthExpiry === undefined || expiryMs < minAuthExpiry) minAuthExpiry = expiryMs;
+        }
       }
     }
   }
-  return minExpiry;
+  return minAuthExpiry ?? minAnyExpiry;
 }
 
 export class YoutubeCookiePool {
