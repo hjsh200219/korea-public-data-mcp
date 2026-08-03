@@ -8,3 +8,6 @@ coverage/
 .playwright-mcp/
 .DS_Store
 _workspace/
+
+# 세션 인수인계 로컬 백업 세대 (git history가 이미 세대 보관)
+.claude-project/HANDOFF.md.prev*
