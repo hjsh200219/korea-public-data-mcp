@@ -17,7 +17,7 @@
 - [railway-env-var-32kb-limit](memory/railway-env-var-32kb-limit.md) — Railway 환경변수당 하드 리밋 32,768바이트
 - [railway-region-youtube-blocking](memory/railway-region-youtube-blocking.md) — Railway 리전별 YouTube 한국 콘텐츠 차단 패턴 (2026-04-26 기준)
 - [railway-youtube-429-transient](memory/railway-youtube-429-transient.md) — Railway 송출 IP의 YouTube 429는 일시적 — 5–10분 대기 후 재시도가 1차 대응
-- [skill-tool-count-16-with-tourism](memory/skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 수 16개 기준점 및 전체 목록 (tourism 추가 후)
+- [skill-tool-count-16-with-tourism](memory/skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 수 19개 기준점 및 전체 목록 (assembly, gov24_ai 추가 후)
 - [tdd-api-plus-skill-test-split](memory/tdd-api-plus-skill-test-split.md) — API client 테스트와 skill 테스트를 파일 분리하는 패턴 (tourism: 21 + 22개)
 - [youtube-transcript-api-v1-migration](memory/youtube-transcript-api-v1-migration.md) — youtube-transcript-api v1.0+ API 변경 (정적 메서드 → 인스턴스 메서드)
 - [bgutil-pot-provider-not-needed](memory/bgutil-pot-provider-not-needed.md) — PO Token 우회는 android_vr 캐스케이드로 충분 — bgutil 사이드카 도입 불필요 (월 $1.50~$2.80 절감)
@@ -32,3 +32,5 @@
 - [gov24-ai-endpoint-characteristics](memory/gov24-ai-endpoint-characteristics.md) — plus.gov.kr AI 익명 cold POST + SSE 이중 스키마(CHUNK/stream) + X_GST_QLC 쿼터
 - [mcp-stale-session-stateless-fallback](memory/mcp-stale-session-stateless-fallback.md) — Railway 재배포 후 stale MCP 세션은 404 거절 금지, stateless 폴백으로 응답 (claude.ai 게이트웨이는 404 후 재초기화 안 함)
 - [railway-stale-session-diagnosis](memory/railway-stale-session-diagnosis.md) — claude.ai 툴 통째 소실 시 railway logs로 "Starting Container" 직후 stale sid 404 패턴 진단
+- [doc-summary-phrase-drift-exhaustive-test](memory/doc-summary-phrase-drift-exhaustive-test.md) — 문서의 "외 N종" 요약 표현은 누락을 숨김 — 소스 ACTIONS 파싱 전수 대조 테스트로 강제
+- [plugin-always-on-token-budget](memory/plugin-always-on-token-budget.md) — 플러그인 스킬/커맨드는 설치자 전 세션에 상시 얹힘 — claude plugin details로 always-on 토큰 확인
