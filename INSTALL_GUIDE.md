@@ -279,7 +279,7 @@ https://jsonlint.com
 **Q. 검색 결과가 안 나오거나 오류가 발생합니다.**
 
 - 서버가 일시적으로 점검 중일 수 있습니다. 잠시 후 다시 시도해 주세요.
-- 계속 문제가 발생하면 [GitHub Issues](https://github.com/hjsh200219/public-data-mcp/issues)에 알려주세요.
+- 계속 문제가 발생하면 [GitHub Issues](https://github.com/hjsh200219/korea-public-data-mcp/issues)에 알려주세요.
 
 ---
 

@@ -31,7 +31,7 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 └──────┬───────┘ └────┬─────┘ └──────────┘
        │              │
        │  ┌────────────────────────────────────────┐
-       │  │  tools/skills/ (18 Skills + 5 Prompts)  │
+       │  │  tools/skills/ (19 Skills + 5 Prompts)  │
        │  │  index.ts          — 오케스트레이터      │
        │  │  _shared.ts        — 공통 디스패처       │
        │  │  prompts.ts        — 워크플로 가이드      │
@@ -107,11 +107,11 @@ public-data-mcp is a Model Context Protocol (MCP) server providing Korean public
 | Layer | File(s) | Lines | Responsibility |
 |-------|---------|-------|---------------|
 | **Entrypoint** | `index.ts`, `remote.ts`, `config.ts` | 23 + 229 + 76 | Process bootstrap, transport init, env validation |
-| **Protocol** | `server.ts`, `tools/skills/` (12 skills + prompts) | 21 + 4,724 (구현만) | MCP 스킬 도구 등록, action 디스패치, zod validation |
-| **HTTP Adapter** | `api-routes.ts` + `routes/` (8 domain route files + helpers), `openapi.ts` + `openapi/` (8 path modules + shared) | 40+1086, 42+1503 | REST routes, OpenAPI 3.1 spec |
-| **Data Access** | `law-api.ts`, `dart-api.ts`, `data20-api.ts`, `unipass-api.ts`, `exim-api.ts`, `mafra-api.ts`, `finlife-api.ts`, `insurance-api.ts` | 1546 + 375 + 396 + 1501 + 82 + 103 + 232 + 249 | API clients: fetch, parse, rate-limit, retry |
+| **Protocol** | `server.ts`, `tools/skills/` (19 skills + prompts) | 21 + 4,724 (구현만) | MCP 스킬 도구 등록, action 디스패치, zod validation |
+| **HTTP Adapter** | `api-routes.ts` + `routes/` (11 domain route files + helpers), `openapi.ts` + `openapi/` (11 path modules + shared) | 40+1086, 42+1503 | REST routes, OpenAPI 3.1 spec |
+| **Data Access** | `{domain}-api.ts` 16개 — law, dart, data20, unipass, exim, mafra, finlife, insurance, assembly, coupang, courtlistener, g2b, gov24-ai, openlegaldata, tourism, youtube | — | API clients: fetch, parse, rate-limit, retry |
 | **Shared** | `shared.ts`, `http-client.ts` | 18 + 125 | Cross-cutting utilities, shared HTTP client |
-| **Types** | `law-types.ts`, `dart-types.ts`, `data20-types.ts`, `unipass-types.ts`, `exim-types.ts`, `mafra-types.ts`, `finlife-types.ts`, `insurance-types.ts` | 598 + 153 + 143 + 568 + 27 + 38 + 318 + 160 | TypeScript interfaces per domain |
+| **Types** | `{domain}-types.ts` 16개 (Data Access와 1:1 대응) | — | TypeScript interfaces per domain |
 
 ## Dependency Rules
 
@@ -184,6 +184,19 @@ Dev dependencies: `typescript`, `tsx`, `@types/node`, `@types/express`, `vitest`
 | Local dev (HTTP) | `npm run dev:remote` | HTTP |
 | Production (Railway) | `npm start` | HTTP (port from `$PORT`) |
 | Build | `npm run build` | N/A (TypeScript -> `dist/`) |
+
+### 배포 채널
+
+| 채널 | 진입 파일 | 사용자 설치 방법 |
+|------|----------|-----------------|
+| Remote MCP (Claude 앱/Desktop/Cursor) | `dist/remote.js` | 커넥터 URL 등록 |
+| Claude Code 플러그인 | `.claude-plugin/` + `.mcp.json` | `/plugin marketplace add hjsh200219/korea-public-data-mcp` |
+| OpenAI GPT Actions | `openapi.ts` | `/openapi.json` import |
+| Smithery 레지스트리 | `smithery.yaml` + `Dockerfile` | Smithery 설치 |
+| 로컬 stdio | `dist/index.js` | `claude_desktop_config.json` 직접 편집 |
+
+> 플러그인 채널은 prod HTTP 엔드포인트에 **원격 연결**한다 (사용자 API 키 불필요).
+> 따라서 Railway 서브도메인은 플러그인 설치자 전원의 신뢰 기반이다 — 폐기·이름 변경 금지.
 
 ## Endpoints (HTTP mode)
 

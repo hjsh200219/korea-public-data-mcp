@@ -46,24 +46,85 @@ interface McpConfig {
   >;
 }
 
+const SKILLS_DIR = join(ROOT, "src", "tools", "skills");
+
+/** ACTIONS 상수 대신 런타임에 목록을 조립하는 도구 — 정적 추출 대상에서 제외한다 */
+const DYNAMIC_ACTION_TOOLS = ["youtube", "foreign-case-research"];
+
+/** 위 도구들의 액션 (소스에서 정적 추출 불가하므로 여기서 관리) */
+const DYNAMIC_ACTIONS = [
+  "get_transcript",
+  "summarize",
+  "video_info",
+  "search",
+  "comments",
+  "search_us_cases",
+  "get_us_case_detail",
+  "search_de_cases",
+  "get_de_case_detail",
+];
+
+/** `registerXxx` 호출로 실제 등록되는 스킬 도구 이름 (snake_case) */
+function registeredToolNames(): string[] {
+  return skillModuleFiles().map((f) => f.replace(/\.ts$/, "").replace(/-/g, "_"));
+}
+
+function skillModuleFiles(): string[] {
+  return readdirSync(SKILLS_DIR).filter(
+    (f) =>
+      f.endsWith(".ts") &&
+      !f.endsWith(".test.ts") &&
+      !f.startsWith("_") &&
+      f !== "index.ts" &&
+      f !== "prompts.ts",
+  );
+}
+
+/** inputSchema의 zod 필드명 — 문서가 action과 함께 백틱으로 표기하므로 오탐 방지에 필요 */
+function sourceParamNames(): string[] {
+  const names = new Set<string>();
+  for (const file of skillModuleFiles()) {
+    const src = readFileSync(join(SKILLS_DIR, file), "utf8");
+    for (const m of src.matchAll(/^\s+([a-z][a-z0-9_]*):\s*z\./gm)) {
+      names.add(m[1]);
+    }
+  }
+  return [...names];
+}
+
+/** 각 스킬 모듈의 `const ACTIONS = [...] as const` 를 파싱해 도구별 액션 목록을 만든다 */
+function sourceActions(): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  for (const file of skillModuleFiles()) {
+    const base = file.replace(/\.ts$/, "");
+    if (DYNAMIC_ACTION_TOOLS.includes(base)) continue;
+    const src = readFileSync(join(SKILLS_DIR, file), "utf8");
+    const block = src.match(/^const ACTIONS = \[([\s\S]*?)\] as const;/m);
+    if (!block) continue;
+    const actions = [...block[1].matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]);
+    result.set(base.replace(/-/g, "_"), actions);
+  }
+  return result;
+}
+
 describe("플러그인 매니페스트 (.claude-plugin/plugin.json)", () => {
   const manifest = readJson<PluginManifest>(".claude-plugin", "plugin.json");
 
-  it("필수 필드를 갖는다", () => {
+  it("pluginJson_필수필드_존재", () => {
     expect(manifest.name).toBe("korea-public-data");
     expect(manifest.description.length).toBeGreaterThan(0);
     expect(manifest.author?.name).toBeTruthy();
   });
 
-  it("plugin name은 kebab-case다 (Claude Code 로더 제약)", () => {
+  it("pluginJson_name_kebabCase", () => {
     expect(manifest.name).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
   });
 
-  it("version은 semver 형식이다", () => {
+  it("pluginJson_version_semver형식", () => {
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("repository/homepage는 실제 GitHub 저장소를 가리킨다", () => {
+  it("pluginJson_repository_실제저장소지시", () => {
     expect(manifest.repository).toContain("github.com/hjsh200219");
     expect(manifest.homepage).toContain("github.com/hjsh200219");
   });
@@ -76,22 +137,22 @@ describe("마켓플레이스 매니페스트 (.claude-plugin/marketplace.json)",
   );
   const manifest = readJson<PluginManifest>(".claude-plugin", "plugin.json");
 
-  it("plugins 목록에 최소 1개 항목이 있다", () => {
+  it("marketplace_plugins_1개이상", () => {
     expect(marketplace.plugins.length).toBeGreaterThan(0);
   });
 
-  it("self-hosted 항목의 source는 저장소 루트('./')다", () => {
+  it("marketplace_selfHosted항목_source가저장소루트", () => {
     const self = marketplace.plugins.find((p) => p.name === manifest.name);
     expect(self).toBeDefined();
     expect(self?.source).toBe("./");
   });
 
-  it("plugin.json과 name/description이 어긋나지 않는다", () => {
+  it("marketplace_pluginJson대조_name과description일치", () => {
     const self = marketplace.plugins.find((p) => p.name === manifest.name);
     expect(self?.description).toBe(manifest.description);
   });
 
-  it("owner 정보를 갖는다", () => {
+  it("marketplace_owner_존재", () => {
     expect(marketplace.owner.name).toBeTruthy();
   });
 });
@@ -99,20 +160,20 @@ describe("마켓플레이스 매니페스트 (.claude-plugin/marketplace.json)",
 describe("번들 MCP 서버 (.mcp.json)", () => {
   const mcp = readJson<McpConfig>(".mcp.json");
 
-  it("public-data 서버를 원격 HTTP로 등록한다", () => {
+  it("mcpJson_publicData서버_원격HTTP등록", () => {
     const server = mcp.mcpServers["public-data"];
     expect(server).toBeDefined();
     expect(server.type).toBe("http");
     expect(server.url).toBe("https://public-data.up.railway.app/mcp");
   });
 
-  it("원격 전용이므로 로컬 실행 커맨드를 포함하지 않는다", () => {
+  it("mcpJson_원격전용_로컬커맨드없음", () => {
     for (const server of Object.values(mcp.mcpServers)) {
       expect(server.command).toBeUndefined();
     }
   });
 
-  it("URL은 https다 (평문 전송 금지)", () => {
+  it("mcpJson_url_https강제", () => {
     for (const server of Object.values(mcp.mcpServers)) {
       expect(server.url?.startsWith("https://")).toBe(true);
     }
@@ -122,11 +183,11 @@ describe("번들 MCP 서버 (.mcp.json)", () => {
 describe("플러그인 스킬 (skills/)", () => {
   const skillPath = join(ROOT, "skills", "korea-public-data", "SKILL.md");
 
-  it("SKILL.md가 존재한다", () => {
+  it("skillMd_파일_존재", () => {
     expect(existsSync(skillPath)).toBe(true);
   });
 
-  it("frontmatter에 name/description을 갖는다", () => {
+  it("skillMd_frontmatter_name과description존재", () => {
     const body = readFileSync(skillPath, "utf8");
     expect(body.startsWith("---\n")).toBe(true);
     const frontmatter = body.slice(4, body.indexOf("\n---", 4));
@@ -134,32 +195,45 @@ describe("플러그인 스킬 (skills/)", () => {
     expect(frontmatter).toMatch(/^description:\s*\S+/m);
   });
 
-  it("19개 스킬 도구 이름을 모두 언급한다 (도구 발견율 보장)", () => {
+  it("skillMd_등록된모든스킬도구_이름언급", () => {
     const body = readFileSync(skillPath, "utf8");
-    const toolNames = [
-      "legal_research",
-      "case_research",
-      "law_amendment",
-      "corporate_disclosure",
-      "public_data",
-      "financial_product",
-      "insurance",
-      "procurement",
-      "import_clearance",
-      "export_clearance",
-      "shipping_logistics",
-      "tariff_lookup",
-      "trade_entity",
-      "youtube",
-      "product_review",
-      "tourism",
-      "foreign_case_research",
-      "assembly",
-      "gov24_ai",
-    ];
-    for (const name of toolNames) {
+    // 하드코딩 목록 대신 오케스트레이터에서 파생 — 도구 추가 시 자동으로 검증 대상에 포함된다
+    for (const name of registeredToolNames()) {
       expect(body, `SKILL.md에 ${name} 설명 누락`).toContain(name);
     }
+  });
+
+  it("skillMd_소스ACTIONS_전수언급", () => {
+    const body = readFileSync(skillPath, "utf8");
+    const missing: string[] = [];
+    for (const [tool, actions] of sourceActions()) {
+      for (const action of actions) {
+        if (!body.includes(action)) missing.push(`${tool}.${action}`);
+      }
+    }
+    // "외 N종" 같은 요약 표현은 개수가 소스와 어긋나도 드러나지 않으므로 전수 나열을 강제한다
+    expect(missing, `SKILL.md 미기재 action: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("skillMd_존재하지않는action_미언급", () => {
+    const body = readFileSync(skillPath, "utf8");
+    const known = new Set(
+      [...sourceActions().values()]
+        .flat()
+        .concat(DYNAMIC_ACTIONS)
+        .concat(sourceParamNames()),
+    );
+    // 백틱으로 감싼 snake_case 토큰만 action 표기로 간주 (산문·도구명과 구분)
+    const cited = [...body.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/g)].map(
+      (m) => m[1],
+    );
+    const toolNames = new Set(registeredToolNames());
+    const phantom = [
+      ...new Set(cited.filter((t) => !known.has(t) && !toolNames.has(t))),
+    ];
+    expect(phantom, `소스에 없는 action 표기: ${phantom.join(", ")}`).toEqual(
+      [],
+    );
   });
 });
 
@@ -169,11 +243,11 @@ describe("플러그인 커맨드 (commands/)", () => {
     ? readdirSync(commandsDir).filter((f) => f.endsWith(".md"))
     : [];
 
-  it("커맨드가 1개 이상 있다", () => {
+  it("commands_md파일_1개이상", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  it("모든 커맨드가 description frontmatter를 갖는다", () => {
+  it("commands_전체_descriptionFrontmatter존재", () => {
     for (const file of files) {
       const body = readFileSync(join(commandsDir, file), "utf8");
       expect(body.startsWith("---\n"), `${file}: frontmatter 누락`).toBe(true);
@@ -184,7 +258,7 @@ describe("플러그인 커맨드 (commands/)", () => {
     }
   });
 
-  it("커맨드 파일명은 kebab-case다", () => {
+  it("commands_파일명_kebabCase", () => {
     for (const file of files) {
       expect(file).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*\.md$/);
     }

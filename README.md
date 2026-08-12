@@ -570,8 +570,8 @@ curl "https://public-data.up.railway.app/api/detail/law/123456"
 자체 서버에서 운영하려면:
 
 ```bash
-git clone https://github.com/hjsh200219/public-data-mcp.git
-cd public-data-mcp
+git clone https://github.com/hjsh200219/korea-public-data-mcp.git
+cd korea-public-data-mcp
 npm install
 npm run build
 npm start

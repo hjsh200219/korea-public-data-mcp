@@ -57,9 +57,10 @@ description: 대한민국 공공데이터 MCP 도구 19종의 라우팅 가이�
 > 회사명만 알 때는 항상 `resolve_corp_code`부터. 정적 스냅샷(11.8만 건) 조회라 즉시 응답한다.
 
 ### 공공데이터 — `public_data`
-`search_pharmacy` `search_hospital` `search_animal_hospital` `search_rare_medicine` `search_health_food` `search_bio_equivalence` `search_medicine_patent` `verify_business`(사업자 진위) `check_business_status`(휴폐업) `search_onbid_pbanc_list` `search_onbid_pbanc_cltr_detail`
+`search_pharmacy` `search_hospital` `get_hospital_detail` `search_animal_hospital` `search_rare_medicine` `search_health_food` `search_bio_equivalence` `search_medicine_patent` `verify_business`(사업자 진위) `check_business_status`(휴폐업) `search_onbid_pbanc_list` `search_onbid_pbanc_cltr_detail`
 
 > 약국·병원은 한글 시도/시군구명(예: "서울특별시", "강남구")을 그대로 넘기면 내부에서 지역코드로 변환된다.
+> `search_hospital` 결과에 `ykiho`(요양기관기호)가 함께 나온다. 진료과목·진료시간·장비 등 상세는 그 값으로 `get_hospital_detail`을 호출한다.
 
 ### 금융·보험
 `financial_product`: `company` `deposit`(정기예금) `saving`(적금) `annuity`(연금저축) `mortgage_loan` `rent_house_loan`(전세자금) `credit_loan`(개인신용)
@@ -70,15 +71,15 @@ description: 대한민국 공공데이터 MCP 도구 19종의 라우팅 가이�
 
 ### 무역·통관
 `tariff_lookup`: `search_hs` `tariff_rate` `customs_rate`(관세환율) `market_exchange`(시장환율) `simple_drawback` `simple_drawback_company` `export_period_short` `statistics_code` `hs_navigation`
-`import_clearance`: `track_cargo` `verify_declaration` `get_inspection` `get_tax_payment` `import_requirement` `postal_clearance` `reexport_balance` `search_import_meat` 외 21종
+`import_clearance` (20종): `track_cargo` `get_containers` `get_arrival_report` `verify_declaration` `get_inspection` `get_tax_payment` `import_requirement` `single_window` `customs_check` `postal_customs` `postal_clearance` `attachment_status` `reimport_balance` `reexport_balance` `reexport_deadline` `reexport_completion` `collateral_release` `declaration_correction` `search_import_meat` `lookup_meat_by_bl`
 `export_clearance`: `export_performance` `verify_export` `export_by_vehicle` `loading_inspection` `ecommerce_export_load` `bonded_release`
 `shipping_logistics`: `bonded_area` `shed_info` `bonded_vehicle` `port_entry_exit` `unloading_declarations` `sea_departure` `air_departure` `air_arrival_report` `bonded_transport_info`
-`trade_entity`: `search_company` `search_broker` `forwarder_list` `forwarder_detail` `airline_list` `ship_company_list` `overseas_supplier` 외
+`trade_entity` (11종): `search_company` `search_broker` `broker_detail` `search_animal_plant_company` `forwarder_list` `forwarder_detail` `airline_list` `airline_detail` `ship_company_list` `ship_company_detail` `overseas_supplier`
 
 ### 국회 — `assembly`
-의안: `bill_search` `bill_search_extended` `bill_detail` `bill_proposers` `bill_processing` `bill_pending` `bill_processed` `bill_receipts` `bill_judge` 외
-표결: `vote_by_bill` `member_votes` `plenary_vote_bills` `plenary_processed_law` `plenary_processed_budget`
-의원·회의: `member_current` `member_history` `plenary_minutes` `committee_minutes` `plenary_schedule`
+의안(12): `bill_search` `bill_search_extended` `bill_detail` `bill_proposers` `bill_processing` `bill_pending` `bill_processed` `bill_receipts` `bill_judge` `bill_recent_plenary` `bill_plenary_referred` `bill_committee_alt`
+표결·본회의(8): `vote_by_bill` `member_votes` `plenary_vote_bills` `plenary_processed_law` `plenary_processed_budget` `plenary_processed_etc` `plenary_processed_settlement` `plenary_schedule`
+의원·회의(5): `member_current` `member_history` `plenary_minutes` `committee_minutes` `bill_committee_conferences`
 
 > 대부분의 action이 `AGE`(대수, 예: 22)를 요구한다. 미지정 시 현재 대수로 자동 보강된다.
 

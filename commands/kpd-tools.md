@@ -17,7 +17,7 @@ description: 이 플러그인이 제공하는 공공데이터 도구 목록과 �
 | `financial_product` | 예금·적금·연금저축·대출 금리 비교 | 금융감독원 |
 | `insurance` | 실손·자동차·생명·변액·퇴직연금 공시 | 금융위원회 |
 | `procurement` | 입찰공고, 낙찰결과 | 조달청 나라장터 |
-| `import_clearance` | 화물추적, 수입신고, 검역, 제세, 요건확인 등 21종 | 관세청 UNI-PASS |
+| `import_clearance` | 화물추적, 수입신고, 검역, 제세, 요건확인 등 20종 | 관세청 UNI-PASS |
 | `export_clearance` | 수출이행내역, 신고필증 검증, 적재 검사 | 관세청 UNI-PASS |
 | `shipping_logistics` | 보세구역, 보세운송, 입출항, 배차 | 관세청 UNI-PASS |
 | `tariff_lookup` | HS코드, 관세율, 관세환율·시장환율, 간이환급 | 관세청·수출입은행 |

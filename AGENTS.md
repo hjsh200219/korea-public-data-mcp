@@ -37,7 +37,7 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 ## Conventions
 
 - Korean comments for domain-specific logic
-- 스킬 도구: 18개 의도 기반, `action` enum으로 세부 동작 선택
+- 스킬 도구: 19개 의도 기반, `action` enum으로 세부 동작 선택
 - Contract tests (`*.contract.test.ts`): 도메인별 env var (`ASSEMBLY_API_KEY` 등) 있을 때만 실행 — `describe.skipIf(!process.env.X)` 패턴으로 CI baseline 영향 0
 - 스킬 등록: `server.tool()` 대신 `registerSkillTool()` (`tools/skills/_shared.ts`) 사용
 - 스킬 도구 `title`/`description`: 이중 언어 형식 — `"English / 한글"` (title), `"English desc. / 한글 설명"` (description)
@@ -66,6 +66,7 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - Claude Code 플러그인 배포: `.claude-plugin/plugin.json`(매니페스트) + `.claude-plugin/marketplace.json`(`source: "./"` 로 자기 저장소를 마켓플레이스로 노출) + `.mcp.json`(prod HTTP 번들, 원격 전용). 커맨드는 `commands/*.md`, 라우팅 스킬은 `skills/korea-public-data/SKILL.md` — 둘 다 규약 위치 자동 탐색이므로 plugin.json에 경로 명시 금지(오타 시 조용히 누락)
 - 플러그인 매니페스트 변경 시 `src/plugin-manifest.test.ts` 통과 필수(스키마·kebab-case·19개 도구 언급 검증). 실제 로드 검증은 `claude plugin marketplace add ./` → `claude plugin install korea-public-data@korea-public-data` → `claude plugin details korea-public-data`로 컴포넌트 인벤토리 확인
 - 플러그인 커맨드에 `allowed-tools` 하드코딩 금지 — 플러그인 설치 시 도구 이름이 `mcp__plugin_{plugin}_{server}__{tool}`로 바뀌어 stdio 설치명과 어긋남. 자연어 지시로 도구를 지목할 것
+- Railway 서브도메인(`public-data.up.railway.app`) 폐기·이름 변경 금지 — `.mcp.json`이 이 주소에 원격 연결하므로 반환 시 제3자가 선점해 설치자 전원의 법령·공시 응답을 조작할 수 있다(dangling subdomain takeover). 이전이 필요하면 플러그인을 먼저 회수하거나 자체 소유 커스텀 도메인으로 옮길 것
 
 ## TDD 필수
 
