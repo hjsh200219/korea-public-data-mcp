@@ -7,7 +7,7 @@
   plugin.json       # Claude Code 플러그인 매니페스트
   marketplace.json  # 자기 저장소를 마켓플레이스로 노출 (source: "./")
 .mcp.json           # 플러그인 번들 MCP 서버 — prod HTTP 원격 연결
-commands/           # 슬래시 커맨드 7개 (law, dart, trade, bid, bill, finance, kpd-tools)
+commands/           # 슬래시 커맨드 7개 — 전부 k- 접두사 (k-law, k-dart, k-trade, k-bid, k-bill, k-finance, k-tools)
 skills/
   korea-public-data/SKILL.md  # 19개 도구 → action 라우팅 가이드
 Dockerfile          # Railway 배포 (HTTP 모드)

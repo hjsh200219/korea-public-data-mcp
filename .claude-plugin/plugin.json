@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.schemastore.org/claude-code-plugin.json",
   "name": "korea-public-data",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "대한민국 공공데이터 통합 MCP — 법령·판례, DART 전자공시, 관세청 통관, 금융상품·보험, 나라장터, 국회 의안, 관광, YouTube 자막, 해외 판례를 한 번에 조회합니다.",
   "author": {
     "name": "hjsh200219",

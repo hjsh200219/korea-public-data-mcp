@@ -65,6 +65,7 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - 긴 법령 truncation 회피: `get_law_detail` 류 다수 조문 반환 도구는 `article_start`/`article_end` 범위 필터 노출 — 클라이언트가 8000자 한도 내 조회 가능하도록
 - Claude Code 플러그인 배포: `.claude-plugin/plugin.json`(매니페스트) + `.claude-plugin/marketplace.json`(`source: "./"` 로 자기 저장소를 마켓플레이스로 노출) + `.mcp.json`(prod HTTP 번들, 원격 전용). 커맨드는 `commands/*.md`, 라우팅 스킬은 `skills/korea-public-data/SKILL.md` — 둘 다 규약 위치 자동 탐색이므로 plugin.json에 경로 명시 금지(오타 시 조용히 누락)
 - 플러그인 매니페스트 변경 시 `src/plugin-manifest.test.ts` 통과 필수(스키마·kebab-case·19개 도구 언급 검증). 실제 로드 검증은 `claude plugin marketplace add ./` → `claude plugin install korea-public-data@korea-public-data` → `claude plugin details korea-public-data`로 컴포넌트 인벤토리 확인
+- 플러그인 커맨드 파일명은 `k-` 접두사 필수 (`commands/k-law.md` → `/k-law`) — 파일명이 곧 커맨드 이름이고, `law`·`trade` 같은 일반명사는 타 플러그인과 축약형이 충돌한다. 접두사로 네임스페이스 확보 + 자동완성 그룹핑. `plugin-manifest.test.ts`의 `commands_전체_k접두사`가 강제
 - 플러그인 커맨드에 `allowed-tools` 하드코딩 금지 — 플러그인 설치 시 도구 이름이 `mcp__plugin_{plugin}_{server}__{tool}`로 바뀌어 stdio 설치명과 어긋남. 자연어 지시로 도구를 지목할 것
 - Railway 서브도메인(`public-data.up.railway.app`) 폐기·이름 변경 금지 — `.mcp.json`이 이 주소에 원격 연결하므로 반환 시 제3자가 선점해 설치자 전원의 법령·공시 응답을 조작할 수 있다(dangling subdomain takeover). 이전이 필요하면 플러그인을 먼저 회수하거나 자체 소유 커스텀 도메인으로 옮길 것
 

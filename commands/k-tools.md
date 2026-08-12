@@ -29,5 +29,5 @@ description: 이 플러그인이 제공하는 공공데이터 도구 목록과 �
 | `assembly` | 의안 발의·처리·표결, 의원, 회의록 | 국회 |
 | `gov24_ai` | 민원 절차 AI 질의응답 (beta) | 정부24 |
 
-3. 마지막에 자주 쓰는 슬래시 커맨드를 안내한다: `/law` `/dart` `/trade` `/bid` `/bill` `/finance`
+3. 마지막에 자주 쓰는 슬래시 커맨드를 안내한다: `/k-law` `/k-dart` `/k-trade` `/k-bid` `/k-bill` `/k-finance`
 4. 도구가 하나도 안 보이면 서버 상태를 의심하고 `https://public-data.up.railway.app/health` 확인을 권한다.

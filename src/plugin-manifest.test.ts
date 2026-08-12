@@ -263,4 +263,12 @@ describe("플러그인 커맨드 (commands/)", () => {
       expect(file).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*\.md$/);
     }
   });
+
+  it("commands_전체_k접두사", () => {
+    // 파일명이 곧 슬래시 커맨드 이름이다. `law`·`trade` 같은 일반명사는 타 플러그인과
+    // 축약형(`/law`)이 충돌하므로 `k-` 접두사로 네임스페이스를 확보하고 자동완성에서 묶는다.
+    for (const file of files) {
+      expect(file, `${file}: 커맨드는 k- 접두사가 필요하다`).toMatch(/^k-/);
+    }
+  });
 });
