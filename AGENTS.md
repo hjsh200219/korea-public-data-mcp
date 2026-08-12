@@ -63,6 +63,9 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - DART corp_code 해석: 정적 스냅샷(`dart-corp-codes.ts`, gzip+base64 118k건) 우선 조회 후 미수록 시에만 라이브 `corpCode.xml` 폴백 — Railway egress가 opendart.fss.or.kr에 느려 3.5MB ZIP이 60s 타임아웃 초과(작은 JSON도 ~14s). 스냅샷 갱신: `npx tsx scripts/harvest-dart-corp-codes.ts` (신규 상장/개명 반영)
 - 법제처 DRF XML 파싱: 반복 가능 필드는 `ensureArray()` + `.map(str)`로 정규화 (`str(array)` 콤마 결합 함정), 동일 target에 root 분기(`trty` 양자/다자, `admrulOldAndNew` 등)는 fallback chain 필수 — 라이브 curl로 응답 형상 먼저 확인 후 파서 작성
 - 긴 법령 truncation 회피: `get_law_detail` 류 다수 조문 반환 도구는 `article_start`/`article_end` 범위 필터 노출 — 클라이언트가 8000자 한도 내 조회 가능하도록
+- Claude Code 플러그인 배포: `.claude-plugin/plugin.json`(매니페스트) + `.claude-plugin/marketplace.json`(`source: "./"` 로 자기 저장소를 마켓플레이스로 노출) + `.mcp.json`(prod HTTP 번들, 원격 전용). 커맨드는 `commands/*.md`, 라우팅 스킬은 `skills/korea-public-data/SKILL.md` — 둘 다 규약 위치 자동 탐색이므로 plugin.json에 경로 명시 금지(오타 시 조용히 누락)
+- 플러그인 매니페스트 변경 시 `src/plugin-manifest.test.ts` 통과 필수(스키마·kebab-case·19개 도구 언급 검증). 실제 로드 검증은 `claude plugin marketplace add ./` → `claude plugin install korea-public-data@korea-public-data` → `claude plugin details korea-public-data`로 컴포넌트 인벤토리 확인
+- 플러그인 커맨드에 `allowed-tools` 하드코딩 금지 — 플러그인 설치 시 도구 이름이 `mcp__plugin_{plugin}_{server}__{tool}`로 바뀌어 stdio 설치명과 어긋남. 자연어 지시로 도구를 지목할 것
 
 ## TDD 필수
 

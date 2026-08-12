@@ -29,6 +29,7 @@ AI(Claude, ChatGPT 등)에게 **"민법 검색해줘"**, **"부당해고 판례 
 | [방법 B](#방법-b-chatgpt-커스텀-gpt) | ChatGPT (커스텀 GPT) | 3분 |
 | [방법 C](#방법-c-claude-desktop) | Claude Desktop (PC 앱) | 3분 |
 | [방법 D](#방법-d-cursor) | Cursor (코딩 에디터) | 3분 |
+| [방법 E](#방법-e-claude-code-플러그인) | Claude Code (터미널) | 30초 |
 
 ---
 
@@ -192,6 +193,34 @@ https://public-data.up.railway.app/openapi.json
 2. Cursor를 **완전히 종료 후 다시 실행**합니다.
 
 **끝입니다!**
+
+---
+
+## 방법 E: Claude Code 플러그인
+
+> Claude Code는 터미널에서 쓰는 AI 코딩 도구입니다. 설정 파일을 직접 편집할 필요가 없습니다.
+
+**1.** 터미널에서 Claude Code를 실행합니다.
+
+```
+claude
+```
+
+**2.** 채팅창에 아래 두 줄을 차례로 입력합니다. (한 줄씩, 앞의 `/` 포함)
+
+```
+/plugin marketplace add hjsh200219/korea-public-data-mcp
+```
+
+```
+/plugin install korea-public-data@korea-public-data
+```
+
+**3.** Claude Code를 종료했다가 다시 실행합니다.
+
+**끝입니다!** 이제 채팅창에서 `/law`, `/dart`, `/trade` 같은 명령을 쓸 수 있고, 그냥 한국어로 물어봐도 됩니다.
+
+제대로 설치됐는지 확인하려면 `/kpd-tools`를 입력하세요. 사용 가능한 도구 목록이 나옵니다.
 
 ---
 

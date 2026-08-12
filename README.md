@@ -499,7 +499,44 @@ Pro/Max 플랜이 필요합니다.
 }
 ```
 
-### 방법 2: OpenAI GPT Actions (커스텀 GPT)
+### 방법 2: Claude Code 플러그인 (GitHub) — Claude Code 사용자 추천
+
+Claude Code에서는 플러그인 한 번 설치로 **MCP 도구 19종 + 슬래시 커맨드 7종 + 라우팅 스킬**이 함께 등록됩니다.
+원격 서버에 연결되므로 API 키 발급이 필요 없습니다.
+
+```bash
+claude plugin marketplace add hjsh200219/korea-public-data-mcp
+claude plugin install korea-public-data@korea-public-data
+```
+
+또는 Claude Code 세션 안에서:
+
+```
+/plugin marketplace add hjsh200219/korea-public-data-mcp
+/plugin install korea-public-data@korea-public-data
+```
+
+**포함된 슬래시 커맨드**
+
+| 커맨드 | 용도 |
+|---|---|
+| `/law` | 법령·판례 검색 (법제처) |
+| `/dart` | 기업 공시·재무제표 (DART) |
+| `/trade` | HS코드·관세율·환율·통관 (관세청) |
+| `/bid` | 나라장터 입찰공고·낙찰 |
+| `/bill` | 국회 의안·표결·의원 |
+| `/finance` | 예적금·대출 금리, 보험 공시 |
+| `/kpd-tools` | 도구 목록·연결 상태 확인 |
+
+`korea-public-data` 스킬이 함께 설치되어, 슬래시 커맨드 없이 자연어로 물어도 적절한 도구와 action을 자동 선택합니다.
+
+설치 확인:
+
+```bash
+claude plugin details korea-public-data
+```
+
+### 방법 3: OpenAI GPT Actions (커스텀 GPT)
 
 ChatGPT의 커스텀 GPT에서 한국 법령 검색 기능을 사용할 수 있습니다.
 

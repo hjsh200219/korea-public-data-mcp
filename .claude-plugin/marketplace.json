@@ -1,0 +1,27 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-marketplace.json",
+  "name": "korea-public-data",
+  "description": "대한민국 공공데이터 MCP 플러그인 마켓플레이스",
+  "owner": {
+    "name": "hjsh200219",
+    "url": "https://github.com/hjsh200219"
+  },
+  "plugins": [
+    {
+      "name": "korea-public-data",
+      "source": "./",
+      "description": "대한민국 공공데이터 통합 MCP — 법령·판례, DART 전자공시, 관세청 통관, 금융상품·보험, 나라장터, 국회 의안, 관광, YouTube 자막, 해외 판례를 한 번에 조회합니다.",
+      "version": "1.0.0",
+      "category": "data",
+      "keywords": [
+        "mcp",
+        "korea",
+        "public-data",
+        "law",
+        "dart",
+        "customs",
+        "finance"
+      ]
+    }
+  ]
+}
