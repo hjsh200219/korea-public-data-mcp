@@ -1,7 +1,7 @@
 ---
-created: 2026-08-12T14:10:00+09:00
+created: 2026-08-12T14:35:00+09:00
 project: k-public-data-mcp
-summary: Claude Code 플러그인 배포 지원 추가 — GitHub 저장소를 마켓플레이스로 노출, 실제 설치 검증 완료 (커밋 ea50c6f, c0613c9 푸시 완료)
+summary: Claude Code 플러그인 배포 지원 추가 + 커맨드 k- 접두사 적용(v1.1.0) — 실제 설치·업데이트 검증 완료 (ea50c6f, c0613c9, 6dcc544, 93ead8e 푸시 완료)
 ---
 
 ## Session Digest
@@ -20,6 +20,8 @@ summary: Claude Code 플러그인 배포 지원 추가 — GitHub 저장소를 �
 - [x] SKILL.md action 전수 나열 (import_clearance 20 / trade_entity 11 / assembly 25)
 - [x] 커밋 `ea50c6f`, `c0613c9` 푸시 완료
 - [x] **실제 GitHub 경로 설치 검증** — 클론·마켓플레이스 검증·설치 성공, MCP 1 / 스킬 8 / always-on 663 tok
+- [x] 슬래시 커맨드 `k-` 접두사 적용 (`93ead8e`, v1.1.0) — `/law`→`/k-law` 등 7개 `git mv`, `commands_전체_k접두사` 테스트로 규칙 강제
+- [x] `claude plugin marketplace update`로 v1.1.0 · `k-*` 7개 인식 검증
 - [ ] (이월) KIPRIS 서비스 승인 대기 → 승인 시 `src/kipris-api.ts` TDD 구현
 - [ ] (이월) YouTube 쿠키 LaunchAgent 정기 실행 결과 확인
 
@@ -37,6 +39,8 @@ summary: Claude Code 플러그인 배포 지원 추가 — GitHub 저장소를 �
 - 플러그인 커맨드에 `allowed-tools`를 하드코딩하지 말 것 — 설치 시 도구 이름이 `mcp__plugin_korea-public-data_public-data__{tool}`로 바뀌어 stdio 등록명과 어긋난다
 - `commands/`·`skills/`·`.mcp.json`은 규약 위치 자동 탐색이다. `plugin.json`에 경로를 명시하면 오타 시 **에러 없이 조용히 누락**된다
 - SKILL.md에 action을 추가·수정할 때 "외 N종" 같은 요약 표현 금지 — `plugin-manifest.test.ts`의 전수 대조 테스트가 실패한다. 전부 나열할 것
+- 커맨드 파일을 추가할 때 파일명에 `k-` 접두사 필수 (`commands/k-*.md`). 파일명이 곧 커맨드 이름이고 테스트가 강제한다
+- 플러그인 배포 후 사용자에게 반영하려면 `claude plugin marketplace update korea-public-data` → `/plugin update`. 푸시만으로는 설치본이 안 바뀐다. 커맨드 이름 변경 등 breaking change는 `plugin.json`·`marketplace.json` version을 **둘 다** 올릴 것
 - 푸시 전 `git status --short --branch`로 behind 확인 필수 — 이번에 원격이 20커밋 앞서 있었다
 - `.husky/pre-commit`이 실행 권한 없어 무시되고 있다(기존 상태). lint-staged가 커밋 시 안 돈다
 - 플러그인 로컬 검증 후에는 `claude plugin uninstall` + `marketplace remove`로 원복할 것 — 사용자 설정에 로컬 경로가 남는다
@@ -46,7 +50,8 @@ summary: Claude Code 플러그인 배포 지원 추가 — GitHub 저장소를 �
 - `commands/{law,dart,trade,bid,bill,finance,kpd-tools}.md` (신규)
 - `skills/korea-public-data/SKILL.md` (신규)
 - `src/plugin-manifest.test.ts` (신규, 19케이스)
-- `AGENTS.md` (플러그인 컨벤션 4항 + 스킬 도구 18→19 교정)
+- `commands/k-*.md` — v1.1.0에서 7개 전부 `k-` 접두사로 rename
+- `AGENTS.md` (플러그인 컨벤션 5항 + 스킬 도구 18→19 교정)
 - `ARCHITECTURE.md` (수치 교정 + 배포 채널 표)
 - `docs/source-map.md` (배포 표면 섹션)
 - `README.md`, `INSTALL_GUIDE.md` (설치 안내 + 저장소명 교정)

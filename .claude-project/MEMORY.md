@@ -34,3 +34,4 @@
 - [railway-stale-session-diagnosis](memory/railway-stale-session-diagnosis.md) — claude.ai 툴 통째 소실 시 railway logs로 "Starting Container" 직후 stale sid 404 패턴 진단
 - [doc-summary-phrase-drift-exhaustive-test](memory/doc-summary-phrase-drift-exhaustive-test.md) — 문서의 "외 N종" 요약 표현은 누락을 숨김 — 소스 ACTIONS 파싱 전수 대조 테스트로 강제
 - [plugin-always-on-token-budget](memory/plugin-always-on-token-budget.md) — 플러그인 스킬/커맨드는 설치자 전 세션에 상시 얹힘 — claude plugin details로 always-on 토큰 확인
+- [plugin-update-propagation](memory/plugin-update-propagation.md) — push만으론 설치본 반영 안 됨 — version bump + marketplace update 필요
