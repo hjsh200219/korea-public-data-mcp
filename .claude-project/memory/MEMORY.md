@@ -1,4 +1,7 @@
-- [youtube-yt-dlp-client-selection](youtube-yt-dlp-client-selection.md) — tv 클라이언트 + 쿠키만 PO Token 우회, web/android는 거부
+<!-- 정본 인덱스는 ../MEMORY.md — 여기 목록은 memory/ 디렉터리 로컬 사본이다 -->
+- [yt-dlp-cookie-unsupported-clients-skip](yt-dlp-cookie-unsupported-clients-skip.md) — ⛔ 쿠키 붙으면 android_vr/android/ios는 시도 자체를 스킵
+- [remote-failure-reproduce-locally-before-relabeling](remote-failure-reproduce-locally-before-relabeling.md) — 라벨 믿고 대응 말고 로컬(핀 버전) 재현으로 원문 stderr부터
+- [youtube-yt-dlp-client-selection](youtube-yt-dlp-client-selection.md) — 데이터센터 IP 생존 경로=tv_embedded/web_embedded (2026-09-16) · yt-dlp 2026.08.19+
 - [youtube-transcript-api-v1-migration](youtube-transcript-api-v1-migration.md) — v1.0+ get_transcript → fetch() 인스턴스 메서드
 - [yt-dlp-cookies-from-browser-leakage](yt-dlp-cookies-from-browser-leakage.md) — 브라우저 전체 쿠키 추출, 도메인 필터 필수
 - [yt-dlp-cookies-file-quirks](yt-dlp-cookies-file-quirks.md) — 빈 파일 입력 실패 + youtube.com 홈 enumerate 함정

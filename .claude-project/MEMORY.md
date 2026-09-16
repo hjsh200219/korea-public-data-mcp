@@ -17,15 +17,17 @@
 - [railway-env-var-32kb-limit](memory/railway-env-var-32kb-limit.md) — Railway 환경변수당 하드 리밋 32,768바이트
 - [railway-region-youtube-blocking](memory/railway-region-youtube-blocking.md) — Railway 리전별 YouTube 한국 콘텐츠 차단 패턴 (2026-04-26 기준)
 - [railway-youtube-429-transient](memory/railway-youtube-429-transient.md) — Railway 송출 IP의 YouTube 429는 일시적 — 5–10분 대기 후 재시도가 1차 대응
+- [remote-failure-reproduce-locally-before-relabeling](memory/remote-failure-reproduce-locally-before-relabeling.md) — 라벨 믿고 대응 말고 로컬(핀 버전) 재현으로 원문 stderr부터
 - [skill-tool-count-16-with-tourism](memory/skill-tool-count-16-with-tourism.md) — MCP 스킬 도구 수 19개 기준점 및 전체 목록 (assembly, gov24_ai 추가 후)
 - [tdd-api-plus-skill-test-split](memory/tdd-api-plus-skill-test-split.md) — API client 테스트와 skill 테스트를 파일 분리하는 패턴 (tourism: 21 + 22개)
 - [youtube-transcript-api-v1-migration](memory/youtube-transcript-api-v1-migration.md) — youtube-transcript-api v1.0+ API 변경 (정적 메서드 → 인스턴스 메서드)
-- [bgutil-pot-provider-not-needed](memory/bgutil-pot-provider-not-needed.md) — PO Token 우회는 android_vr 캐스케이드로 충분 — bgutil 사이드카 도입 불필요 (월 $1.50~$2.80 절감)
+- [bgutil-pot-provider-not-needed](memory/bgutil-pot-provider-not-needed.md) — 도입 불필요 유지(2026-09-16 재검토) · 우회 담당은 tv_embedded/web_embedded
 - [youtube-data-api-v3-captions-constraints](memory/youtube-data-api-v3-captions-constraints.md) — YouTube Data API v3 captions.download은 owner-only OAuth — 제3자 자막 수집 대안 없음
 - [youtube-fallback-langs-rate-limit-risk](memory/youtube-fallback-langs-rate-limit-risk.md) — 9-lang FALLBACK 일괄 요청은 timedtext 429 빈도 증가 리스크 — 운영 모니터 후 좁히기 검토
 - [youtube-transcript-error-code-priority](memory/youtube-transcript-error-code-priority.md) — TranscriptError cascade 사유 보존 우선순위 (PO_TOKEN > COOKIE > BOT > NO_SUBS) + CB INFRA_ERRORS 정책
 - [youtube-health-probe-endpoint](memory/youtube-health-probe-endpoint.md) — /health/youtube 프로브는 getTranscript 그대로 호출(서빙 경로 일치, 늑대소년 방지). cookiePool expired는 status 무관 cosmetic
-- [youtube-yt-dlp-client-selection](memory/youtube-yt-dlp-client-selection.md) — yt-dlp YouTube 자동자막 우회 클라이언트 캐스케이드 (android_vr → tv → web w/ cookies, android_vr → android w/o)
+- [youtube-yt-dlp-client-selection](memory/youtube-yt-dlp-client-selection.md) — 데이터센터 IP 생존 경로=tv_embedded/web_embedded (2026-09-16) · yt-dlp 2026.08.19+
+- [yt-dlp-cookie-unsupported-clients-skip](memory/yt-dlp-cookie-unsupported-clients-skip.md) — ⛔ 쿠키 붙으면 android_vr/android/ios는 시도 자체를 스킵
 - [yt-dlp-cookies-file-quirks](memory/yt-dlp-cookies-file-quirks.md) — yt-dlp --cookies 파일/URL 사용 시 함정 두 가지
 - [yt-dlp-cookies-from-browser-leakage](memory/yt-dlp-cookies-from-browser-leakage.md) — yt-dlp --cookies-from-browser는 모든 사이트 쿠키 추출 — 도메인 필터 필수
 - [yt-dlp-partial-write-on-exit1](memory/yt-dlp-partial-write-on-exit1.md) — yt-dlp exits 1 on multi-lang 429 but may have already written subtitle files — read before throwing
@@ -35,3 +37,5 @@
 - [doc-summary-phrase-drift-exhaustive-test](memory/doc-summary-phrase-drift-exhaustive-test.md) — 문서의 "외 N종" 요약 표현은 누락을 숨김 — 소스 ACTIONS 파싱 전수 대조 테스트로 강제
 - [plugin-always-on-token-budget](memory/plugin-always-on-token-budget.md) — 플러그인 스킬/커맨드는 설치자 전 세션에 상시 얹힘 — claude plugin details로 always-on 토큰 확인
 - [plugin-update-propagation](memory/plugin-update-propagation.md) — push만으론 설치본 반영 안 됨 — version bump + marketplace update 필요
+- [yt-dlp-stderr-429-false-positive](memory/yt-dlp-stderr-429-false-positive.md) — ⛔ execFile 에러 앞머리=명령 에코 · 분류·로깅 모두 에코 제거 후
+- [yt-dlp-version-pin-and-nightly-canary](memory/yt-dlp-version-pin-and-nightly-canary.md) — Dockerfile 2026.08.19 고정(임베드 경로 하한) · nightly canary로 정책 변경 감지

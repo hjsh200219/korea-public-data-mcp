@@ -3,6 +3,7 @@ name: bgutil-pot-provider-not-needed
 description: PO Token 우회는 android_vr 캐스케이드로 충분 — bgutil 사이드카 도입 불필요 (월 $1.50~$2.80 절감)
 type: reference
 created: 2026-05-07
+updated: 2026-09-16
 ---
 
 YouTube PO Token 차단 우회 방안 검토 결과 결정 기록 (2026-05-07).
@@ -28,6 +29,12 @@ YouTube PO Token 차단 우회 방안 검토 결과 결정 기록 (2026-05-07).
 - android_vr가 광범위 차단되거나 yt-dlp가 android_vr도 PO Token 요구로 변경하면 재검토
 - 그 시점에서 bgutil 셀프호스트 vs PO Token 만료 주기 trade-off 재평가
 - 재검토 시 본 메모리 갱신 (decision reversed 표시)
+
+**2026-09-16 재검토 (트리거 발동)**: 데이터센터 IP에서 `android_vr`가 봇 차단됨 — 이 메모리의
+재검토 조건이 실제로 발생했다. **결론은 유지(도입 불필요)**, 단 근거가 바뀌었다:
+이제 우회를 담당하는 것은 `android_vr`가 아니라 `tv_embedded`/`web_embedded`이며,
+이 두 경로는 쿠키를 받으면서 PO Token 없이 자막을 준다. 상세: [[youtube-yt-dlp-client-selection]]
+다음 재검토 조건: 임베드 경로 2개가 모두 PO Token을 요구하게 되는 시점.
 
 **참조**: 
 - [yt-dlp PO Token Guide](https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide)
