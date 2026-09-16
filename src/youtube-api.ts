@@ -231,7 +231,7 @@ type TryYtDlpOutcome =
  * 해당 시도를 통째로 건너뛴다 → 캐스케이드 1순위가 무력화된다.
  * 따라서 이 클라이언트에는 쿠키 인자를 넘기지 않는다(자막 추출에 쿠키 불필요).
  */
-export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android"]);
+export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android", "ios"]);
 
 const ytLog = createLogger("youtube");
 
@@ -492,10 +492,14 @@ export async function getTranscript(
   const hasCookies = Boolean(browserCookies) || Boolean(cookieFile);
   // android_vr를 1순위로: 자막 PO Token 미요구, 쿠키 없이 동작, 실측 본 영상에서 정상 추출
   // (단, "made for kids" 영상은 android_vr 거부 → tv/web 또는 android로 fallback)
-  // 주의: android_vr/android에는 쿠키를 넘기지 않는다 — 넘기면 yt-dlp가 시도 자체를 스킵한다
+  // 주의: android_vr/android/ios에는 쿠키를 넘기지 않는다 — 넘기면 yt-dlp가 시도 자체를 스킵한다
   // (COOKIE_UNSUPPORTED_CLIENTS 참고).
+  // tv_embedded/web_embedded: 쿠키를 받으면서 PO Token 없이 자막을 주는 유일한 경로.
+  // 데이터센터 IP에서 android_vr가 봇 차단되고 tv("page needs to be reloaded")·
+  // web(PO Token)이 막힌 2026-09-16 상황에서 유일하게 살아남았다. yt-dlp 2026.08.19+ 필요
+  // (2026.06.09에서는 두 클라이언트 모두 자막 0건).
   const clients = hasCookies
-    ? ["android_vr", "tv", "web"]
+    ? ["android_vr", "tv_embedded", "web_embedded", "tv", "web"]
     : ["android_vr", "android"];
 
   // 전역 데드라인: 이 시점을 넘기지 않도록 시도/폴백을 잘라 게이트웨이 502를 회피한다.

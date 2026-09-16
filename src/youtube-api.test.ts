@@ -382,19 +382,21 @@ describe("getTranscript (yt-dlp)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("쿠키 있고 android_vr 실패 시 tv → web 순서로 fallback", async () => {
+  it("쿠키 있고 android_vr 실패 시 tv_embedded → web_embedded → tv → web 순서로 fallback", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
 
-    const { allCalls } = setupClientCascade(3);
+    const { allCalls } = setupClientCascade(5);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(allCalls).toHaveLength(3);
+    expect(allCalls).toHaveLength(5);
     expect(allCalls[0]).toContain("youtube:player_client=android_vr");
-    expect(allCalls[1]).toContain("youtube:player_client=tv");
+    expect(allCalls[1]).toContain("youtube:player_client=tv_embedded");
     expect(allCalls[1]).toContain("--cookies-from-browser");
-    expect(allCalls[2]).toContain("youtube:player_client=web");
-    expect(allCalls[2]).toContain("--cookies-from-browser");
+    expect(allCalls[2]).toContain("youtube:player_client=web_embedded");
+    expect(allCalls[3]).toContain("youtube:player_client=tv");
+    expect(allCalls[4]).toContain("youtube:player_client=web");
+    expect(allCalls[4]).toContain("--cookies-from-browser");
 
     vi.unstubAllEnvs();
   });
@@ -447,23 +449,26 @@ describe("getTranscript (yt-dlp)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("YOUTUBE_COOKIES (파일 쿠키)도 android_vr → tv → web 캐스케이드 사용", async () => {
+  it("YOUTUBE_COOKIES (파일 쿠키)도 android_vr → 임베드 → tv → web 캐스케이드 사용", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "");
     vi.stubEnv("YOUTUBE_COOKIES", "# Netscape HTTP Cookie File\nfake");
 
-    const { allCalls } = setupClientCascade(3);
+    const { allCalls } = setupClientCascade(5);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(allCalls).toHaveLength(3);
+    expect(allCalls).toHaveLength(5);
     expect(allCalls[0]).toContain("youtube:player_client=android_vr");
     // 파일 쿠키도 android_vr에는 넘기지 않는다 (yt-dlp가 시도를 스킵)
     expect(allCalls[0]).not.toContain("--cookies");
     expect(allCalls[0]).not.toContain("--cookies-from-browser");
-    expect(allCalls[1]).toContain("youtube:player_client=tv");
+    expect(allCalls[1]).toContain("youtube:player_client=tv_embedded");
     expect(allCalls[1]).toContain("--cookies");
-    expect(allCalls[2]).toContain("youtube:player_client=web");
+    expect(allCalls[2]).toContain("youtube:player_client=web_embedded");
     expect(allCalls[2]).toContain("--cookies");
+    expect(allCalls[3]).toContain("youtube:player_client=tv");
+    expect(allCalls[4]).toContain("youtube:player_client=web");
+    expect(allCalls[4]).toContain("--cookies");
 
     vi.unstubAllEnvs();
   });

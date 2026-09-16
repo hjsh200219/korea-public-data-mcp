@@ -49,16 +49,22 @@ railway variables unset YOUTUBE_COOKIES_POOL
 
 | 환경 | 캐스케이드 |
 |------|-----------|
-| 쿠키 있음 (production) | `android_vr` → `tv` → `web` |
+| 쿠키 있음 (production) | `android_vr` → `tv_embedded` → `web_embedded` → `tv` → `web` |
 | 쿠키 없음 (local stdio) | `android_vr` → `android` |
 
 `android_vr`는 자막 PO Token 미요구 + 쿠키 없이 동작이라 1순위. 단 "made for kids" 영상은 거부되므로 fallback 유지.
 
-**`android_vr`/`android`에는 쿠키 인자를 넘기지 않는다**(`COOKIE_UNSUPPORTED_CLIENTS`).
+**`android_vr`/`android`/`ios`에는 쿠키 인자를 넘기지 않는다**(`COOKIE_UNSUPPORTED_CLIENTS`).
 넘기면 yt-dlp가 `Skipping client "android_vr" since it does not support cookies` 경고와 함께
 시도를 통째로 건너뛰어 1순위가 무력화된다. 2026-09-16 장애의 원인이며, 이때 스킵 경고의
 "cookies" 문자열이 `COOKIE_EXPIRED`로 오분류돼 "쿠키를 갱신하라"는 오안내까지 나왔다
-(쿠키는 정상이었다). 쿠키는 `tv`/`web`에만 전달된다.
+(쿠키는 정상이었다). 쿠키는 임베드/`tv`/`web` 클라이언트에만 전달된다.
+
+`tv_embedded`/`web_embedded`는 **쿠키를 받으면서 PO Token 없이 자막을 주는 유일한 경로**라
+데이터센터 IP에서 마지막 보루다. 2026-09-16 라이브 로그 기준 Railway에서
+`android_vr`=봇 차단(`Sign in to confirm you're not a bot`), `tv`=`The page needs to be reloaded.`,
+`web`=PO Token으로 전멸했고 임베드 경로만 살아남았다. 단 **yt-dlp 2026.08.19 이상 필요** —
+2026.06.09에서는 임베드 두 클라이언트 모두 자막 0건(실측).
 
 ### 알려진 한계
 - 동일 영상에 대해 여러 언어 자막을 한 호출에 요청(`FALLBACK_LANGS` 8개 + 요청 언어)하면
