@@ -231,7 +231,7 @@ type TryYtDlpOutcome =
  * 해당 시도를 통째로 건너뛴다 → 캐스케이드 1순위가 무력화된다.
  * 따라서 이 클라이언트에는 쿠키 인자를 넘기지 않는다(자막 추출에 쿠키 불필요).
  */
-export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android", "ios"]);
+const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android", "ios"]);
 
 const ytLog = createLogger("youtube");
 
