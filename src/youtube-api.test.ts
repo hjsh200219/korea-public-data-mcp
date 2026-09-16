@@ -375,7 +375,8 @@ describe("getTranscript (yt-dlp)", () => {
     await getTranscript("gc297hx4F7o", "ko");
 
     expect(allCalls[0]).toContain("youtube:player_client=android_vr");
-    expect(allCalls[0]).toContain("--cookies-from-browser");
+    // android_vr는 쿠키 미지원 — 쿠키를 넘기면 yt-dlp가 시도를 통째로 스킵한다
+    expect(allCalls[0]).not.toContain("--cookies-from-browser");
     expect(allCalls[0]).not.toContain("--cookies");
 
     vi.unstubAllEnvs();
@@ -391,6 +392,7 @@ describe("getTranscript (yt-dlp)", () => {
     expect(allCalls).toHaveLength(3);
     expect(allCalls[0]).toContain("youtube:player_client=android_vr");
     expect(allCalls[1]).toContain("youtube:player_client=tv");
+    expect(allCalls[1]).toContain("--cookies-from-browser");
     expect(allCalls[2]).toContain("youtube:player_client=web");
     expect(allCalls[2]).toContain("--cookies-from-browser");
 
@@ -400,11 +402,12 @@ describe("getTranscript (yt-dlp)", () => {
   it("브라우저 + 프로파일 형식(chrome:Default) 그대로 전달", async () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome:Default");
 
-    const { allCalls } = setupClientCascade(1);
+    // 1순위 android_vr는 쿠키 미지원이라 쿠키 인자가 없다 → 쿠키를 받는 tv(2번째) 호출로 검증
+    const { allCalls } = setupClientCascade(2);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    const args = allCalls[0];
+    const args = allCalls[1];
     const idx = args.indexOf("--cookies-from-browser");
     expect(args[idx + 1]).toBe("chrome:Default");
 
@@ -454,10 +457,13 @@ describe("getTranscript (yt-dlp)", () => {
 
     expect(allCalls).toHaveLength(3);
     expect(allCalls[0]).toContain("youtube:player_client=android_vr");
-    expect(allCalls[0]).toContain("--cookies");
+    // 파일 쿠키도 android_vr에는 넘기지 않는다 (yt-dlp가 시도를 스킵)
+    expect(allCalls[0]).not.toContain("--cookies");
     expect(allCalls[0]).not.toContain("--cookies-from-browser");
     expect(allCalls[1]).toContain("youtube:player_client=tv");
+    expect(allCalls[1]).toContain("--cookies");
     expect(allCalls[2]).toContain("youtube:player_client=web");
+    expect(allCalls[2]).toContain("--cookies");
 
     vi.unstubAllEnvs();
   });
@@ -466,12 +472,13 @@ describe("getTranscript (yt-dlp)", () => {
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "firefox");
     vi.stubEnv("YOUTUBE_COOKIES", "# Netscape HTTP Cookie File\nfake");
 
-    const { allCalls } = setupClientCascade(1);
+    // 쿠키를 실제로 받는 클라이언트는 2순위 tv (android_vr는 쿠키 미지원)
+    const { allCalls } = setupClientCascade(2);
 
     await getTranscript("gc297hx4F7o", "ko");
 
-    expect(allCalls[0]).toContain("--cookies-from-browser");
-    expect(allCalls[0]).not.toContain("--cookies");
+    expect(allCalls[1]).toContain("--cookies-from-browser");
+    expect(allCalls[1]).not.toContain("--cookies");
 
     vi.unstubAllEnvs();
   });

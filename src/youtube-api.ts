@@ -224,6 +224,15 @@ type TryYtDlpOutcome =
   | { kind: "cascade"; reason: CascadeReason };
 
 /**
+ * 쿠키를 지원하지 않는 player_client 목록.
+ * yt-dlp는 이 클라이언트에 --cookies/--cookies-from-browser가 함께 오면
+ * `Skipping client "android_vr" since it does not support cookies` 경고와 함께
+ * 해당 시도를 통째로 건너뛴다 → 캐스케이드 1순위가 무력화된다.
+ * 따라서 이 클라이언트에는 쿠키 인자를 넘기지 않는다(자막 추출에 쿠키 불필요).
+ */
+export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android"]);
+
+/**
  * 단일 yt-dlp 시도. 성공 시 success outcome, 실패 시 cascade 사유 outcome.
  * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 429 / 자막 비활성 / 지역차단)는 throw.
  */
@@ -422,8 +431,10 @@ export async function getTranscript(
     }
   }
   const hasCookies = Boolean(browserCookies) || Boolean(cookieFile);
-  // android_vr를 1순위로: 자막 PO Token 미요구, 쿠키 무관 동작, 실측 본 영상에서 정상 추출
+  // android_vr를 1순위로: 자막 PO Token 미요구, 쿠키 없이 동작, 실측 본 영상에서 정상 추출
   // (단, "made for kids" 영상은 android_vr 거부 → tv/web 또는 android로 fallback)
+  // 주의: android_vr/android에는 쿠키를 넘기지 않는다 — 넘기면 yt-dlp가 시도 자체를 스킵한다
+  // (COOKIE_UNSUPPORTED_CLIENTS 참고).
   const clients = hasCookies
     ? ["android_vr", "tv", "web"]
     : ["android_vr", "android"];
@@ -447,9 +458,13 @@ export async function getTranscript(
       // per-attempt 타임아웃을 남은 예산으로 클램프 (둘 중 작은 값)
       const attemptTimeoutMs = Math.min(YTDLP_ATTEMPT_TIMEOUT_MS, remaining);
       try {
+        const clientTakesCookies = !COOKIE_UNSUPPORTED_CLIENTS.has(playerClient);
         const outcome = await tryYtDlpClient(
           videoId, langsToTry, subLangArg,
-          playerClient, browserCookies, cookieFile, dir,
+          playerClient,
+          clientTakesCookies ? browserCookies : undefined,
+          clientTakesCookies ? cookieFile : null,
+          dir,
           attemptTimeoutMs,
         );
         if (outcome.kind === "success") {
