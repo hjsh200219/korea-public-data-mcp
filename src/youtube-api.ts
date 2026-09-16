@@ -236,6 +236,18 @@ export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android"]);
 const ytLog = createLogger("youtube");
 
 /**
+ * execFile 에러 메시지에서 `Command failed: <명령>` 에코 줄을 제거한다.
+ * 이 줄에는 우리가 넘긴 인자(`--cookies`, `--extractor-args` 등)가 그대로 들어 있어
+ * stderr 기반 분류를 오염시킨다.
+ */
+export function stripCommandEcho(raw: string): string {
+  return raw
+    .split("\n")
+    .filter((l) => !l.trimStart().startsWith("Command failed:"))
+    .join("\n");
+}
+
+/**
  * yt-dlp 출력에서 진단에 쓸 줄만 남긴다.
  * execFile 에러 메시지는 `Command failed: <전체 명령>`으로 시작해 명령줄이 길이를 다 먹는다 —
  * 정작 필요한 ERROR/WARNING 줄이 잘려나가므로 명령 에코를 버리고 끝쪽 줄을 남긴다.
@@ -345,9 +357,12 @@ async function tryYtDlpClient(
   // 파일도 없을 때 에러 분류
   if (ytdlpError) {
     const errMsg = ytdlpError.message;
-    // 쿠키 미지원 클라이언트 스킵 경고는 쿠키 상태와 무관한 잡음 — 분류에서 제외.
-    // (이 문구의 "cookies"가 아래 COOKIE_EXPIRED 매칭에 걸려 오분류를 일으킨 전력)
-    const errLower = errMsg.toLowerCase().replace(SKIP_CLIENT_WARNING_RE, "");
+    // 분류는 yt-dlp가 출력한 내용으로만 한다.
+    // execFile 에러 메시지 첫 줄의 `Command failed: yt-dlp ... --cookies /tmp/cookies.txt ...`에는
+    // 우리가 넘긴 인자가 그대로 들어 있어, 쿠키를 받는 클라이언트(tv/web)의 모든 실패가
+    // `includes("cookie")`에 걸려 COOKIE_EXPIRED로 둔갑했다(2026-09-16 오진의 직접 원인).
+    // 쿠키 미지원 클라이언트 스킵 경고의 "cookies"도 같은 이유로 제거한다.
+    const errLower = stripCommandEcho(errMsg).toLowerCase().replace(SKIP_CLIENT_WARNING_RE, "");
     if (errMsg.includes("429")) {
       throw new TranscriptError(
         "YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",

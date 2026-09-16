@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps, cleanTranscriptText, summarizeYtDlpOutput } from "./youtube-api.js";
+import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps, cleanTranscriptText, summarizeYtDlpOutput, stripCommandEcho } from "./youtube-api.js";
 import { TranscriptError, TranscriptErrorCode } from "./youtube-types.js";
 
 // ── extractVideoId (기존 로직, 변경 없음) ──
@@ -1044,6 +1044,18 @@ describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
     expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
   });
 
+  it("명령 에코의 --cookies 때문에 tv 실패가 COOKIE_EXPIRED로 둔갑하지 않음", async () => {
+    // execFile 에러 메시지에는 우리가 넘긴 명령이 통째로 들어 있다
+    mockYtDlpError(
+      "Command failed: yt-dlp --extractor-args youtube:player_client=tv --cookies /tmp/x/cookies.txt -- gc297hx4F7o\n" +
+        "ERROR: [youtube] gc297hx4F7o: The page needs to be reloaded.",
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect((thrown as TranscriptError).code).not.toBe(TranscriptErrorCode.COOKIE_EXPIRED);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
+  });
+
   it("yt-dlp 실제 쿠키 만료 문구는 COOKIE_EXPIRED 유지", async () => {
     mockYtDlpError("ERROR: The provided YouTube account cookies are no longer valid.");
 
@@ -1205,5 +1217,19 @@ describe("summarizeYtDlpOutput", () => {
   it("maxLen 초과 시 앞이 아니라 뒤를 남긴다 (에러는 끝에 있다)", () => {
     const raw = "ERROR: " + "x".repeat(600) + "TAIL_MARKER";
     expect(summarizeYtDlpOutput(raw, 100)).toContain("TAIL_MARKER");
+  });
+});
+
+describe("stripCommandEcho", () => {
+  it("명령 에코의 --cookies 인자가 분류를 오염시키지 않도록 제거한다", () => {
+    const raw = [
+      "Command failed: yt-dlp --extractor-args youtube:player_client=tv --cookies /tmp/x/cookies.txt -- aircAruvnKk",
+      "ERROR: [youtube] aircAruvnKk: The page needs to be reloaded.",
+    ].join("\n");
+
+    const out = stripCommandEcho(raw);
+
+    expect(out).not.toContain("--cookies");
+    expect(out).toContain("The page needs to be reloaded.");
   });
 });
