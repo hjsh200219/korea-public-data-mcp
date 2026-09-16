@@ -38,7 +38,7 @@ railway variables unset YOUTUBE_COOKIES_POOL
 |------|------|-----------|
 | `RATE_LIMITED` | yt-dlp가 HTTP 429 반환 (단기 호출 폭주) | 쿠키 풀 확장 또는 호출 빈도 조절 |
 | `PO_TOKEN_REQUIRED` | YouTube 봇 차단 정책(PO Token) — 영상에 자막은 있으나 yt-dlp 우회 불가 | 영상 단위 이슈, 즉시 조치 불필요 / 반복되면 yt-dlp 업데이트 검토 |
-| `COOKIE_EXPIRED` | 로그인/세션 만료 (yt-dlp가 sign in / cookie 메시지 반환, 봇 챌린지 문구는 제외) | `npm run refresh:cookies` + **재배포**(env만 갱신하면 컨테이너에 반영 안 됨) |
+| `COOKIE_EXPIRED` | 로그인/세션 만료 (yt-dlp가 sign in / cookie 메시지 반환, 봇 챌린지 문구는 제외) | `scripts/sync-youtube-cookies.sh`(인증 쿠키가 바뀌면 재배포·헬스 확인까지 자동). 수동으로 `npm run refresh:cookies`만 돌렸다면 **재배포 필수** — env만 갱신하면 실행 중 컨테이너에 반영되지 않는다 |
 | `BOT_DETECTED` | 봇 챌린지(`Sign in to confirm you're not a bot`) · DRM · 사유 미상 차단 | 쿠키 갱신으로는 안 풀림. 일시적이면 무시, 반복 시 yt-dlp 업데이트·출구 IP 검토 |
 | `REGION_BLOCKED` | 영상이 특정 지역에서만 시청 가능 | 영상 단위 이슈, 조치 불필요 |
 | `NO_SUBTITLES` | 영상에 자막이 실제로 없음 | 영상 단위 이슈, 조치 불필요 |
