@@ -235,6 +235,22 @@ export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android"]);
 
 const ytLog = createLogger("youtube");
 
+/**
+ * yt-dlp 출력에서 진단에 쓸 줄만 남긴다.
+ * execFile 에러 메시지는 `Command failed: <전체 명령>`으로 시작해 명령줄이 길이를 다 먹는다 —
+ * 정작 필요한 ERROR/WARNING 줄이 잘려나가므로 명령 에코를 버리고 끝쪽 줄을 남긴다.
+ */
+export function summarizeYtDlpOutput(raw: string, maxLen = 500): string {
+  const lines = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith("Command failed:"));
+  const flagged = lines.filter((l) => /^(ERROR|WARNING)\b/i.test(l));
+  const picked = (flagged.length > 0 ? flagged : lines).slice(-4);
+  const joined = picked.join(" | ");
+  return joined.length > maxLen ? joined.slice(-maxLen) : joined;
+}
+
 /** 쿠키 미지원 클라이언트 스킵 경고 (분류 시 제거) */
 const SKIP_CLIENT_WARNING_RE = /skipping client\s+"[^"]*"\s+since it does not support cookies/gi;
 
@@ -321,7 +337,7 @@ async function tryYtDlpClient(
       videoId,
       client: playerClient,
       reason,
-      detail: detail.replace(/\s+/g, " ").trim().slice(0, 300),
+      detail: summarizeYtDlpOutput(detail),
     });
     return { kind: "cascade", reason };
   };

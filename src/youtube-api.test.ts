@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps, cleanTranscriptText } from "./youtube-api.js";
+import { extractVideoId, parseJson3Subtitles, formatTranscriptWithTimestamps, cleanTranscriptText, summarizeYtDlpOutput } from "./youtube-api.js";
 import { TranscriptError, TranscriptErrorCode } from "./youtube-types.js";
 
 // ── extractVideoId (기존 로직, 변경 없음) ──
@@ -1180,5 +1180,30 @@ describe("getChannelVideos", () => {
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("playlistItems");
     expect(url).toContain("UUtest123");
+  });
+});
+
+describe("summarizeYtDlpOutput", () => {
+  it("Command failed 명령 에코를 버리고 ERROR/WARNING 줄을 남긴다", () => {
+    const raw = [
+      "Command failed: yt-dlp --skip-download --write-sub --sub-lang en,en-US,ja --extractor-args youtube:player_client=tv --cookies /tmp/x/cookies.txt -o /tmp/x/%(id)s -- aircAruvnKk",
+      "WARNING: Your yt-dlp version (2026.06.09) is out of date",
+      "ERROR: [youtube] aircAruvnKk: Sign in to confirm you're not a bot.",
+    ].join("\n");
+
+    const out = summarizeYtDlpOutput(raw);
+
+    expect(out).not.toContain("Command failed:");
+    expect(out).toContain("Sign in to confirm you're not a bot.");
+  });
+
+  it("ERROR/WARNING 줄이 없으면 마지막 줄들을 남긴다", () => {
+    const raw = "Command failed: yt-dlp ...\nline1\nline2\nline3";
+    expect(summarizeYtDlpOutput(raw)).toBe("line1 | line2 | line3");
+  });
+
+  it("maxLen 초과 시 앞이 아니라 뒤를 남긴다 (에러는 끝에 있다)", () => {
+    const raw = "ERROR: " + "x".repeat(600) + "TAIL_MARKER";
+    expect(summarizeYtDlpOutput(raw, 100)).toContain("TAIL_MARKER");
   });
 });
