@@ -1015,6 +1015,42 @@ describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
     expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.COOKIE_EXPIRED);
   });
 
+  it("봇 챌린지 문구(Sign in to confirm you're not a bot) → BOT_DETECTED (쿠키 문제 아님)", async () => {
+    mockYtDlpError(
+      "ERROR: [youtube] gc297hx4F7o: Sign in to confirm you're not a bot. Use --cookies-from-browser or --cookies for the authentication.",
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
+  });
+
+  it("봇 차단 문구의 타이포그래픽 아포스트로피(you\u2019re) 변종도 BOT_DETECTED", async () => {
+    mockYtDlpError("ERROR: Sign in to confirm you\u2019re not a bot");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
+  });
+
+  it("쿠키 미지원 클라이언트 스킵 경고는 COOKIE_EXPIRED로 오분류하지 않음", async () => {
+    // 이 경고의 "cookies"가 쿠키 만료로 오분류돼 "쿠키를 갱신하라"는 오안내를 낳았다
+    mockYtDlpError(
+      'WARNING: [youtube] Skipping client "android_vr" since it does not support cookies\n' +
+        "ERROR: [youtube] gc297hx4F7o: Requested format is not available.",
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect((thrown as TranscriptError).code).not.toBe(TranscriptErrorCode.COOKIE_EXPIRED);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
+  });
+
+  it("yt-dlp 실제 쿠키 만료 문구는 COOKIE_EXPIRED 유지", async () => {
+    mockYtDlpError("ERROR: The provided YouTube account cookies are no longer valid.");
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.COOKIE_EXPIRED);
+  });
+
   it("web 클라이언트 stdout에 'no subtitles for the requested languages' + PO Token 경고 → PO_TOKEN_REQUIRED", async () => {
     // web 클라이언트는 exit 0이지만 stdout에 PO Token 미제공 + no subtitles 메시지 출력
     vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");

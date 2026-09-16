@@ -232,6 +232,12 @@ type TryYtDlpOutcome =
  */
 export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android"]);
 
+/** 쿠키 미지원 클라이언트 스킵 경고 (분류 시 제거) */
+const SKIP_CLIENT_WARNING_RE = /skipping client\s+"[^"]*"\s+since it does not support cookies/gi;
+
+/** 봇 차단 챌린지 문구 ("Sign in to confirm you're not a bot") — 아포스트로피 변종 허용 */
+const BOT_CHALLENGE_RE = /confirm\s+you.{0,3}re\s+not\s+a\s+bot/i;
+
 /**
  * 단일 yt-dlp 시도. 성공 시 success outcome, 실패 시 cascade 사유 outcome.
  * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 429 / 자막 비활성 / 지역차단)는 throw.
@@ -308,7 +314,9 @@ async function tryYtDlpClient(
   // 파일도 없을 때 에러 분류
   if (ytdlpError) {
     const errMsg = ytdlpError.message;
-    const errLower = errMsg.toLowerCase();
+    // 쿠키 미지원 클라이언트 스킵 경고는 쿠키 상태와 무관한 잡음 — 분류에서 제외.
+    // (이 문구의 "cookies"가 아래 COOKIE_EXPIRED 매칭에 걸려 오분류를 일으킨 전력)
+    const errLower = errMsg.toLowerCase().replace(SKIP_CLIENT_WARNING_RE, "");
     if (errMsg.includes("429")) {
       throw new TranscriptError(
         "YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
@@ -320,8 +328,13 @@ async function tryYtDlpClient(
       // PO Token 요구 → cascade (사유 보존)
       return { kind: "cascade", reason: TranscriptErrorCode.PO_TOKEN_REQUIRED };
     }
+    if (BOT_CHALLENGE_RE.test(errLower)) {
+      // "Sign in to confirm you're not a bot" — 쿠키 문제가 아니라 자동화/IP 차단.
+      // 쿠키 갱신으로는 풀리지 않으므로 COOKIE_EXPIRED와 분리한다.
+      return { kind: "cascade", reason: TranscriptErrorCode.BOT_DETECTED };
+    }
     if (errLower.includes("sign in") || errLower.includes("cookie")) {
-      // 쿠키 만료 → cascade (사유 보존)
+      // 쿠키 만료 / 로그인 필요 → cascade (사유 보존)
       return { kind: "cascade", reason: TranscriptErrorCode.COOKIE_EXPIRED };
     }
     if (errLower.includes("not available in your country")) {

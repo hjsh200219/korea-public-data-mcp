@@ -38,8 +38,8 @@ railway variables unset YOUTUBE_COOKIES_POOL
 |------|------|-----------|
 | `RATE_LIMITED` | yt-dlp가 HTTP 429 반환 (단기 호출 폭주) | 쿠키 풀 확장 또는 호출 빈도 조절 |
 | `PO_TOKEN_REQUIRED` | YouTube 봇 차단 정책(PO Token) — 영상에 자막은 있으나 yt-dlp 우회 불가 | 영상 단위 이슈, 즉시 조치 불필요 / 반복되면 yt-dlp 업데이트 검토 |
-| `COOKIE_EXPIRED` | 로그인/세션 만료 (yt-dlp가 sign in / cookie 메시지 반환) | `npm run refresh:cookies` |
-| `BOT_DETECTED` | DRM/봇 감지 등 사유 미상 차단 | 일시적이면 무시, 반복 시 쿠키 갱신 |
+| `COOKIE_EXPIRED` | 로그인/세션 만료 (yt-dlp가 sign in / cookie 메시지 반환, 봇 챌린지 문구는 제외) | `npm run refresh:cookies` + **재배포**(env만 갱신하면 컨테이너에 반영 안 됨) |
+| `BOT_DETECTED` | 봇 챌린지(`Sign in to confirm you're not a bot`) · DRM · 사유 미상 차단 | 쿠키 갱신으로는 안 풀림. 일시적이면 무시, 반복 시 yt-dlp 업데이트·출구 IP 검토 |
 | `REGION_BLOCKED` | 영상이 특정 지역에서만 시청 가능 | 영상 단위 이슈, 조치 불필요 |
 | `NO_SUBTITLES` | 영상에 자막이 실제로 없음 | 영상 단위 이슈, 조치 불필요 |
 
@@ -52,7 +52,13 @@ railway variables unset YOUTUBE_COOKIES_POOL
 | 쿠키 있음 (production) | `android_vr` → `tv` → `web` |
 | 쿠키 없음 (local stdio) | `android_vr` → `android` |
 
-`android_vr`는 자막 PO Token 미요구 + 쿠키 무관 동작이라 1순위. 단 "made for kids" 영상은 거부되므로 fallback 유지.
+`android_vr`는 자막 PO Token 미요구 + 쿠키 없이 동작이라 1순위. 단 "made for kids" 영상은 거부되므로 fallback 유지.
+
+**`android_vr`/`android`에는 쿠키 인자를 넘기지 않는다**(`COOKIE_UNSUPPORTED_CLIENTS`).
+넘기면 yt-dlp가 `Skipping client "android_vr" since it does not support cookies` 경고와 함께
+시도를 통째로 건너뛰어 1순위가 무력화된다. 2026-09-16 장애의 원인이며, 이때 스킵 경고의
+"cookies" 문자열이 `COOKIE_EXPIRED`로 오분류돼 "쿠키를 갱신하라"는 오안내까지 나왔다
+(쿠키는 정상이었다). 쿠키는 `tv`/`web`에만 전달된다.
 
 ### 알려진 한계
 - 동일 영상에 대해 여러 언어 자막을 한 호출에 요청(`FALLBACK_LANGS` 8개 + 요청 언어)하면
