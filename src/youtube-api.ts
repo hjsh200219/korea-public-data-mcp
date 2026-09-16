@@ -12,6 +12,7 @@ import { promisify } from "node:util";
 import { TranscriptError, TranscriptErrorCode } from "./youtube-types.js";
 import { youtubeCircuitBreaker } from "./youtube-circuit-breaker.js";
 import { youtubeCookiePool } from "./youtube-cookie-pool.js";
+import { createLogger } from "./logger.js";
 import type {
   TranscriptResult, TranscriptSegment,
   VideoMetadata, SearchResult, SearchResultItem,
@@ -232,6 +233,8 @@ type TryYtDlpOutcome =
  */
 export const COOKIE_UNSUPPORTED_CLIENTS = new Set(["android_vr", "android"]);
 
+const ytLog = createLogger("youtube");
+
 /** 쿠키 미지원 클라이언트 스킵 경고 (분류 시 제거) */
 const SKIP_CLIENT_WARNING_RE = /skipping client\s+"[^"]*"\s+since it does not support cookies/gi;
 
@@ -311,6 +314,18 @@ async function tryYtDlpClient(
     }
   }
 
+  // cascade 사유를 남긴다 — 어느 클라이언트가 왜 실패했는지 로그 없이는 서버에서 복원 불가.
+  // (2026-09-16: 원인 진단이 stderr를 볼 수 없어 쿠키 오진으로 흘렀다)
+  const cascade = (reason: CascadeReason, detail: string): TryYtDlpOutcome => {
+    ytLog.warn("yt-dlp 시도 실패", {
+      videoId,
+      client: playerClient,
+      reason,
+      detail: detail.replace(/\s+/g, " ").trim().slice(0, 300),
+    });
+    return { kind: "cascade", reason };
+  };
+
   // 파일도 없을 때 에러 분류
   if (ytdlpError) {
     const errMsg = ytdlpError.message;
@@ -326,16 +341,16 @@ async function tryYtDlpClient(
     }
     if (errLower.includes("po token") || errLower.includes("po_token")) {
       // PO Token 요구 → cascade (사유 보존)
-      return { kind: "cascade", reason: TranscriptErrorCode.PO_TOKEN_REQUIRED };
+      return cascade(TranscriptErrorCode.PO_TOKEN_REQUIRED, errMsg);
     }
     if (BOT_CHALLENGE_RE.test(errLower)) {
       // "Sign in to confirm you're not a bot" — 쿠키 문제가 아니라 자동화/IP 차단.
       // 쿠키 갱신으로는 풀리지 않으므로 COOKIE_EXPIRED와 분리한다.
-      return { kind: "cascade", reason: TranscriptErrorCode.BOT_DETECTED };
+      return cascade(TranscriptErrorCode.BOT_DETECTED, errMsg);
     }
     if (errLower.includes("sign in") || errLower.includes("cookie")) {
       // 쿠키 만료 / 로그인 필요 → cascade (사유 보존)
-      return { kind: "cascade", reason: TranscriptErrorCode.COOKIE_EXPIRED };
+      return cascade(TranscriptErrorCode.COOKIE_EXPIRED, errMsg);
     }
     if (errLower.includes("not available in your country")) {
       throw new TranscriptError(
@@ -345,18 +360,18 @@ async function tryYtDlpClient(
       );
     }
     // DRM / 봇 감지 등 → cascade
-    return { kind: "cascade", reason: TranscriptErrorCode.BOT_DETECTED };
+    return cascade(TranscriptErrorCode.BOT_DETECTED, errMsg);
   }
 
   // yt-dlp가 exit 0으로 종료했지만 자막 파일 0개 — stdout에 PO Token 경고가 있는지 확인
   // (web 클라이언트 자동자막의 전형적인 PO Token 차단 패턴)
   const stdoutLower = stdoutBody.toLowerCase();
   if (stdoutLower.includes("po token") && stdoutLower.includes("no subtitles")) {
-    return { kind: "cascade", reason: TranscriptErrorCode.PO_TOKEN_REQUIRED };
+    return cascade(TranscriptErrorCode.PO_TOKEN_REQUIRED, stdoutBody);
   }
 
   // 사유 미상 — 일반적인 NO_SUBTITLES로 cascade
-  return { kind: "cascade", reason: TranscriptErrorCode.NO_SUBTITLES };
+  return cascade(TranscriptErrorCode.NO_SUBTITLES, stdoutBody);
 }
 
 /** cascade 사유 → 사용자 메시지 */
