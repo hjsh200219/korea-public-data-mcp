@@ -50,6 +50,8 @@ npm run refresh:cookies # YouTube 쿠키 풀 갱신
 - YouTube kill switches: `YOUTUBE_CIRCUIT_BREAKER_ENABLED`, `YOUTUBE_PROBE_ENABLED` (`false`로 즉시 비활성화)
 - YouTube cookies: `.youtube.com` 도메인만 필터링 (Railway 32KB 제한 — `.google.com` 포함 시 초과)
 - YouTube cookie 추출: yt-dlp `--cookies-from-browser`에 **로그인된 프로필 명시 필수** (`chrome:Profile N`) — 프로필 미지정 시 `Default` 읽어 로그아웃 방문자 쿠키만 잡힘. `refresh-youtube-cookies.ts`는 `BROWSER:PROFILE` 형식 파싱 + `findMissingAuthCookies` 가드(LOGIN_INFO/SAPISID/`__Secure-1PSID` 없으면 업로드 중단)
+- YouTube player_client별 쿠키: `android_vr`/`android`에는 쿠키 인자를 **넘기지 말 것**(`COOKIE_UNSUPPORTED_CLIENTS`). 넘기면 yt-dlp가 `Skipping client "android_vr" since it does not support cookies`로 시도를 통째로 스킵해 1순위가 무력화되고, 쿠키 있는 배포 환경에서 tv/web 실패만 남아 자막이 전면 실패한다(2026-09-16 장애). 쿠키는 `tv`/`web`에만
+- YouTube 에러 분류는 substring 매칭 — 문구에 "cookie"가 들어간다고 쿠키 문제가 아니다. 스킵 경고는 `SKIP_CLIENT_WARNING_RE`로 제거 후 분류하고, 봇 챌린지(`Sign in to confirm you're not a bot`)는 `BOT_CHALLENGE_RE` → `BOT_DETECTED`(쿠키 갱신으로 안 풀림). 실제 쿠키 만료는 `account cookies are no longer valid`
 - YouTube Circuit Breaker `state` getter는 lazy 전이 포함 (open→half-open by `OPEN_DURATION_MS`) — 별도 `currentState` 만들지 말고 단일 게터 재사용 (`isOpen()`도 동일 게터 호출). 임계값 `FAILURE_THRESHOLD`=3(2026-06 6→3)
 - YouTube 502 방지 전역 데드라인: `getTranscript`는 `YOUTUBE_TOTAL_BUDGET_MS`(기본 25s) 내 반환 — 각 클라이언트 시도 전 남은 예산 < `BUDGET_FLOOR_MS`(3s)면 캐스케이드 중단, per-attempt 타임아웃 = `min(YTDLP_ATTEMPT_TIMEOUT_MS=8s, 남은예산)`. 게이트웨이 한도(~60-100s) 초과 시 Cloudflare 502가 나므로 데드라인은 그보다 한참 작게 유지. 데이터센터 봇차단 캐스케이드(throw 아닌 `{kind:"cascade"}`)는 종단 `finalize()`에서만 `recordFailure` 1회 — per-client catch와 이중 카운트 금지
 - YouTube Python fallback 성공 경로도 `youtubeCircuitBreaker.recordSuccess()` 명시 호출 — half-open 회복 메커니즘 보존 (누락 시 영구 half-open 잔존)
