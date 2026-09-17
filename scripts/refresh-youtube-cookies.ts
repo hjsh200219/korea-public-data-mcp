@@ -6,7 +6,9 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync, mkdtempSync, existsSync } from "node:fs";
+import { tmpdir, homedir } from "node:os";
+import { join, isAbsolute } from "node:path";
 
 const execFileAsync = promisify(execFile);
 
@@ -80,6 +82,56 @@ function parseBrowserArg(): string {
   return "chrome";
 }
 
+/**
+ * macOS TCC 우회용 크롬 프로필 복사.
+ *
+ * macOS는 다른 앱의 데이터 디렉터리(~/Library/Application Support/Google/Chrome)를
+ * TCC로 보호한다. 터미널 세션은 터미널 앱의 전체디스크접근(FDA)을 물려받아 통과하지만,
+ * launchd 잡에서는 "루트 프로세스(plist의 ProgramArguments[0])"가 접근 주체가 된다.
+ * Homebrew python3/node/yt-dlp 는 FDA가 없어 `Operation not permitted` → yt-dlp가
+ * "could not find chrome cookies database"로 실패한다(2026-09-16~18 08:00 3연속 실패).
+ *
+ * 우회: 접근이 허용된 `/bin/cp`(잡 루트가 /bin/bash일 때 통과)로 Cookies DB만 임시
+ * 디렉터리에 복사한 뒤, yt-dlp에 `chrome:<임시경로>`를 넘긴다. macOS 복호화 키는
+ * 파일이 아니라 Keychain("Chrome Safe Storage")에서 오므로 Cookies 하나면 충분하다.
+ * Node의 fs 복사는 같은 이유로 막히므로 반드시 /bin/cp 를 spawn 해야 한다.
+ *
+ * @returns 복사본을 쓰면 [교체된 browser 인자, 정리할 임시 디렉터리], 아니면 [원본, null]
+ */
+async function materializeChromeProfile(browser: string): Promise<[string, string | null]> {
+  if (process.platform !== "darwin") {
+    return [browser, null];
+  }
+  const [name, ...rest] = browser.split(":");
+  const profile = rest.join(":");
+  if (name.split("+")[0] !== "chrome" || !profile || isAbsolute(profile)) {
+    return [browser, null];
+  }
+
+  const profileDir = join(homedir(), "Library/Application Support/Google/Chrome", profile);
+  // Cookies 위치는 크롬 버전에 따라 프로필 루트와 Network/ 사이를 오갔다 — 둘 다 본다.
+  const sources = [join(profileDir, "Network/Cookies"), join(profileDir, "Cookies")]
+    .filter((p) => existsSync(p));
+  if (sources.length === 0) {
+    // 존재 확인조차 TCC에 막히면 여기로 온다. 복사를 시도해 보고 실패하면 원본 경로로 폴백.
+    sources.push(join(profileDir, "Cookies"));
+  }
+
+  const tmp = mkdtempSync(join(tmpdir(), "ytprofile-"));
+  for (const src of sources) {
+    try {
+      await execFileAsync("/bin/cp", [src, join(tmp, "Cookies")]);
+      console.log(`프로필 쿠키 복사: ${src} → ${tmp}`);
+      return [`${name}:${tmp}`, tmp];
+    } catch {
+      // 다음 후보 경로 시도
+    }
+  }
+  rmSync(tmp, { recursive: true, force: true });
+  console.warn(`[WARNING] 크롬 프로필 복사 실패 — 원본 경로로 진행: ${profileDir}`);
+  return [browser, null];
+}
+
 async function main(): Promise<void> {
   const browser = parseBrowserArg();
   // yt-dlp 형식: BROWSER[+KEYRING][:PROFILE] (예: "chrome:Profile 4") — 브라우저명만 검증
@@ -99,10 +151,13 @@ async function main(): Promise<void> {
   // 매 실행 전에 반드시 삭제한다.
   rmSync(RAW_COOKIE_PATH, { force: true });
 
+  // TCC 보호 우회 — launchd 잡에서는 프로필을 직접 못 읽는다(materializeChromeProfile 참조)
+  const [sourceArg, tmpProfile] = await materializeChromeProfile(browser);
+
   // yt-dlp로 브라우저 쿠키 export
   try {
     await execFileAsync("yt-dlp", [
-      "--cookies-from-browser", browser,
+      "--cookies-from-browser", sourceArg,
       "--cookies", RAW_COOKIE_PATH,
       "--skip-download",
       // 세션 생사 판별용 실요청. dQw4w9WgXcQ는 봇 트래픽이 몰려 상시 429라 부적합.
@@ -111,6 +166,11 @@ async function main(): Promise<void> {
   } catch (err) {
     console.error("yt-dlp 실행 실패:", err);
     process.exit(1);
+  } finally {
+    // 복사본엔 살아있는 세션 쿠키가 들어 있다 — 성공/실패 무관하게 즉시 지운다.
+    if (tmpProfile) {
+      rmSync(tmpProfile, { recursive: true, force: true });
+    }
   }
 
   // raw 파일 읽기
