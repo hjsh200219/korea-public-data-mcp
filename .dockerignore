@@ -4,4 +4,7 @@ dist
 .omc
 docs
 *.md
+# product_review 가 런타임에 읽는 채널 목록. `*.md` 가 빌드 컨텍스트에서 빼 버리면
+# Dockerfile 의 COPY 가 파일을 찾지 못해 빌드가 실패한다(2026-09-20 실측).
+!youtube.md
 !package*.json
