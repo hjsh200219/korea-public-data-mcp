@@ -1,27 +1,40 @@
 # YouTube 자막 추출 Runbook
 
-## 먼저 읽을 것 — 쿠키부터 갱신하지 마세요 (2026-09-20)
+## 먼저 읽을 것 — 2026-09-20 관측 기록
 
-**서버(Railway)의 자막 경로는 데이터센터 IP 차단으로 죽어 있습니다. 쿠키 갱신으로 풀리지 않습니다.**
+**서버 자막은 끊겼다가 되살아났습니다. 원인은 확정되지 않았습니다.**
 
-2026-09-20 A/B 실측 — 같은 영상(`aircAruvnKk`)·같은 yt-dlp(2026.08.19)·같은 쿠키로:
+같은 날 시간순 실측:
 
-| | 결과 |
+| 시각(KST) | 사건 |
 |---|---|
-| 로컬 맥 (가정용 IP) | 자막 171,557 바이트 정상 추출 |
-| Railway (데이터센터 IP) | 「자동화된 요청 감지」 |
+| ~08:30 | 마지막 성공(`lastSuccess`) |
+| 08:47 | `BOT_DETECTED` 연속 3회 · `status=down` |
+| 08:53 | 08:21 자 쿠키를 넣고 재배포 → **여전히 차단** |
+| 09:49 | 같은 영상이 `RATE_LIMITED` 로 실패. 이때 로컬 맥은 같은 영상·같은 yt-dlp(2026.08.19)·같은 쿠키로 자막 171,557바이트 **정상 추출** |
+| 09:56 | 쿠키 재추출 — 23줄 3,055B → **24줄 3,239B 로 바뀜** |
+| 10:03 | 배포(새 쿠키 반영) → **정상 복구**. 3개 영상 중 2개 자막 추출 성공 |
 
-새 쿠키를 넣고 재배포해도 같았습니다. 증상 코드는 `BOT_DETECTED` 로도, `RATE_LIMITED` 로도
-나타납니다(같은 날 아침·오전에 각각 관측) — **둘 다 출구 IP 문제이지 쿠키 문제가 아닙니다.**
+### 원인에 대해 말할 수 있는 것과 없는 것
+
+- **말할 수 있는 것**: 09:49 시점에 로컬은 되고 서버는 안 됐다. 08:21 자 쿠키로는 재배포해도
+  안 됐고, 09:56 자 새 쿠키 + 배포 뒤에 됐다.
+- **말할 수 없는 것**: 그 복구가 **새 쿠키 덕인지**, 그 사이 YouTube 쪽 일시 차단이 **저절로
+  풀린 것인지** 가를 데이터가 없다. 두 변화가 같은 창에서 일어났다.
+- 따라서 «데이터센터 IP 문제라 쿠키로는 절대 안 풀린다» 는 단정은 **철회합니다**
+  (이 문서가 한때 그렇게 적고 있었습니다). 실제로 쿠키 갱신 후 복구됐습니다.
 
 ### 증상별 분기
 
-| 보이는 것 | 원인 | 할 일 |
-|---|---|---|
-| 응답에 `[SERVER_TRANSCRIPT_UNAVAILABLE]` | 출구 IP 차단 | **쿠키 갱신 금지.** 로컬 yt-dlp 로 뽑으세요 |
-| 응답에 `[CONFIG_MISSING]` | 채널 목록 파일이 배포에 없음 | `Dockerfile` 의 `COPY youtube.md ./` 확인 |
-| `cookiePool[n].warning: expires_soon` | 진짜 쿠키 만료 임박 | 아래 4단계 SOP |
-| `COOKIE_EXPIRED` | 진짜 세션 만료 | 아래 4단계 SOP |
+| 보이는 것 | 할 일 |
+|---|---|
+| 응답에 `[SERVER_TRANSCRIPT_UNAVAILABLE]` | ①`/health/youtube` 로 상태 확인 ②**쿠키를 새로 뽑아 배포**해 본다(2026-09-20 에 이 경로로 복구됨) ③그래도 안 되면 로컬 yt-dlp 로 뽑고, 로컬은 되는지 함께 기록한다 |
+| 응답에 `[CONFIG_MISSING]` | 채널 목록 파일이 배포에 없음 — `Dockerfile` 의 `COPY youtube.md ./` 와 `.dockerignore` 의 `!youtube.md` 를 둘 다 확인 |
+| `cookiePool[n].warning: expires_soon` | 진짜 쿠키 만료 임박 — 아래 4단계 SOP |
+| `COOKIE_EXPIRED` | 진짜 세션 만료 — 아래 4단계 SOP |
+
+> `SERVER_TRANSCRIPT_UNAVAILABLE` 은 «서버에서 못 뽑았다» 는 사실만 말합니다.
+> 원인을 IP 로 단정하지 않습니다.
 
 ### 실수요 계측 중 (30일)
 
@@ -38,8 +51,8 @@
 
 ## 4단계 SOP
 
-> 아래는 **진짜 쿠키 만료**(`COOKIE_EXPIRED` · `expires_soon`)일 때만 따르세요.
-> `SERVER_TRANSCRIPT_UNAVAILABLE` 에는 해당하지 않습니다.
+> 쿠키 만료(`COOKIE_EXPIRED` · `expires_soon`)는 물론, `SERVER_TRANSCRIPT_UNAVAILABLE`
+> 이 떴을 때도 먼저 시도해 볼 경로입니다(2026-09-20 에 이 경로로 복구됨).
 
 ### 1. 감지
 - `/health/youtube` 엔드포인트에서 `cookiePool[n].warning: "expires_soon"` 확인
@@ -75,10 +88,10 @@ railway variables unset YOUTUBE_COOKIES_POOL
 
 | 코드 | 의미 | 권장 대응 |
 |------|------|-----------|
-| `RATE_LIMITED` | yt-dlp가 HTTP 429 반환 | **데이터센터 IP 차단의 다른 얼굴**(2026-09-20 실측). 개별 호출자의 과다요청이 아닐 수 있다 — 로컬에서 같은 영상이 정상이면 출구 IP 문제다. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류된다 |
+| `RATE_LIMITED` | yt-dlp가 HTTP 429 반환 | 단기 호출 폭주일 수도, 서버 출구에 대한 차단일 수도 있다. 2026-09-20 에는 같은 영상이 아침 `BOT_DETECTED`·오전 `RATE_LIMITED` 였고 쿠키 갱신 뒤 복구됐다. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류되며 쿠키 갱신을 먼저 시도한다 |
 | `PO_TOKEN_REQUIRED` | YouTube 봇 차단 정책(PO Token) — 영상에 자막은 있으나 yt-dlp 우회 불가 | 영상 단위 이슈, 즉시 조치 불필요 / 반복되면 yt-dlp 업데이트 검토 |
 | `COOKIE_EXPIRED` | 로그인/세션 만료 (yt-dlp가 sign in / cookie 메시지 반환, 봇 챌린지 문구는 제외) | `scripts/sync-youtube-cookies.sh`(인증 쿠키가 바뀌면 재배포·헬스 확인까지 자동). 수동으로 `npm run refresh:cookies`만 돌렸다면 **재배포 필수** — env만 갱신하면 실행 중 컨테이너에 반영되지 않는다 |
-| `BOT_DETECTED` | 봇 챌린지(`Sign in to confirm you're not a bot`) · DRM · 사유 미상 차단 | **쿠키 갱신으로 안 풀린다.** 2026-09-20 현재 서버에서 상시 발생 — 출구 IP 원인으로 확정. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류된다 |
+| `BOT_DETECTED` | 봇 챌린지(`Sign in to confirm you're not a bot`) · DRM · 사유 미상 차단 | 2026-09-20 에 몇 시간 지속됐고 **쿠키 재추출 + 배포로 복구**됐다. 먼저 쿠키를 갱신해 보고, 그래도 안 되면 로컬 결과와 대조해 기록한다. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류된다 |
 | `REGION_BLOCKED` | 영상이 특정 지역에서만 시청 가능 | 영상 단위 이슈, 조치 불필요 |
 | `NO_SUBTITLES` | 영상에 자막이 실제로 없음 | 영상 단위 이슈, 조치 불필요 |
 

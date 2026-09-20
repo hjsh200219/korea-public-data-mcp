@@ -21,19 +21,20 @@ export const SERVER_TRANSCRIPT_UNAVAILABLE = "SERVER_TRANSCRIPT_UNAVAILABLE";
 
 /**
  * «서버에서는 못 뽑지만 로컬에서는 뽑히는» 차단 사유.
- * 원인이 출구 IP라 쿠키 갱신으로 풀리지 않는다 — 2026-09-20 A/B 실측에서 같은 영상·같은
- * yt-dlp(2026.08.19)·같은 쿠키로 로컬 맥은 자막 171KB 정상, 서버는 「자동화된 요청 감지」였다.
+ * 2026-09-20 09:49 A/B 실측에서 같은 영상·같은 yt-dlp(2026.08.19)·같은 쿠키로 로컬 맥은
+ * 자막 171KB 정상, 서버는 「자동화된 요청 감지」였다. 다만 같은 날 10:03 에 쿠키를 새로 뽑아
+ * 배포하자 복구됐으므로 «출구 IP 탓이라 쿠키로는 안 풀린다» 고 단정하지 않는다 — 복구가
+ * 새 쿠키 덕인지 차단이 저절로 풀린 것인지 가를 데이터가 없다.
  * COOKIE_EXPIRED(진짜 쿠키 만료)·NO_SUBTITLES(자막 없는 영상)는 성격이 달라 제외한다 —
  * 그쪽까지 이 코드로 싸면 «쿠키 갱신하면 되는 일»까지 불가로 오보하게 된다.
  */
 const SERVER_BLOCKED_CODES: ReadonlySet<string> = new Set<string>([
   TranscriptErrorCode.BOT_DETECTED,
   TranscriptErrorCode.PO_TOKEN_REQUIRED,
-  // RATE_LIMITED 도 같은 원인의 다른 얼굴이다 — 2026-09-20 09:49 실측에서 같은 영상이
-  // 아침엔 BOT_DETECTED, 몇 시간 뒤엔 RATE_LIMITED 로 돌아왔다. 둘 다 데이터센터 IP
-  // 대역에 대한 차단이고 로컬에서는 같은 영상이 정상 추출된다. 이걸 빼 두면 «잠시 후
-  // 다시 시도해주세요» 라는 여전한 거짓말이 나간다(429 를 개별 호출자 과다요청으로
-  // 오해하게 만든다).
+  // RATE_LIMITED 도 여기 넣는다 — 2026-09-20 에 같은 영상이 아침엔 BOT_DETECTED,
+  // 몇 시간 뒤엔 RATE_LIMITED 로 돌아왔고 그 사이 로컬은 계속 정상이었다. 개별 호출자의
+  // 과다요청으로 보이지만 실제로는 서버 쪽 추출만 막힌 상태였다. 빼 두면 «잠시 후 다시
+  // 시도해주세요» 가 나가 호출자가 자기 호출량을 줄이는 헛수고를 한다.
   TranscriptErrorCode.RATE_LIMITED,
 ]);
 
@@ -55,9 +56,9 @@ export function serverTranscriptUnavailableMessage(reason: string): string {
   return [
     `[${SERVER_TRANSCRIPT_UNAVAILABLE}] 서버에서 자막을 추출하지 못했습니다. (차단 사유: ${reason})`,
     "",
-    "원인: 이 서버는 데이터센터 IP에서 동작하고, YouTube가 그 대역의 자동화 요청을 차단합니다.",
-    "쿠키 문제가 아닙니다 — 같은 영상·같은 yt-dlp·같은 쿠키로 로컬 PC에서는 정상 추출됩니다.",
-    "따라서 쿠키를 갱신해도 풀리지 않습니다.",
+    "서버 쪽 추출만 막힌 상태입니다. 같은 영상이 로컬 PC에서는 추출되는 경우가 많습니다.",
+    "원인은 쿠키 만료일 수도, 서버 출구에 대한 일시 차단일 수도 있습니다 —",
+    "2026-09-20에는 쿠키를 새로 뽑아 배포한 뒤 복구됐습니다.",
     "",
     "대안: 로컬에서 직접 추출하세요.",
     "  yt-dlp --skip-download --write-auto-subs --sub-lang ko --sub-format json3 -- <영상ID>",

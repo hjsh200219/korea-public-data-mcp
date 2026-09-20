@@ -36,14 +36,21 @@ describe("서버 자막 불가 분류", () => {
     expect(transcriptFailureReason("문자열")).toBe("OTHER");
   });
 
-  it("안내문에 고정 코드·원인·로컬 대안이 모두 들어간다", () => {
+  it("안내문에 고정 코드·사유·로컬 대안이 들어간다", () => {
     const msg = serverTranscriptUnavailableMessage(TranscriptErrorCode.BOT_DETECTED);
     expect(msg).toContain(SERVER_TRANSCRIPT_UNAVAILABLE);
     expect(msg).toContain(TranscriptErrorCode.BOT_DETECTED);
-    expect(msg).toContain("데이터센터 IP");
     expect(msg).toContain("yt-dlp");
-    // 쿠키 갱신으로 풀린다고 오안내하지 않는다
-    expect(msg).toContain("쿠키를 갱신해도 풀리지 않습니다");
+  });
+
+  it("안내문이 원인을 단정하지 않는다", () => {
+    // 2026-09-20: 한때 「데이터센터 IP 탓이라 쿠키를 갱신해도 풀리지 않는다」고 단정했으나
+    // 같은 날 쿠키 재추출 + 배포로 복구돼 그 단정을 철회했다. 복구가 새 쿠키 덕인지
+    // 차단이 저절로 풀린 것인지 가를 데이터가 없다 — 안내문이 한쪽을 단정하면 다음 사람이
+    // 실제로 듣는 조치(쿠키 갱신)를 건너뛴다.
+    const msg = serverTranscriptUnavailableMessage(TranscriptErrorCode.BOT_DETECTED);
+    expect(msg).not.toContain("쿠키를 갱신해도 풀리지 않습니다");
+    expect(msg).not.toContain("쿠키 문제가 아닙니다");
   });
 });
 
