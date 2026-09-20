@@ -13,7 +13,14 @@ interface ProbeResult {
 
 const PROBE_VIDEO_ID = process.env.YOUTUBE_PROBE_VIDEO_ID ?? "jNQXAC9IVRw"; // Me at the zoo
 const PROBE_LANG = process.env.YOUTUBE_PROBE_LANG ?? "en"; // "Me at the zoo"는 en 자막 보유
-const PROBE_INTERVAL_MS = 5 * 60 * 1000; // 5분
+/**
+ * 프로브 주기 (기본 5분).
+ * env YOUTUBE_PROBE_INTERVAL_MS 로 재배포 없이 임계를 늦출 수 있다 — 서빙 경로가
+ * 출구 IP 차단으로 상시 실패하는 동안 5분마다 때리면 헬스만 흔들리는 게 아니라
+ * 우리 쿠키로 나가는 실패 요청이 하루 288건 쌓인다(2026-09-20 설계 §4.1 1-4).
+ * 끄는 것은 YOUTUBE_PROBE_ENABLED=false.
+ */
+const PROBE_INTERVAL_MS = Number(process.env.YOUTUBE_PROBE_INTERVAL_MS) || 5 * 60 * 1000;
 const RING_BUFFER_SIZE = 100;
 
 export class YoutubeProbe {
@@ -94,8 +101,12 @@ export class YoutubeProbe {
     let consec = 0;
     for (let i = recent.length - 1; i >= 0 && !recent[i].success; i--) consec++;
 
-    let status: "healthy" | "degraded" | "down";
-    if (this._results.length === 0) {
+    let status: "healthy" | "degraded" | "down" | "unknown";
+    if (!this.enabled) {
+      // 프로브를 끄면 «검사하지 않았다»이지 «정상»이 아니다. 결과 0건을 healthy로 보고하면
+      // §3.2의 조용한 오보를 헬스 표면에서 그대로 되풀이한다(자막은 죽었는데 healthy).
+      status = "unknown";
+    } else if (this._results.length === 0) {
       status = "healthy";
     } else if (consec >= 3) {
       status = "down";
@@ -107,6 +118,9 @@ export class YoutubeProbe {
 
     return {
       status,
+      // 읽는 쪽이 status 를 해석하려면 프로브가 돌고 있는지부터 알아야 한다.
+      probeEnabled: this.enabled,
+      probeIntervalMs: PROBE_INTERVAL_MS,
       lastSuccess: lastSuccess ? new Date(lastSuccess.timestamp).toISOString() : null,
       consecutiveFailures: consec,
       lastErrorCode: this._results.at(-1)?.errorCode ?? null,

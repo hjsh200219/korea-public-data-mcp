@@ -79,6 +79,20 @@ describe("YoutubeProbe", () => {
     disabledProbe.stop();
   });
 
+  it("프로브를 끄면 status = 'unknown' — 결과 0건을 healthy로 오보하지 않는다", () => {
+    vi.stubEnv("YOUTUBE_PROBE_ENABLED", "false");
+    const disabledProbe = new YoutubeProbe();
+    const data = disabledProbe.getHealthData([], "closed") as Record<string, unknown>;
+    expect(data.status).toBe("unknown");
+    expect(data.probeEnabled).toBe(false);
+  });
+
+  it("getHealthData()는 프로브 가동 여부·주기를 함께 낸다", () => {
+    const data = probe.getHealthData([], "closed") as Record<string, unknown>;
+    expect(data.probeEnabled).toBe(true);
+    expect(typeof data.probeIntervalMs).toBe("number");
+  });
+
   it("status: 3회 연속 실패 시 'down'", () => {
     for (let i = 0; i < 3; i++) {
       (probe as unknown as { _push: (r: unknown) => void })._push({

@@ -16,6 +16,7 @@ import { createLogger } from "./logger.js";
 import { youtubeProbe } from "./youtube-probe.js";
 import { youtubeCircuitBreaker } from "./youtube-circuit-breaker.js";
 import { youtubeCookiePool } from "./youtube-cookie-pool.js";
+import { youtubeTranscriptMetrics } from "./youtube-transcript-status.js";
 
 const log = createLogger("remote");
 const serverConfig = loadConfig();
@@ -127,9 +128,12 @@ app.get("/health", (_req, res) => {
 });
 
 // YouTube 헬스 체크 — 합성 프로브 결과 + 쿠키 풀 + 서킷 브레이커 상태
+//   + 자막 계열 실호출 30일 롤링 집계(transcriptCalls30d).
+// 계측용 엔드포인트를 따로 만들지 않고 이미 있는 곳에 붙인다 — 표면을 늘리지 않기 위해서다.
+// 인메모리라 재배포하면 초기화되므로 since 를 반드시 함께 낸다(설계 §4.3).
 app.get("/health/youtube", (_req, res) => {
   const data = youtubeProbe.getHealthData(youtubeCookiePool.getHealthInfo(), youtubeCircuitBreaker.state);
-  res.json(data);
+  res.json({ ...data, transcriptCalls30d: youtubeTranscriptMetrics.snapshot() });
 });
 
 // REST API (GPT Actions 등 일반 HTTP 클라이언트용)

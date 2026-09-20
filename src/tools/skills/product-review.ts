@@ -16,6 +16,12 @@ import {
 import { searchCoupangProducts } from "../../coupang-api.js";
 import { errorResponse, truncate } from "../../shared.js";
 import {
+  youtubeTranscriptMetrics,
+  isServerBlockedTranscript,
+  serverTranscriptUnavailableMessage,
+  transcriptFailureReason,
+} from "../../youtube-transcript-status.js";
+import {
   createDispatcher,
   requireParam,
   emptyResultMessage,
@@ -180,24 +186,57 @@ function makeFindReviewsHandler(youtubeApiKey: string) {
         matched.map((v) => getTranscript(`https://youtube.com/watch?v=${v.videoId}`)),
       );
 
-      const sections: string[] = [`[YouTube 리뷰] 검색어: "${p.query}"\n`];
+      // 찾은 영상의 제목·URL·채널은 자막과 무관하게 이미 손에 쥐고 있다 — 자막이 전멸해도
+      // 버리지 않는다. 예전에는 전멸 시 emptyResultMessage로 «검색 결과가 없습니다»만 돌려줘
+      // 서버 고장(봇 차단)이 «이 제품 리뷰가 없음»으로 둔갑했다(설계 §3.2 «조용한 오보»).
+      const sections: string[] = [];
+      let okCount = 0;
+      let blockedReason: string | null = null;
+      let firstFailReason: string | null = null;
+
       for (let i = 0; i < matched.length; i++) {
         const r = transcriptResults[i];
         const v = matched[i];
+        const head = `--- ${v.title} (${v.channelHandle})\nhttps://youtube.com/watch?v=${v.videoId}`;
         if (r.status === "fulfilled") {
-          const text = cleanTranscriptText(r.value.fullText);
-          sections.push(
-            `--- ${v.title} (${v.channelHandle})\nhttps://youtube.com/watch?v=${v.videoId}\n${text}\n`,
-          );
+          okCount++;
+          sections.push(`${head}\n${cleanTranscriptText(r.value.fullText)}\n`);
+          continue;
         }
+        const reason = transcriptFailureReason(r.reason);
+        firstFailReason ??= reason;
+        if (blockedReason === null && isServerBlockedTranscript(r.reason)) blockedReason = reason;
+        sections.push(`${head}\n(자막 없음 — 사유: ${reason})\n`);
       }
 
-      if (sections.length === 1) {
-        return emptyResultMessage("YouTube 리뷰 자막", { query: p.query });
+      // 계측은 영상 단위가 아니라 요청 단위 1건 (설계 §4.2).
+      youtubeTranscriptMetrics.record(
+        "product_review",
+        okCount > 0,
+        okCount > 0 ? undefined : (blockedReason ?? firstFailReason ?? "OTHER"),
+      );
+
+      const header = `[YouTube 리뷰] 검색어: "${p.query}" — 매칭 영상 ${matched.length}건 · 자막 확보 ${okCount}건\n`;
+
+      if (okCount > 0) {
+        sections.push("\n위 자막을 바탕으로 장단점을 정리해주세요.");
+      } else if (blockedReason) {
+        // 서버 차단이라 로컬에서는 뽑힌다 — 고정 코드와 대안을 함께 낸다.
+        sections.push(`\n${serverTranscriptUnavailableMessage(blockedReason)}`);
+        sections.push(
+          "\n위 영상 목록은 실제 검색 결과입니다 — «해당 제품 리뷰가 없음»이 아니라 «서버가 자막을 못 가져옴»입니다.",
+        );
+      } else {
+        // 자막이 실제로 없는 영상들 — 차단 안내를 붙이면 그것이 또 다른 오보가 된다.
+        sections.push(
+          `\n자막을 가져온 영상이 없습니다 (사유: ${firstFailReason ?? "OTHER"}). 위 영상 목록은 실제 검색 결과입니다.`,
+        );
       }
 
-      sections.push("\n위 자막을 바탕으로 장단점을 정리해주세요.");
-      return { content: [{ type: "text", text: truncate(sections.join("\n")) }] };
+      // isError를 세우지 않는 이유: 영상 검색까지는 성공한 «축소 동작»이고, full_review가
+      // isError인 파트를 버리므로(112-133행) 세우면 쿠팡 응답에서 영상 목록이 통째로 사라진다.
+      // 대신 본문이 고정 코드로 고장을 명시해 빈 결과와 구분된다(설계 §4.1 1-2·1-3).
+      return { content: [{ type: "text", text: truncate(header + sections.join("\n")) }] };
     } catch (error) {
       return errorResponse("YouTube 리뷰 검색", error);
     }

@@ -22,6 +22,8 @@ import {
 } from "../../youtube-api.js";
 import { searchCoupangProducts } from "../../coupang-api.js";
 import { createProductReviewHandler } from "./product-review.js";
+import { SERVER_TRANSCRIPT_UNAVAILABLE, youtubeTranscriptMetrics } from "../../youtube-transcript-status.js";
+import { TranscriptError, TranscriptErrorCode } from "../../youtube-types.js";
 
 describe("product_review 스킬", () => {
   const YOUTUBE_KEY = "yt-key";
@@ -233,5 +235,116 @@ describe("product_review 스킬", () => {
     const result = await handler({ action: "find_reviews", query: "마우스" } as any);
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain("vid1");
+  });
+
+  // ─── 자막 전멸 시 «조용한 오보» 회귀 방지 (설계 2026-09-20 §3.2) ───
+
+  /** 영상 1건이 매칭되도록 채널·영상 목록 mock을 깔아둔다 */
+  function mockOneMatchedVideo() {
+    vi.mocked(parseYoutubeMdChannels).mockReturnValue(["@ITSub"]);
+    vi.mocked(resolveChannelHandles).mockResolvedValue([
+      { handle: "@ITSub", channelId: "UC123", title: "잇섭" },
+    ]);
+    vi.mocked(getChannelVideos).mockResolvedValue([
+      {
+        videoId: "vid1",
+        title: "에어팟 프로 3 솔직 리뷰",
+        description: "",
+        publishedAt: "2026-09-01",
+        channelTitle: "잇섭",
+        thumbnailUrl: "",
+      },
+    ]);
+  }
+
+  // 12. AC2 — 자막이 전멸해도 찾은 영상을 버리지 않는다
+  it("find_reviews_자막전멸_영상메타데이터는반드시반환", async () => {
+    mockOneMatchedVideo();
+    vi.mocked(getTranscript).mockRejectedValue(
+      new TranscriptError("봇 차단", TranscriptErrorCode.BOT_DETECTED),
+    );
+
+    const handler = createProductReviewHandler(YOUTUBE_KEY, COUPANG_ACCESS, COUPANG_SECRET);
+    const result = await handler({ action: "find_reviews", query: "에어팟" } as any);
+    const text = result.content[0].text;
+
+    // 제목·URL·채널이 살아 있어야 한다
+    expect(text).toContain("에어팟 프로 3 솔직 리뷰");
+    expect(text).toContain("https://youtube.com/watch?v=vid1");
+    expect(text).toContain("@ITSub");
+    // 고장을 고장이라고 말한다
+    expect(text).toContain(SERVER_TRANSCRIPT_UNAVAILABLE);
+    expect(text).toContain(TranscriptErrorCode.BOT_DETECTED);
+    // «검색 결과가 없습니다» 단독 오보로 되돌아가면 FAIL
+    expect(text).not.toMatch(/^YouTube 리뷰 자막 검색 결과가 없습니다/);
+  });
+
+  // 13. AC3 — full_review는 쿠팡 + 영상 메타데이터를 함께 반환하고 전체 실패로 떨어지지 않는다
+  it("full_review_자막전멸_쿠팡과영상을함께반환", async () => {
+    mockOneMatchedVideo();
+    vi.mocked(getTranscript).mockRejectedValue(
+      new TranscriptError("봇 차단", TranscriptErrorCode.BOT_DETECTED),
+    );
+    vi.mocked(searchCoupangProducts).mockResolvedValue({
+      query: "에어팟",
+      cached: false,
+      products: [
+        {
+          productId: 3,
+          productName: "Apple 에어팟 프로 3",
+          productPrice: 359000,
+          productImage: "https://img.example.com/3.jpg",
+          productUrl: "https://coupang.com/vp/products/3",
+          isRocket: true,
+          isFreeShipping: true,
+        },
+      ],
+    });
+
+    const handler = createProductReviewHandler(YOUTUBE_KEY, COUPANG_ACCESS, COUPANG_SECRET);
+    const result = await handler({ action: "full_review", query: "에어팟" } as any);
+    const text = result.content[0].text;
+
+    expect(result.isError).toBeUndefined();
+    expect(text).toContain("https://coupang.com/vp/products/3"); // 쿠팡 링크 ≥1
+    expect(text).toContain("https://youtube.com/watch?v=vid1"); // 영상 ≥1
+    expect(text).toContain(SERVER_TRANSCRIPT_UNAVAILABLE); // 자막 불가 사유
+  });
+
+  // 14. 자막이 실제로 없는 영상에 서버 차단 안내를 붙이면 그것도 오보다
+  it("find_reviews_자막없는영상_서버차단으로오보하지않음", async () => {
+    mockOneMatchedVideo();
+    vi.mocked(getTranscript).mockRejectedValue(
+      new TranscriptError("자막 없음", TranscriptErrorCode.NO_SUBTITLES),
+    );
+
+    const handler = createProductReviewHandler(YOUTUBE_KEY, COUPANG_ACCESS, COUPANG_SECRET);
+    const result = await handler({ action: "find_reviews", query: "에어팟" } as any);
+    const text = result.content[0].text;
+
+    expect(text).toContain("https://youtube.com/watch?v=vid1");
+    expect(text).toContain(TranscriptErrorCode.NO_SUBTITLES);
+    expect(text).not.toContain(SERVER_TRANSCRIPT_UNAVAILABLE);
+  });
+
+  // 15. 계측은 영상 단위가 아니라 요청 단위 1건
+  it("find_reviews_계측은요청단위1건", async () => {
+    mockOneMatchedVideo();
+    vi.mocked(getChannelVideos).mockResolvedValue([
+      { videoId: "vid1", title: "에어팟 리뷰 1", description: "", publishedAt: "2026-09-01", channelTitle: "잇섭", thumbnailUrl: "" },
+      { videoId: "vid2", title: "에어팟 리뷰 2", description: "", publishedAt: "2026-09-02", channelTitle: "잇섭", thumbnailUrl: "" },
+    ]);
+    vi.mocked(getTranscript).mockRejectedValue(
+      new TranscriptError("봇 차단", TranscriptErrorCode.BOT_DETECTED),
+    );
+
+    const before = youtubeTranscriptMetrics.snapshot().product_review;
+    const handler = createProductReviewHandler(YOUTUBE_KEY, COUPANG_ACCESS, COUPANG_SECRET);
+    await handler({ action: "find_reviews", query: "에어팟" } as any);
+    const after = youtubeTranscriptMetrics.snapshot().product_review;
+
+    expect(after.fail).toBe(before.fail + 1); // 영상 2건이어도 1건
+    expect(after.byReason[TranscriptErrorCode.BOT_DETECTED] ?? 0)
+      .toBe((before.byReason[TranscriptErrorCode.BOT_DETECTED] ?? 0) + 1);
   });
 });

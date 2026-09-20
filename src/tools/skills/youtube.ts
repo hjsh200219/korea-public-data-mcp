@@ -11,6 +11,13 @@ import {
   getVideoMetadata, searchVideos, getVideoComments,
 } from "../../youtube-api.js";
 import { errorResponse, truncate } from "../../shared.js";
+import {
+  youtubeTranscriptMetrics,
+  isServerBlockedTranscript,
+  serverTranscriptUnavailableMessage,
+  transcriptFailureReason,
+  type TranscriptCallSource,
+} from "../../youtube-transcript-status.js";
 import { createDispatcher, requireParam, registerSkillTool, type ActionHandler, type SkillResult } from "./_shared.js";
 
 /** API 키 없이 사용 가능한 actions */
@@ -32,6 +39,23 @@ function needsApiKey(action: string): boolean {
   return (DATA_ACTIONS as readonly string[]).includes(action);
 }
 
+/**
+ * 자막 실패 응답 — 계측 1건을 남기고, 서버 출구 IP 차단이면 일반 오류 대신 고정 코드로 답한다.
+ * 일반 오류 문자열로 뭉뚱그리면 호출자가 «영상에 자막이 없다»와 «서버가 못 뽑는다»를
+ * 구분할 수 없어 로컬 대안으로 갈아탈 판단을 못 한다(설계 §4.1 1-1).
+ */
+function transcriptFailure(source: TranscriptCallSource, label: string, e: unknown): SkillResult {
+  const reason = transcriptFailureReason(e);
+  youtubeTranscriptMetrics.record(source, false, reason);
+  if (isServerBlockedTranscript(e)) {
+    return {
+      content: [{ type: "text", text: serverTranscriptUnavailableMessage(reason) }],
+      isError: true,
+    };
+  }
+  return errorResponse(label, e);
+}
+
 function handleGetTranscript() {
   return async (p: YoutubeParams): Promise<SkillResult> => {
     const err = requireParam(p as Record<string, unknown>, "url", "get_transcript");
@@ -39,6 +63,7 @@ function handleGetTranscript() {
 
     try {
       const result = await getTranscript(p.url!, p.lang);
+      youtubeTranscriptMetrics.record("get_transcript", true);
       const timestamped = formatTranscriptWithTimestamps(result.segments);
       const output = [
         `영상 ID: ${result.videoId}`,
@@ -51,7 +76,7 @@ function handleGetTranscript() {
 
       return { content: [{ type: "text", text: truncate(output) }] };
     } catch (e) {
-      return errorResponse("YouTube 자막 추출", e);
+      return transcriptFailure("get_transcript", "YouTube 자막 추출", e);
     }
   };
 }
@@ -63,6 +88,7 @@ function handleSummarize() {
 
     try {
       const result = await getTranscript(p.url!, p.lang);
+      youtubeTranscriptMetrics.record("summarize", true);
       const cleaned = cleanTranscriptText(result.fullText);
       const output = [
         `영상 ID: ${result.videoId}`,
@@ -79,7 +105,7 @@ function handleSummarize() {
 
       return { content: [{ type: "text", text: output }] };
     } catch (e) {
-      return errorResponse("YouTube 자막 요약", e);
+      return transcriptFailure("summarize", "YouTube 자막 요약", e);
     }
   };
 }
