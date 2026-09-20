@@ -1,6 +1,45 @@
 # YouTube 자막 추출 Runbook
 
+## 먼저 읽을 것 — 쿠키부터 갱신하지 마세요 (2026-09-20)
+
+**서버(Railway)의 자막 경로는 데이터센터 IP 차단으로 죽어 있습니다. 쿠키 갱신으로 풀리지 않습니다.**
+
+2026-09-20 A/B 실측 — 같은 영상(`aircAruvnKk`)·같은 yt-dlp(2026.08.19)·같은 쿠키로:
+
+| | 결과 |
+|---|---|
+| 로컬 맥 (가정용 IP) | 자막 171,557 바이트 정상 추출 |
+| Railway (데이터센터 IP) | 「자동화된 요청 감지」 |
+
+새 쿠키를 넣고 재배포해도 같았습니다. 증상 코드는 `BOT_DETECTED` 로도, `RATE_LIMITED` 로도
+나타납니다(같은 날 아침·오전에 각각 관측) — **둘 다 출구 IP 문제이지 쿠키 문제가 아닙니다.**
+
+### 증상별 분기
+
+| 보이는 것 | 원인 | 할 일 |
+|---|---|---|
+| 응답에 `[SERVER_TRANSCRIPT_UNAVAILABLE]` | 출구 IP 차단 | **쿠키 갱신 금지.** 로컬 yt-dlp 로 뽑으세요 |
+| 응답에 `[CONFIG_MISSING]` | 채널 목록 파일이 배포에 없음 | `Dockerfile` 의 `COPY youtube.md ./` 확인 |
+| `cookiePool[n].warning: expires_soon` | 진짜 쿠키 만료 임박 | 아래 4단계 SOP |
+| `COOKIE_EXPIRED` | 진짜 세션 만료 | 아래 4단계 SOP |
+
+### 실수요 계측 중 (30일)
+
+`/health/youtube` 의 `transcriptCalls30d` 가 자막 계열 호출을 세고 있습니다.
+2026-10-20 경 `since` 와 총호출을 보고 판정합니다 — **총호출 ≥ 20건이면** 로컬 수집 구조(A1b)를
+만들고, **미만이면** 이 기능을 로컬 전용으로 표시하거나 걷어냅니다. 설계 전문은
+`.omc/plans/2026-09-20-youtube-transcript-local-path.md`.
+
+`scripts/sync-youtube-cookies.sh` 는 `SYNC_SKIP_REDEPLOY=1` 로 **재배포만 멈춰** 두었습니다
+(LaunchAgent env). env 갱신·인증쿠키 가드·만료 감시는 그대로 돕니다 — 로컬 yt-dlp 가 같은
+쿠키를 쓰기 때문입니다.
+
+---
+
 ## 4단계 SOP
+
+> 아래는 **진짜 쿠키 만료**(`COOKIE_EXPIRED` · `expires_soon`)일 때만 따르세요.
+> `SERVER_TRANSCRIPT_UNAVAILABLE` 에는 해당하지 않습니다.
 
 ### 1. 감지
 - `/health/youtube` 엔드포인트에서 `cookiePool[n].warning: "expires_soon"` 확인
@@ -36,10 +75,10 @@ railway variables unset YOUTUBE_COOKIES_POOL
 
 | 코드 | 의미 | 권장 대응 |
 |------|------|-----------|
-| `RATE_LIMITED` | yt-dlp가 HTTP 429 반환 (단기 호출 폭주) | 쿠키 풀 확장 또는 호출 빈도 조절 |
+| `RATE_LIMITED` | yt-dlp가 HTTP 429 반환 | **데이터센터 IP 차단의 다른 얼굴**(2026-09-20 실측). 개별 호출자의 과다요청이 아닐 수 있다 — 로컬에서 같은 영상이 정상이면 출구 IP 문제다. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류된다 |
 | `PO_TOKEN_REQUIRED` | YouTube 봇 차단 정책(PO Token) — 영상에 자막은 있으나 yt-dlp 우회 불가 | 영상 단위 이슈, 즉시 조치 불필요 / 반복되면 yt-dlp 업데이트 검토 |
 | `COOKIE_EXPIRED` | 로그인/세션 만료 (yt-dlp가 sign in / cookie 메시지 반환, 봇 챌린지 문구는 제외) | `scripts/sync-youtube-cookies.sh`(인증 쿠키가 바뀌면 재배포·헬스 확인까지 자동). 수동으로 `npm run refresh:cookies`만 돌렸다면 **재배포 필수** — env만 갱신하면 실행 중 컨테이너에 반영되지 않는다 |
-| `BOT_DETECTED` | 봇 챌린지(`Sign in to confirm you're not a bot`) · DRM · 사유 미상 차단 | 쿠키 갱신으로는 안 풀림. 일시적이면 무시, 반복 시 yt-dlp 업데이트·출구 IP 검토 |
+| `BOT_DETECTED` | 봇 챌린지(`Sign in to confirm you're not a bot`) · DRM · 사유 미상 차단 | **쿠키 갱신으로 안 풀린다.** 2026-09-20 현재 서버에서 상시 발생 — 출구 IP 원인으로 확정. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류된다 |
 | `REGION_BLOCKED` | 영상이 특정 지역에서만 시청 가능 | 영상 단위 이슈, 조치 불필요 |
 | `NO_SUBTITLES` | 영상에 자막이 실제로 없음 | 영상 단위 이슈, 조치 불필요 |
 
