@@ -51,13 +51,36 @@ describe("product_review 스킬", () => {
   });
 
   // 3. find_reviews — 채널 없음 → 빈 결과
-  it("find_reviews_채널없음_빈결과", async () => {
+  it("find_reviews_채널목록비었음_설정문제로보고한다", async () => {
+    // 채널이 0개인 것은 «이 제품 리뷰가 없음» 이 아니라 서버 설정 문제다.
+    // 빈 결과로 뭉개면 배포 누락이 정상적 빈 결과로 보인다 — 2026-09-20 실측에서
+    // Dockerfile 의 COPY 누락이 「검색 결과가 없습니다」로 3개월 넘게 가려져 있었다.
     vi.mocked(parseYoutubeMdChannels).mockReturnValue([]);
     vi.mocked(resolveChannelHandles).mockResolvedValue([]);
     const handler = createProductReviewHandler(YOUTUBE_KEY, COUPANG_ACCESS, COUPANG_SECRET);
     const result = await handler({ action: "find_reviews", query: "에어팟" } as any);
-    expect(result.isError).toBeUndefined();
-    expect(result.content[0].text).toContain("없습니다");
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("CONFIG_MISSING");
+    expect(result.content[0].text).toContain("설정");
+  });
+
+  it("full_review_채널설정문제_쿠팡과사유를함께반환한다", async () => {
+    // 실패한 파트를 버리면 «왜 리뷰가 없는지» 가 사라져 설정 문제가 «리뷰 없음» 으로
+    // 둔갑한다. 쿠팡이 살아 있으면 축소 성공이어야 하고, 사유는 본문에 남아야 한다.
+    vi.mocked(parseYoutubeMdChannels).mockReturnValue([]);
+    vi.mocked(resolveChannelHandles).mockResolvedValue([]);
+    vi.mocked(searchCoupangProducts).mockResolvedValue({
+      products: [{
+        productName: "에어팟 프로", productPrice: 299000,
+        productUrl: "https://link.coupang.com/x", productImage: "https://img/x.jpg",
+        isRocket: true, isFreeShipping: true,
+      }],
+    } as any);
+    const handler = createProductReviewHandler(YOUTUBE_KEY, COUPANG_ACCESS, COUPANG_SECRET);
+    const result = await handler({ action: "full_review", query: "에어팟" } as any);
+    expect(result.isError).toBeUndefined();          // 쿠팡이 살아 있으므로 축소 성공
+    expect(result.content[0].text).toContain("CONFIG_MISSING");  // 사유가 사라지지 않는다
+    expect(result.content[0].text).toContain("에어팟 프로");        // 쿠팡 결과도 함께
   });
 
   // 4. find_reviews — 정상 동작

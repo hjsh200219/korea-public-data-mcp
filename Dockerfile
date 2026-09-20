@@ -25,6 +25,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY --from=builder /app/dist/ ./dist/
+# product_review 가 읽는 리뷰 채널 목록. 이 줄이 없어 서버에서는 채널이 늘 0개였고,
+# 그 결과가 «검색 결과가 없습니다» 로 나가 배포 누락이 정상적 빈 결과로 보였다
+# (2026-09-20 실측). 런타임 cwd 가 /app 이라 여기에 둔다.
+COPY youtube.md ./
 
 EXPOSE 3000
 CMD ["node", "--use-system-ca", "dist/remote.js"]

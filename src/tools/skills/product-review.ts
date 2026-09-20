@@ -120,13 +120,16 @@ function handleFullReview(
       coupangFn(p),
     ]);
 
+    // 실패한 파트도 버리지 않고 사유를 그대로 싣는다. 예전에는 isError 파트를 통째로
+    // 버려서 «왜 리뷰가 없는지» 가 사라졌고, 서버 고장·설정 누락이 «리뷰 없음» 으로
+    // 둔갑했다(2026-09-20 실측: 채널 목록 미배포가 「검색 결과가 없습니다」로 나갔다).
     const parts: string[] = [];
-
-    if (!reviewResult.isError) {
-      parts.push(reviewResult.content[0].text);
-    }
-    if (!coupangResult.isError) {
-      parts.push(coupangResult.content[0].text);
+    let okCount = 0;
+    for (const r of [reviewResult, coupangResult]) {
+      const text = r.content[0]?.text;
+      if (!text) continue;
+      parts.push(text);
+      if (!r.isError) okCount++;
     }
 
     if (parts.length === 0) {
@@ -136,7 +139,9 @@ function handleFullReview(
       };
     }
 
-    return { content: [{ type: "text", text: truncate(parts.join("\n\n---\n\n")) }] };
+    // 한쪽이라도 성공하면 축소 성공이다. 둘 다 실패면 사유를 보여 주되 오류로 낸다.
+    const merged = { content: [{ type: "text" as const, text: truncate(parts.join("\n\n---\n\n")) }] };
+    return okCount === 0 ? { ...merged, isError: true } : merged;
   };
 }
 
@@ -148,11 +153,30 @@ function makeFindReviewsHandler(youtubeApiKey: string) {
     const maxVideos = p.max_videos ?? 3;
 
     try {
-      const mdContent = await fs.readFile(YOUTUBE_MD_PATH, "utf-8").catch(() => "");
+      // 파일 부재와 «채널이 0개인 파일» 은 다른 사건이다. 예전에는 둘 다 빈 문자열로
+      // 뭉개져 «검색 결과가 없습니다» 로 나갔고, 그래서 Dockerfile 의 COPY 누락이
+      // 3개월 넘게 정상적 빈 결과로 보였다(2026-09-20 실측).
+      let mdContent = "";
+      let mdMissing = false;
+      try {
+        mdContent = await fs.readFile(YOUTUBE_MD_PATH, "utf-8");
+      } catch {
+        mdMissing = true;
+      }
       const handles = parseYoutubeMdChannels(mdContent);
 
-      if (handles.length === 0) {
-        return emptyResultMessage("YouTube 리뷰 채널");
+      if (mdMissing || handles.length === 0) {
+        const why = mdMissing
+          ? `채널 목록 파일을 찾지 못했습니다 (${YOUTUBE_MD_PATH}). 배포에 포함되지 않았을 수 있습니다.`
+          : "채널 목록 파일에 채널이 하나도 없습니다.";
+        return {
+          content: [{
+            type: "text" as const,
+            text: `[CONFIG_MISSING] YouTube 리뷰 채널 설정을 읽지 못했습니다.\n${why}\n` +
+              "이것은 «리뷰가 없음» 이 아니라 서버 설정 문제입니다.",
+          }],
+          isError: true,
+        };
       }
 
       const channels = await resolveChannelHandles(youtubeApiKey, handles);

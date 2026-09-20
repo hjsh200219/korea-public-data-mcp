@@ -29,6 +29,12 @@ export const SERVER_TRANSCRIPT_UNAVAILABLE = "SERVER_TRANSCRIPT_UNAVAILABLE";
 const SERVER_BLOCKED_CODES: ReadonlySet<string> = new Set<string>([
   TranscriptErrorCode.BOT_DETECTED,
   TranscriptErrorCode.PO_TOKEN_REQUIRED,
+  // RATE_LIMITED 도 같은 원인의 다른 얼굴이다 — 2026-09-20 09:49 실측에서 같은 영상이
+  // 아침엔 BOT_DETECTED, 몇 시간 뒤엔 RATE_LIMITED 로 돌아왔다. 둘 다 데이터센터 IP
+  // 대역에 대한 차단이고 로컬에서는 같은 영상이 정상 추출된다. 이걸 빼 두면 «잠시 후
+  // 다시 시도해주세요» 라는 여전한 거짓말이 나간다(429 를 개별 호출자 과다요청으로
+  // 오해하게 만든다).
+  TranscriptErrorCode.RATE_LIMITED,
 ]);
 
 /** 이 실패가 «서버 출구 IP 때문»인가 (= 로컬로 갈아타면 풀리는가) */

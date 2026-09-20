@@ -17,6 +17,12 @@ describe("서버 자막 불가 분류", () => {
     expect(isServerBlockedTranscript(new TranscriptError("x", TranscriptErrorCode.PO_TOKEN_REQUIRED))).toBe(true);
   });
 
+  it("RATE_LIMITED도 서버 차단 — 데이터센터 IP 차단의 다른 얼굴이다", () => {
+    // 2026-09-20 실측: 같은 영상이 아침엔 BOT_DETECTED, 몇 시간 뒤엔 RATE_LIMITED 로
+    // 돌아왔고 로컬은 둘 다 정상 추출됐다. 빼 두면 «잠시 후 다시 시도» 오보가 나간다.
+    expect(isServerBlockedTranscript(new TranscriptError("x", TranscriptErrorCode.RATE_LIMITED))).toBe(true);
+  });
+
   it("COOKIE_EXPIRED·NO_SUBTITLES는 서버 차단이 아니다 — 대안 안내가 오보가 된다", () => {
     expect(isServerBlockedTranscript(new TranscriptError("x", TranscriptErrorCode.COOKIE_EXPIRED))).toBe(false);
     expect(isServerBlockedTranscript(new TranscriptError("x", TranscriptErrorCode.NO_SUBTITLES))).toBe(false);
