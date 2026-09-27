@@ -3,6 +3,7 @@ import {
   filterCookiesByDomain,
   ensureNetscapeHeader,
   findMissingAuthCookies,
+  isRotatedSessionWarning,
 } from "./refresh-youtube-cookies.js";
 
 const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
@@ -142,6 +143,20 @@ describe("findMissingAuthCookies (로그아웃 프로필 가드)", () => {
       makeLine(".youtube.com", "__Secure-1PSID"),
     ].join("\n");
     expect(findMissingAuthCookies(filtered)).toEqual([]);
+  });
+});
+
+describe("isRotatedSessionWarning (서버에서 폐기된 세션 판별)", () => {
+  it("yt-dlp 의 폐기 경고가 있으면 true", () => {
+    const stderr =
+      "WARNING: [youtube] The provided YouTube account cookies are no longer valid. " +
+      "They have likely been rotated in the browser as a security measure.";
+    expect(isRotatedSessionWarning(stderr)).toBe(true);
+  });
+
+  it("다른 경고뿐이면 false — 로그아웃·잘못된 프로필 안내로 간다", () => {
+    expect(isRotatedSessionWarning("WARNING: [youtube] Sign in to confirm you're not a bot")).toBe(false);
+    expect(isRotatedSessionWarning("")).toBe(false);
   });
 });
 

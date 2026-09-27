@@ -26,6 +26,17 @@ const WARN_SIZE_BYTES = 20 * 1024;
 // 로그아웃/잘못된 프로필 추출 시 방문자 쿠키(PREF/YSC 등)만 잡혀 빈값 아님 → 업로드 차단용 가드.
 export const REQUIRED_AUTH_COOKIES = ["LOGIN_INFO", "SAPISID", "__Secure-1PSID"];
 
+// yt-dlp 가 실요청 뒤 「이 계정 쿠키는 이미 폐기됐다」고 판정할 때 내는 경고.
+// 이때 YouTube 응답이 인증 쿠키를 지워 버려 결과에서 LOGIN_INFO 등이 빠진다 — 로그아웃·
+// 잘못된 프로필과 증상이 같지만 처방이 다르다: 크롬이 그 프로필로 YouTube 를 한동안 안 열어
+// 들고 있는 세션이 서버에서 교체된 것이라, 크롬에서 youtube.com 을 한 번 열면 되살아난다(2026-09-28).
+const ROTATED_SESSION_WARNING = "account cookies are no longer valid";
+
+/** yt-dlp stderr 가 「브라우저가 들고 있는 세션이 서버에서 폐기됨」을 뜻하는지 */
+export function isRotatedSessionWarning(ytdlpStderr: string): boolean {
+  return ytdlpStderr.includes(ROTATED_SESSION_WARNING);
+}
+
 /** 필터링된 Netscape 쿠키에서 누락된 필수 인증 쿠키 목록 반환 (빈 배열 = 정상) */
 export function findMissingAuthCookies(filtered: string): string[] {
   const names = new Set<string>();
@@ -155,14 +166,15 @@ async function main(): Promise<void> {
   const [sourceArg, tmpProfile] = await materializeChromeProfile(browser);
 
   // yt-dlp로 브라우저 쿠키 export
+  let ytdlpStderr = "";
   try {
-    await execFileAsync("yt-dlp", [
+    ({ stderr: ytdlpStderr } = await execFileAsync("yt-dlp", [
       "--cookies-from-browser", sourceArg,
       "--cookies", RAW_COOKIE_PATH,
       "--skip-download",
       // 세션 생사 판별용 실요청. dQw4w9WgXcQ는 봇 트래픽이 몰려 상시 429라 부적합.
       PROBE_VIDEO_URL,
-    ]);
+    ]));
   } catch (err) {
     console.error("yt-dlp 실행 실패:", err);
     process.exit(1);
@@ -189,8 +201,13 @@ async function main(): Promise<void> {
   const missing = findMissingAuthCookies(filtered);
   if (missing.length > 0) {
     console.error(`[FATAL] 인증 쿠키 누락: ${missing.join(", ")}`);
-    console.error("크롬 프로필이 YouTube 로그아웃 상태이거나 잘못된 프로필을 읽음 → 업로드 중단.");
-    console.error('해결: --browser "chrome:Profile N" 으로 로그인된 프로필 지정.');
+    if (isRotatedSessionWarning(ytdlpStderr)) {
+      console.error("[ROTATED] 크롬이 들고 있는 YouTube 세션이 서버에서 폐기됨 → 업로드 중단.");
+      console.error("해결: 그 크롬 프로필로 youtube.com 을 한 번 열어 세션을 갱신한 뒤 재실행.");
+    } else {
+      console.error("크롬 프로필이 YouTube 로그아웃 상태이거나 잘못된 프로필을 읽음 → 업로드 중단.");
+      console.error('해결: --browser "chrome:Profile N" 으로 로그인된 프로필 지정.');
+    }
     process.exit(1);
   }
 
