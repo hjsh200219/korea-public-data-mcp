@@ -232,7 +232,7 @@ describe("getTranscript (yt-dlp)", () => {
   });
 
   it("429 레이트 리밋 시 한국어 에러 메시지", async () => {
-    const err = new Error("Command failed: yt-dlp ... ERROR: HTTP Error 429: Too Many Requests");
+    const err = new Error("Command failed: yt-dlp ...\nERROR: HTTP Error 429: Too Many Requests");
     vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
       const cb = typeof _opts === "function" ? _opts : callback;
       (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
@@ -397,6 +397,33 @@ describe("getTranscript (yt-dlp)", () => {
     expect(allCalls[3]).toContain("youtube:player_client=tv");
     expect(allCalls[4]).toContain("youtube:player_client=web");
     expect(allCalls[4]).toContain("--cookies-from-browser");
+
+    vi.unstubAllEnvs();
+  });
+
+  it("android_vr 429 면 멈추지 않고 쿠키 받는 tv_embedded 로 넘어가 성공", async () => {
+    vi.stubEnv("YOUTUBE_COOKIES_FROM_BROWSER", "chrome");
+    const allCalls: string[][] = [];
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      allCalls.push(args as string[]);
+      const err = allCalls.length === 1
+        ? new Error("Command failed: yt-dlp ...\nERROR: Unable to download video subtitles for 'ko': HTTP Error 429: Too Many Requests")
+        : null;
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(err, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockImplementation(() =>
+      allCalls.length === 2
+        ? Promise.resolve(mockJson3 as unknown as Buffer)
+        : Promise.reject(Object.assign(new Error("ENOENT"), { code: "ENOENT" })),
+    );
+
+    const result = await getTranscript("gc297hx4F7o", "ko");
+
+    expect(allCalls).toHaveLength(2);
+    expect(allCalls[1]).toContain("youtube:player_client=tv_embedded");
+    expect(result.segmentCount).toBeGreaterThan(0);
 
     vi.unstubAllEnvs();
   });
@@ -570,7 +597,7 @@ describe("getTranscript (yt-dlp)", () => {
     });
 
     const err = new Error(
-      "Command failed: yt-dlp ... ERROR: Unable to download video subtitles for 'ja': HTTP Error 429: Too Many Requests",
+      "Command failed: yt-dlp ...\nERROR: Unable to download video subtitles for 'ja': HTTP Error 429: Too Many Requests",
     );
     vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
       const cb = typeof _opts === "function" ? _opts : callback;

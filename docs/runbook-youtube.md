@@ -88,7 +88,7 @@ railway variables unset YOUTUBE_COOKIES_POOL
 
 | 코드 | 의미 | 권장 대응 |
 |------|------|-----------|
-| `RATE_LIMITED` | yt-dlp가 HTTP 429 반환 | 단기 호출 폭주일 수도, 서버 출구에 대한 차단일 수도 있다. 2026-09-20 에는 같은 영상이 아침 `BOT_DETECTED`·오전 `RATE_LIMITED` 였고 쿠키 갱신 뒤 복구됐다. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류되며 쿠키 갱신을 먼저 시도한다 |
+| `RATE_LIMITED` | yt-dlp가 HTTP 429 반환. 2026-10-09 부터는 즉시 중단하지 않고 다음 클라이언트(쿠키 받는 임베드)·Python 폴백까지 시도한 뒤 종단 사유로 남긴다(로그 `yt-dlp 시도 실패` 에 원문) | 단기 호출 폭주일 수도, 서버 출구에 대한 차단일 수도 있다. 2026-09-20 에는 같은 영상이 아침 `BOT_DETECTED`·오전 `RATE_LIMITED` 였고 쿠키 갱신 뒤 복구됐다. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류되며 쿠키 갱신을 먼저 시도한다 |
 | `PO_TOKEN_REQUIRED` | YouTube 봇 차단 정책(PO Token) — 영상에 자막은 있으나 yt-dlp 우회 불가 | 영상 단위 이슈, 즉시 조치 불필요 / 반복되면 yt-dlp 업데이트 검토 |
 | `COOKIE_EXPIRED` | 로그인/세션 만료 (yt-dlp가 sign in / cookie 메시지 반환, 봇 챌린지 문구는 제외) | `scripts/sync-youtube-cookies.sh`(인증 쿠키가 바뀌면 재배포·헬스 확인까지 자동). 수동으로 `npm run refresh:cookies`만 돌렸다면 **재배포 필수** — env만 갱신하면 실행 중 컨테이너에 반영되지 않는다 |
 | `BOT_DETECTED` | 봇 챌린지(`Sign in to confirm you're not a bot`) · DRM · 사유 미상 차단 | 2026-09-20 에 몇 시간 지속됐고 **쿠키 재추출 + 배포로 복구**됐다. 먼저 쿠키를 갱신해 보고, 그래도 안 되면 로컬 결과와 대조해 기록한다. `SERVER_TRANSCRIPT_UNAVAILABLE` 로 분류된다 |

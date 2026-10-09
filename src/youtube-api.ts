@@ -212,9 +212,10 @@ export async function getTranscriptFallback(
 
 /**
  * tryYtDlpClient 결과 — 성공 시 TranscriptResult, 실패 시 cascade 사유 코드.
- * 즉시 중단할 에러(yt-dlp 미설치 / 429 / 자막 비활성 / 지역 차단)는 throw로 우회.
+ * 즉시 중단할 에러(yt-dlp 미설치 / 자막 비활성 / 지역 차단)는 throw로 우회.
  */
 type CascadeReason =
+  | TranscriptErrorCode.RATE_LIMITED
   | TranscriptErrorCode.PO_TOKEN_REQUIRED
   | TranscriptErrorCode.COOKIE_EXPIRED
   | TranscriptErrorCode.BOT_DETECTED
@@ -271,7 +272,7 @@ const BOT_CHALLENGE_RE = /confirm\s+you.{0,3}re\s+not\s+a\s+bot/i;
 
 /**
  * 단일 yt-dlp 시도. 성공 시 success outcome, 실패 시 cascade 사유 outcome.
- * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 429 / 자막 비활성 / 지역차단)는 throw.
+ * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 자막 비활성 / 지역차단)는 throw.
  */
 async function tryYtDlpClient(
   videoId: string,
@@ -363,12 +364,10 @@ async function tryYtDlpClient(
     // `includes("cookie")`에 걸려 COOKIE_EXPIRED로 둔갑했다(2026-09-16 오진의 직접 원인).
     // 쿠키 미지원 클라이언트 스킵 경고의 "cookies"도 같은 이유로 제거한다.
     const errLower = stripCommandEcho(errMsg).toLowerCase().replace(SKIP_CLIENT_WARNING_RE, "");
-    if (errMsg.includes("429")) {
-      throw new TranscriptError(
-        "YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
-        TranscriptErrorCode.RATE_LIMITED,
-        ytdlpError,
-      );
+    if (errLower.includes("http error 429")) {
+      // throw 하지 않고 다음 클라이언트로 — 쿠키 없는 android_vr 가 서버 출구에서 429 를 받으면
+      // 쿠키를 받는 임베드 클라이언트·Python 폴백이 한 번도 안 돌고 로그도 안 남았다(2026-10-09).
+      return cascade(TranscriptErrorCode.RATE_LIMITED, errMsg);
     }
     if (errLower.includes("po token") || errLower.includes("po_token")) {
       // PO Token 요구 → cascade (사유 보존)
@@ -408,6 +407,8 @@ async function tryYtDlpClient(
 /** cascade 사유 → 사용자 메시지 */
 function cascadeMessage(reason: CascadeReason): string {
   switch (reason) {
+    case TranscriptErrorCode.RATE_LIMITED:
+      return "YouTube 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
     case TranscriptErrorCode.PO_TOKEN_REQUIRED:
       return "YouTube의 봇 차단 정책(PO Token)으로 자막을 추출할 수 없습니다. 영상에 자막은 존재하지만 현재 yt-dlp가 우회할 수 없는 상태입니다.";
     case TranscriptErrorCode.COOKIE_EXPIRED:
@@ -423,6 +424,7 @@ function cascadeMessage(reason: CascadeReason): string {
 /** 두 cascade 사유 중 더 구체적인(우선순위 높은) 쪽을 선택 */
 function moreSpecificReason(a: CascadeReason, b: CascadeReason): CascadeReason {
   const priority: Record<CascadeReason, number> = {
+    [TranscriptErrorCode.RATE_LIMITED]: 5,
     [TranscriptErrorCode.PO_TOKEN_REQUIRED]: 4,
     [TranscriptErrorCode.COOKIE_EXPIRED]: 3,
     [TranscriptErrorCode.BOT_DETECTED]: 2,
