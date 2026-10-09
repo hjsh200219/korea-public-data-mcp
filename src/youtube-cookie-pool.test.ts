@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { TranscriptErrorCode } from "./youtube-types.js";
 
 // 각 테스트에서 new YoutubeCookiePool() 직접 생성 (싱글톤 캡처 방지)
-import { YoutubeCookiePool } from "./youtube-cookie-pool.js";
+import { YoutubeCookiePool, authCookieFingerprint } from "./youtube-cookie-pool.js";
 
 const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
 
@@ -432,5 +432,28 @@ describe("YoutubeCookiePool", () => {
 
       expect(pool.browserCookies).toBeUndefined();
     });
+  });
+});
+
+describe("authCookieFingerprint", () => {
+  const line = (name: string, value: string) => `.youtube.com\tTRUE\t/\tTRUE\t1900000000\t${name}\t${value}`;
+
+  it("인증 쿠키 값만 본다 — 방문 잡음 쿠키가 바뀌어도 지문은 같다", () => {
+    const a = [line("SID", "s1"), line("LOGIN_INFO", "l1"), line("YSC", "v1")].join("\n");
+    const b = [line("YSC", "v2"), line("LOGIN_INFO", "l1"), line("SID", "s1")].join("\n");
+    expect(authCookieFingerprint(a)).toBe(authCookieFingerprint(b));
+    expect(authCookieFingerprint(a)).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it("인증 쿠키 값이 바뀌면 지문도 바뀌고, 값 자체는 드러나지 않는다", () => {
+    const a = authCookieFingerprint(line("SID", "secret-a"));
+    const b = authCookieFingerprint(line("SID", "secret-b"));
+    expect(a).not.toBe(b);
+    expect(a).not.toContain("secret");
+  });
+
+  it("인증 쿠키가 없으면 null", () => {
+    expect(authCookieFingerprint(line("YSC", "v1"))).toBeNull();
+    expect(authCookieFingerprint("")).toBeNull();
   });
 });

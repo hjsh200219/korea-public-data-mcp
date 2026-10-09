@@ -15,7 +15,7 @@ import { loadConfig, SERVER_VERSION } from "./config.js";
 import { createLogger } from "./logger.js";
 import { youtubeProbe } from "./youtube-probe.js";
 import { youtubeCircuitBreaker } from "./youtube-circuit-breaker.js";
-import { youtubeCookiePool } from "./youtube-cookie-pool.js";
+import { youtubeCookiePool, authCookieFingerprint } from "./youtube-cookie-pool.js";
 import { youtubeTranscriptMetrics } from "./youtube-transcript-status.js";
 
 const log = createLogger("remote");
@@ -264,4 +264,18 @@ app.listen(PORT, "0.0.0.0", () => {
   log.info(`REST API: http://0.0.0.0:${PORT}/api`);
   log.info(`OpenAPI spec: http://0.0.0.0:${PORT}/openapi.json`);
   youtubeProbe.start();
+  logYoutubeEgress();
 });
+
+/**
+ * 기동마다 출구 IP·인증 쿠키 지문을 남긴다 — 재배포로 자막이 되살아났을 때 IP 가 바뀐 덕인지
+ * 쿠키가 바뀐 덕인지 가를 유일한 기록이다(09-20·10-09 둘 다 못 갈랐다). 실패해도 기동은 계속.
+ */
+function logYoutubeEgress(): void {
+  const cookies = process.env.YOUTUBE_COOKIES ?? "";
+  const fingerprint = cookies ? authCookieFingerprint(cookies) : null;
+  fetch("https://api.ipify.org", { signal: AbortSignal.timeout(5000) })
+    .then((r) => r.text())
+    .catch(() => "unknown")
+    .then((ip) => log.info("youtube egress", { ip: ip.trim().slice(0, 45), authCookieFingerprint: fingerprint }));
+}

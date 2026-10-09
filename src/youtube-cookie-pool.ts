@@ -5,6 +5,7 @@
  * - YOUTUBE_COOKIES_FROM_BROWSER: browser 쿠키 우선 (pool 무시)
  */
 
+import { createHash } from "node:crypto";
 import { TranscriptErrorCode } from "./youtube-types.js";
 
 interface CookieEntry {
@@ -41,6 +42,21 @@ const CHROME_EPOCH_OFFSET_MS = 11644473600000;
 // unix 초로 볼 수 있는 상한. 이를 넘으면 Chrome 원본 타임스탬프(1601 기준 마이크로초)로 간주.
 // unix 초 4e9 ≈ 2096년, Chrome 마이크로초는 1.3e16 수준이라 구간이 겹치지 않는다.
 const UNIX_SECONDS_MAX = 1e14;
+
+/**
+ * 인증 쿠키 값의 지문(sha256 앞 12자리). 기동 로그에 남겨 «복구가 쿠키 덕인지 출구 IP 덕인지»를
+ * 가르는 데 쓴다(2026-10-09). 방문 잡음 쿠키는 매일 바뀌므로 빼고, 값은 복원할 수 없게 해시만 낸다.
+ */
+export function authCookieFingerprint(cookieContent: string): string | null {
+  const pairs = cookieContent
+    .split("\n")
+    .map((line) => line.split("\t"))
+    .filter((parts) => parts.length >= 7 && AUTH_COOKIE_NAMES.has(parts[5]))
+    .map((parts) => `${parts[5]}=${parts[6]}`)
+    .sort();
+  if (pairs.length === 0) return null;
+  return createHash("sha256").update(pairs.join("\n")).digest("hex").slice(0, 12);
+}
 
 /**
  * Netscape 쿠키의 만료 필드를 unix ms로 정규화.
