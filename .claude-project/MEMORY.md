@@ -39,3 +39,4 @@
 - [plugin-update-propagation](memory/plugin-update-propagation.md) — push만으론 설치본 반영 안 됨 — version bump + marketplace update 필요
 - [yt-dlp-stderr-429-false-positive](memory/yt-dlp-stderr-429-false-positive.md) — ⛔ execFile 에러 앞머리=명령 에코 · 분류·로깅 모두 에코 제거 후
 - [yt-dlp-version-pin-and-nightly-canary](memory/yt-dlp-version-pin-and-nightly-canary.md) — Dockerfile 2026.08.19 고정(임베드 경로 하한) · nightly canary로 정책 변경 감지
+- [product-review-registration-gate](memory/product-review-registration-gate.md) — product_review 는 YouTube 키 없이 쿠팡 키만으로도 등록(로컬 kpd 는 YouTube 키 안 넘김, 10-09)

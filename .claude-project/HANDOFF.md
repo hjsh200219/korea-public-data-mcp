@@ -1,21 +1,21 @@
 ---
-created: 2026-10-09T09:15:00+09:00
+created: 2026-10-09T21:58:00+09:00
 project: k-public-data-mcp
-summary: YouTube 서버 자막 RATE_LIMITED — 429 를 캐스케이드 사유로 바꾸는 수정 배포(1cbb608), 재배포 뒤 한·영 영상 자막·요약 라이브 복구
+summary: 로컬 /k-shopping 쿠팡 검색이 'Tool product_review not found' — YouTube 키 없으면 도구를 통째로 빼던 등록 게이트 수정(4d478c2) · 이전 세션 YouTube 429 캐스케이드 수정(1cbb608) 인계 유지
 ---
 
 ## Session Digest
 
-사용자 보고: Claude Chat 의 K-Data MCP 에서 유튜브 요약이 `RATE_LIMITED` 로 실패. 운영에 직접 호출해 재현(한국어 `0K52Ex714NU`·영어 `uLqBKa2dCUA` 모두 429). 같은 영상·같은 yt-dlp 인자로 로컬은 정상 → 서버 출구 문제. 영어 영상의 `BOT_DETECTED` 는 열린 서킷 브레이커가 붙인 사유였다.
+사용자 `/k-shopping` 쿠팡 검색이 모든 질의에서 실패. 로컬 kpd 클라이언트(`~/.agents/skills/k-public-data/scripts/kpd.py`)는 YouTube 를 일부러 빼려고 `YOUTUBE_API_KEY` 를 서버에 넘기지 않는데, `registerProductReviewSkill` 이 YouTube 키 없으면 도구 전체를 스킵 → `coupang_search` 까지 사라짐. 게이트를 「YouTube 키 또는 쿠팡 키 쌍」으로 완화. kpd.py(repo 밖)는 `isError` 때 서버 문구를 같이 출력하도록 고침.
 
-코드 결함: `tryYtDlpClient` 가 429 에서 즉시 throw → 쿠키 받는 `tv_embedded`/`web_embedded`·Python 폴백 미실행, 실패 로그 0줄. `RATE_LIMITED` 를 캐스케이드 사유(우선순위 최상)로 바꾸고 429 판정을 `stripCommandEcho` 뒤 `http error 429` 로 좁혔다.
+이전 세션(09:15): YouTube 서버 자막 RATE_LIMITED — 429 를 캐스케이드 사유로 바꾸는 수정 배포(1cbb608), 재배포 뒤 라이브 복구.
 
 ## Progress
 
-- [x] `1cbb608` fix(youtube): 429 캐스케이드 — 새 테스트(android_vr 429 → tv_embedded 성공)는 고치기 전 코드에서 red 확인
-- [x] CI 동일 검사 로컬 통과(typecheck·lint·verify-docs·dead-code·verify-harness-meta·test:coverage 1132 passed·build), GitHub CI success
-- [x] push → Railway 자동 배포 `81f2697e` SUCCESS → 두 영상 `get_transcript`(721·68 세그먼트)·`summarize` 라이브 성공
-- 주의: 복구 시점 로그에 `yt-dlp 시도 실패` 0줄 = `android_vr` 가 바로 성공. 새 코드 경로가 아니라 재배포(09-28 이후 첫 배포)가 복구시킨 것
+- [x] `4d478c2` fix(product-review) — 새 등록 조건 테스트는 고치기 전 코드에서 red 확인
+- [x] CI 동일 검사 로컬 통과(typecheck·lint·verify-docs·dead-code·verify-harness-meta·test:coverage·build) → push
+- [x] 로컬 kpd 로 `coupang_search` 「와인 칠러 코퍼」 5건 라이브 성공, query 누락 시 서버 문구 출력 확인
+- [x] (이전) `1cbb608` YouTube 429 캐스케이드 — CI·Railway 배포·라이브 확인
 
 ## Next Steps
 
@@ -24,8 +24,10 @@ summary: YouTube 서버 자막 RATE_LIMITED — 429 를 캐스케이드 사유�
 
 ## Watch Out
 
+- 운영 Railway 는 YouTube 키가 있어 4d478c2 로 동작이 바뀌지 않는다 — 로컬 stdio(kpd) 경로 전용 수정
+- kpd.py 는 git 밖(`~/.agents/skills/k-public-data/scripts/`) — 수정 이력은 이 인계서에만 있다
 - `SYNC_SKIP_REDEPLOY=1` 이라 쿠키 env 는 매일 갱신돼도 컨테이너는 배포 때까지 옛 상태
 
 ## Files Touched
 
-- src/youtube-api.ts · src/youtube-api.test.ts · docs/runbook-youtube.md · AGENTS.md · .claude-project/
+- src/tools/skills/product-review.ts · src/tools/skills/product-review.test.ts · (repo 밖) ~/.agents/skills/k-public-data/scripts/kpd.py · .claude-project/
