@@ -52,3 +52,4 @@
 - [fast-xml-parser-repeated-tag-array](fast-xml-parser-repeated-tag-array.md) — 반복 태그 자동 배열화, str() 코어션 금지 → ensureArray + join 패턴
 - [dart-corp-code-egress-timeout-snapshot](dart-corp-code-egress-timeout-snapshot.md) — corp_code 해석 prod-only 60s abort(Railway egress 느림), 정적 스냅샷 우선 조회로 해결
 - [case-research-aihub-same-source](case-research-aihub-same-source.md) — case_research(law.go.kr)와 AI Hub 판결서 익명처리 데이터셋은 동일 원천, caseNoID=case_id 1:1 매핑
+- [youtube-server-429-redeploy-recovers](youtube-server-429-redeploy-recovers.md) — 서버 자막 429 는 로컬 재현 불가, 오래 묵은 컨테이너는 재배포로 복구(09-20·10-09)
