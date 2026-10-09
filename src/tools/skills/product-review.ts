@@ -302,7 +302,8 @@ export function registerProductReviewSkill(
   coupangAccessKey: string | undefined,
   coupangSecretKey: string | undefined,
 ): void {
-  if (!youtubeApiKey) return; // YouTube 키 없으면 전체 스킵
+  // 키가 하나도 없을 때만 스킵 — YouTube 키 없이도 coupang_search 는 살린다(로컬 kpd 는 YouTube 키를 안 넘김)
+  if (!youtubeApiKey && !(coupangAccessKey && coupangSecretKey)) return;
 
   const handler = createProductReviewHandler(youtubeApiKey, coupangAccessKey, coupangSecretKey);
 

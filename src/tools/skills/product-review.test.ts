@@ -21,7 +21,8 @@ import {
   cleanTranscriptText,
 } from "../../youtube-api.js";
 import { searchCoupangProducts } from "../../coupang-api.js";
-import { createProductReviewHandler } from "./product-review.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { createProductReviewHandler, registerProductReviewSkill } from "./product-review.js";
 import { SERVER_TRANSCRIPT_UNAVAILABLE, youtubeTranscriptMetrics } from "../../youtube-transcript-status.js";
 import { TranscriptError, TranscriptErrorCode } from "../../youtube-types.js";
 
@@ -369,5 +370,27 @@ describe("product_review 스킬", () => {
     expect(after.fail).toBe(before.fail + 1); // 영상 2건이어도 1건
     expect(after.byReason[TranscriptErrorCode.BOT_DETECTED] ?? 0)
       .toBe((before.byReason[TranscriptErrorCode.BOT_DETECTED] ?? 0) + 1);
+  });
+});
+
+describe("product_review 등록 조건", () => {
+  function registeredNames(yt?: string, ca?: string, cs?: string): string[] {
+    const names: string[] = [];
+    const fakeServer = {
+      registerTool: (name: string) => {
+        names.push(name);
+      },
+    } as unknown as McpServer;
+    registerProductReviewSkill(fakeServer, yt, ca, cs);
+    return names;
+  }
+
+  // 로컬 kpd 클라이언트는 YouTube 키를 넘기지 않는다 — 쿠팡 키만으로도 coupang_search 가 살아야 한다
+  it("YouTube키없이_쿠팡키만있어도_등록", () => {
+    expect(registeredNames(undefined, "ca", "cs")).toEqual(["product_review"]);
+  });
+
+  it("키가_하나도없으면_등록안함", () => {
+    expect(registeredNames(undefined, undefined, undefined)).toEqual([]);
   });
 });
