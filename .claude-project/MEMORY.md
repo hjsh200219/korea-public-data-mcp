@@ -12,6 +12,7 @@
 - [korservice2-data20-key-reuse](memory/korservice2-data20-key-reuse.md) — 한국관광공사 KorService2 API는 DATA20_SERVICE_KEY를 그대로 재사용 (별도 환경변수 불필요)
 - [master-direct-push-railway-autodeploy](memory/master-direct-push-railway-autodeploy.md) — 이 레포는 PR 없이 master 직접 push, GitHub→Railway 자동 배포
 - [openlegaldata-de-anonymous-mit](memory/openlegaldata-de-anonymous-mit.md) — OpenLegalData (de.openlegaldata.io) — anonymous OK, MIT 라이선스, 활성 유지보수
+- [openlegaldata-search-endpoint](memory/openlegaldata-search-endpoint.md) — ⛔ 검색은 /cases/search/?text= (/cases/?search= 는 검색어 무시) · court 코드 대소문자 구분 · 날짜 start_date/end_date
 - [railway-cli-scale-syntax](memory/railway-cli-scale-syntax.md) — Railway CLI 리전 변경 명령어 정확한 문법
 - [railway-cli-variables-redeploy-flow](memory/railway-cli-variables-redeploy-flow.md) — Railway CLI — --skip-deploys로 환경변수 설정 + 명시적 redeploy 분리
 - [railway-env-var-32kb-limit](memory/railway-env-var-32kb-limit.md) — Railway 환경변수당 하드 리밋 32,768바이트
