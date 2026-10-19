@@ -21,15 +21,17 @@ function createTestApp(config: ServerConfig = BASE_CONFIG) {
   return app;
 }
 
-function mockFetchJson(body: unknown, status = 200): void {
-  globalThis.fetch = vi.fn().mockImplementation(() =>
+function mockFetchJson(body: unknown, status = 200): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn().mockImplementation(() =>
     Promise.resolve(
       new Response(JSON.stringify(body), {
         status,
         headers: { "Content-Type": "application/json" },
       }),
     ),
-  ) as typeof fetch;
+  );
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
 }
 
 async function request(app: express.Express, path: string) {
@@ -84,12 +86,29 @@ describe("OpenLegalData 라우트", () => {
   it("GET /api/openlegaldata/search?q=test → 200 + 결과", async () => {
     mockFetchJson({
       count: 1,
-      results: [{ id: 1, file_number: "X", court: { id: 1, name: "BGH", slug: "bgh" }, date: "2020-01-01", type: "Urteil", slug: "x" }],
+      results: [{ id: 1, court: "BGH", court_level_of_appeal: "Bundesgericht", date: "2020-01-01", decision_type: "Urteil", slug: "x", snippets: [] }],
     });
     const app = createTestApp();
     const res = await request(app, "/api/openlegaldata/search?q=test");
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(1);
+  });
+
+  it("GET /api/openlegaldata/search — court·court_level_of_appeal·날짜를 본문 검색 파라미터로 전달", async () => {
+    const fetchMock = mockFetchJson({ count: 0, results: [] });
+    const app = createTestApp();
+    const res = await request(
+      app,
+      "/api/openlegaldata/search?q=Mietminderung&court=bgh&court_level_of_appeal=Bundesgericht&date_after=2020-01-01&date_before=2020-12-31",
+    );
+    expect(res.status).toBe(200);
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.pathname).toBe("/api/cases/search/");
+    expect(url.searchParams.get("text")).toBe("Mietminderung");
+    expect(url.searchParams.get("court")).toBe("BGH");
+    expect(url.searchParams.get("court_level_of_appeal")).toBe("Bundesgericht");
+    expect(url.searchParams.get("start_date")).toBe("2020-01-01");
+    expect(url.searchParams.get("end_date")).toBe("2020-12-31");
   });
 
   it("GET /api/openlegaldata/search (q 누락) → 500", async () => {

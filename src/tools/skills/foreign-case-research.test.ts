@@ -279,47 +279,58 @@ describe("get_us_case_detail — 출력 포맷", () => {
 });
 
 describe("search_de_cases — 출력 포맷", () => {
-  it("[원문: 독일어] 마커 + Aktenzeichen 라벨 + ECLI", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        jsonResponse({
-          count: 419984,
-          results: [
-            {
-              id: 325566,
-              slug: "lg-koln-2029-11-13-84-o-24918",
-              court: {
-                id: 812,
-                name: "Landgericht Köln",
-                slug: "lg-koln",
-                jurisdiction: "Ordentliche Gerichtsbarkeit",
-                level_of_appeal: "Landgericht",
+  it("[원문: 독일어] 마커 + 법원 코드·심급·스니펫 (본문 검색 응답)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        count: 1863,
+        next: null,
+        results: [
+          {
+            id: 142268,
+            court: "BGH",
+            slug: "bgh-2018-12-05-viii-zr-6718",
+            date: "2018-12-05",
+            court_jurisdiction: "Ordentliche Gerichtsbarkeit",
+            court_level_of_appeal: "Bundesgericht",
+            decision_type: "Urteil",
+            snippets: [
+              {
+                text: "eine <em>Mietminderung</em> in Höhe von 24,47 €",
+                offset: 2866,
+                length: 205,
               },
-              file_number: "84 O 249/18",
-              date: "2029-11-13",
-              type: "Urteil",
-              ecli: "ECLI:DE:LGK:2029:1113.84O249.18.00",
-            },
-          ],
-        }),
-      ),
+            ],
+          },
+        ],
+      }),
     );
+    vi.stubGlobal("fetch", fetchMock);
 
     const handler = createForeignCaseResearchHandler({ enableDE: true });
     const result = await handler({
       action: "search_de_cases",
-      query: "Grundgesetz",
+      query: "Mietminderung",
+      court: "bgh",
+      court_level: "Bundesgericht",
     });
+
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.pathname).toBe("/api/cases/search/");
+    expect(url.searchParams.get("text")).toBe("Mietminderung");
+    expect(url.searchParams.get("court")).toBe("BGH");
+    expect(url.searchParams.get("court_level_of_appeal")).toBe("Bundesgericht");
 
     const text = result.content[0].text;
     expect(text).toContain("[원문: 독일어]");
     expect(text).toContain("독일 판례");
-    expect(text).toContain("[325566]");
-    expect(text).toContain("Landgericht Köln");
-    expect(text).toContain("84 O 249/18");
-    expect(text).toContain("ECLI:DE:LGK:2029:1113.84O249.18.00");
-    expect(text).toContain("총 419,984건");
+    expect(text).toContain("[142268] BGH");
+    expect(text).toContain("심급: Bundesgericht");
+    expect(text).toContain("유형: Urteil");
+    expect(text).toContain("판결일: 2018-12-05");
+    expect(text).toContain("eine Mietminderung in Höhe von 24,47 €");
+    expect(text).not.toContain("<em>");
+    expect(text).toContain("https://de.openlegaldata.io/case/bgh-2018-12-05-viii-zr-6718/");
+    expect(text).toContain("총 1,863건");
     expect(text).toContain("get_de_case_detail");
     expect(result.isError).toBeFalsy();
   });

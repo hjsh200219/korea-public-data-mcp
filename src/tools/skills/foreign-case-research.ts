@@ -58,8 +58,10 @@ type ForeignCaseParams = {
   opinion_id?: string;
   /** DE: case ID (OpenLegalData) */
   de_case_id?: string;
-  /** 법원 슬러그 (US: scotus, ca9 등 / DE: bgh 등) */
+  /** 법원 슬러그 (US: scotus, ca9 등) / 법원 코드 (DE: BGH, BVerfG 등) */
   court?: string;
+  /** DE: 심급 필터 (court_level_of_appeal, 예: Bundesgericht) */
+  court_level?: string;
   date_from?: string;
   date_to?: string;
   /** US: 관할 필터 */
@@ -247,8 +249,10 @@ function handleGetUSCaseDetail(client: CourtListenerClient) {
 }
 
 // ---------------------------------------------------------------------------
-// DE handlers — OpenLegalData (raw 타입, page 페이지네이션) — 변경 없음
+// DE handlers — OpenLegalData (본문 검색 /cases/search/, page 페이지네이션)
 // ---------------------------------------------------------------------------
+
+const OPENLEGALDATA_CASE_URL = "https://de.openlegaldata.io/case";
 
 function handleSearchDECases(token?: string) {
   return async (p: ForeignCaseParams): Promise<SkillResult> => {
@@ -262,6 +266,7 @@ function handleSearchDECases(token?: string) {
           page: p.page,
           pageSize: p.display,
           court: p.court,
+          courtLevel: p.court_level,
           dateFrom: p.date_from,
           dateTo: p.date_to,
         },
@@ -280,15 +285,17 @@ function handleSearchDECases(token?: string) {
       }
 
       const lines = result.results.map((c, i) => {
+        const snippet = c.snippets?.[0]?.text
+          ?.replace(/<[^>]+>/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
         const parts = [
-          `${i + 1}. [${c.id}] ${c.court?.name ?? "(법원 미상)"}`,
-          `   사건번호(Aktenzeichen): ${c.file_number}`,
-          c.type ? `   유형: ${c.type}` : "",
+          `${i + 1}. [${c.id}] ${c.court || "(법원 미상)"}`,
+          c.court_level_of_appeal ? `   심급: ${c.court_level_of_appeal}` : "",
+          c.decision_type ? `   유형: ${c.decision_type}` : "",
           c.date ? `   판결일: ${c.date}` : "",
-          c.ecli ? `   ECLI: ${c.ecli}` : "",
-          c.court?.level_of_appeal
-            ? `   심급: ${c.court.level_of_appeal}`
-            : "",
+          snippet ? `   일치 구간: ${snippet}` : "",
+          c.slug ? `   ${OPENLEGALDATA_CASE_URL}/${c.slug}/` : "",
         ].filter(Boolean);
         return parts.join("\n");
       });
@@ -304,7 +311,7 @@ function handleSearchDECases(token?: string) {
         ...lines,
         ``,
         `---`,
-        `상세 조회: get_de_case_detail에 de_case_id를 전달하세요${idHint !== undefined ? ` (예: de_case_id="${idHint}")` : ""}. 본문은 독일어 원문으로 제공됩니다.`,
+        `상세 조회: get_de_case_detail에 de_case_id를 전달하세요${idHint !== undefined ? ` (예: de_case_id="${idHint}")` : ""}. 사건번호(Aktenzeichen)·ECLI·본문은 상세에서 독일어 원문으로 제공됩니다.`,
       ].join("\n");
 
       return { content: [{ type: "text", text: truncate(output) }] };
@@ -455,7 +462,7 @@ export function registerForeignCaseResearch(
     description,
     inputSchema: {
       action: z.enum(availableActions as unknown as [string, ...string[]]).describe(
-        "search_us_cases=미국 판례 검색(CourtListener, cursor) | get_us_case_detail=미국 판례 상세(opinion_id 필수) | search_de_cases=독일 판례 검색(OpenLegalData, page) [원문: 독일어] | get_de_case_detail=독일 판례 상세(de_case_id 필수) [원문: 독일어]",
+        "search_us_cases=미국 판례 검색(CourtListener, cursor) | get_us_case_detail=미국 판례 상세(opinion_id 필수) | search_de_cases=독일 판례 본문 검색(OpenLegalData, page) [원문: 독일어] | get_de_case_detail=독일 판례 상세(de_case_id 필수) [원문: 독일어]",
       ),
       query: z.string().optional().describe("검색어"),
       cursor: z
@@ -476,7 +483,13 @@ export function registerForeignCaseResearch(
         .string()
         .optional()
         .describe(
-          "법원 슬러그 (미국 예: 'scotus','ca1' / 독일 예: 'bgh'). search_*에서 사용",
+          "법원 필터. 미국: 슬러그 ('scotus','ca1') / 독일: 법원 코드 ('BGH','BVerfG','BAG','BFH','BSG','BVerwG','BPatG' — 연방법원 외 코드는 대소문자 구분). search_*에서 사용",
+        ),
+      court_level: z
+        .string()
+        .optional()
+        .describe(
+          "DE 전용 심급 필터 (court_level_of_appeal): 'Bundesgericht' | 'Oberlandesgericht' | 'Landgericht' | 'Amtsgericht' (search_de_cases)",
         ),
       date_from: z
         .string()

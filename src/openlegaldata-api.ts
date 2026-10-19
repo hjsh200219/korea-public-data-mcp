@@ -45,16 +45,38 @@ async function callOpenLegalData<T>(
   return (await response.json()) as T;
 }
 
+/**
+ * 연방법원 코드 — OpenLegalData court 필터는 대소문자를 구분한다(BVerfG 103건 / BVERFG·bverfg 0건, 2026-10-19 실측).
+ * 소문자 슬러그("bgh")로 들어와도 맞는 코드로 바꾸고, 그 밖의 코드는 그대로 넘긴다.
+ */
+const FEDERAL_COURT_CODES = new Map(
+  ["BAG", "BFH", "BGH", "BPatG", "BSG", "BVerfG", "BVerwG"].map((c) => [
+    c.toLowerCase(),
+    c,
+  ]),
+);
+
+function normalizeCourtCode(court: string): string {
+  const trimmed = court.trim();
+  return FEDERAL_COURT_CODES.get(trimmed.toLowerCase()) ?? trimmed;
+}
+
+/**
+ * 본문 검색 경로(/cases/search/?text=)를 쓴다.
+ * /cases/?search= 는 검색어를 무시하고 전체(42만여 건)를 돌려주고 court 에 숫자 ID 만 받는다(2026-10-15 실측).
+ * 날짜 필터 이름도 start_date/end_date 다 — date_after/date_before 는 조용히 무시된다.
+ */
 function buildSearchUrl(params: SearchDECasesParams): string {
   const qs = new URLSearchParams();
-  qs.set("search", params.query);
-  if (params.court) qs.set("court", params.court);
-  if (params.dateFrom) qs.set("date_after", params.dateFrom);
-  if (params.dateTo) qs.set("date_before", params.dateTo);
+  qs.set("text", params.query);
+  if (params.court) qs.set("court", normalizeCourtCode(params.court));
+  if (params.courtLevel) qs.set("court_level_of_appeal", params.courtLevel.trim());
+  if (params.dateFrom) qs.set("start_date", params.dateFrom);
+  if (params.dateTo) qs.set("end_date", params.dateTo);
   if (params.page !== undefined) qs.set("page", String(params.page));
   if (params.pageSize !== undefined)
     qs.set("page_size", String(params.pageSize));
-  return `${OPENLEGALDATA_BASE_URL}/cases/?${qs.toString()}`;
+  return `${OPENLEGALDATA_BASE_URL}/cases/search/?${qs.toString()}`;
 }
 
 /** 독일 판례 검색 */

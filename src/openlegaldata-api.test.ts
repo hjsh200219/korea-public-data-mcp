@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe("searchDECases", () => {
-  it("올바른 검색 URL 호출 (/cases/?search=...)", async () => {
+  it("본문 검색 경로 호출 (/cases/search/?text=...) — /cases/?search= 는 검색어를 무시한다", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse({ count: 0, results: [] }));
@@ -34,9 +34,12 @@ describe("searchDECases", () => {
 
     await searchDECases({ query: "Grundgesetz" });
 
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toContain("https://de.openlegaldata.io/api/cases/");
-    expect(url).toContain("search=Grundgesetz");
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.origin + url.pathname).toBe(
+      "https://de.openlegaldata.io/api/cases/search/",
+    );
+    expect(url.searchParams.get("text")).toBe("Grundgesetz");
+    expect(url.searchParams.has("search")).toBe(false);
   });
 
   it("토큰 제공 시 Authorization: Token <token> 헤더 포함", async () => {
@@ -76,7 +79,7 @@ describe("searchDECases", () => {
     expect(result.results).toEqual([]);
   });
 
-  it("court / page / pageSize URL 파라미터 포함", async () => {
+  it("court / courtLevel / page / pageSize / 날짜 URL 파라미터 포함", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse({ count: 0, results: [] }));
@@ -84,49 +87,72 @@ describe("searchDECases", () => {
 
     await searchDECases({
       query: "BGB",
-      court: "bgh",
+      court: "BGH",
+      courtLevel: "Bundesgericht",
       page: 2,
       pageSize: 10,
+      dateFrom: "2020-01-01",
+      dateTo: "2020-12-31",
     });
 
-    const url = fetchMock.mock.calls[0][0] as string;
-    expect(url).toContain("court=bgh");
-    expect(url).toContain("page=2");
-    expect(url).toContain("page_size=10");
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get("court")).toBe("BGH");
+    expect(url.searchParams.get("court_level_of_appeal")).toBe("Bundesgericht");
+    expect(url.searchParams.get("page")).toBe("2");
+    expect(url.searchParams.get("page_size")).toBe("10");
+    // 본문 검색 경로는 date_after/date_before 를 조용히 무시한다 (2026-10-19 실측)
+    expect(url.searchParams.get("start_date")).toBe("2020-01-01");
+    expect(url.searchParams.get("end_date")).toBe("2020-12-31");
+    expect(url.searchParams.has("date_after")).toBe(false);
   });
 
-  it("Phase 0 형태의 응답 파싱 (id, file_number, court.name, ecli)", async () => {
+  it.each([
+    ["bgh", "BGH"],
+    ["BGH", "BGH"],
+    ["bverfg", "BVerfG"],
+    ["BVERFG", "BVerfG"],
+    ["bpatg", "BPatG"],
+    ["OLGK", "OLGK"],
+  ])("연방법원 court 코드 대소문자 정규화: %s → %s", async (input, expected) => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ count: 0, results: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await searchDECases({ query: "BGB", court: input });
+
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get("court")).toBe(expected);
+  });
+
+  it("본문 검색 응답 파싱 (court 코드, 심급, snippets)", async () => {
     const sample = {
-      count: 419984,
+      count: 60,
+      next: "https://de.openlegaldata.io/api/cases/search/?court=BGH&page=2&text=Mietminderung",
+      previous: null,
       results: [
         {
-          id: 325566,
-          slug: "lg-koln-2029-11-13-84-o-24918",
-          court: {
-            id: 812,
-            name: "Landgericht Köln",
-            slug: "lg-koln",
-            city: 446,
-            state: 12,
-            jurisdiction: "Ordentliche Gerichtsbarkeit",
-            level_of_appeal: "Landgericht",
-          },
-          file_number: "84 O 249/18",
-          date: "2029-11-13",
-          type: "Urteil",
-          ecli: "ECLI:DE:LGK:2029:1113.84O249.18.00",
+          id: 142268,
+          citing_cases_count: 3,
+          court: "BGH",
+          slug: "bgh-2018-12-05-viii-zr-6718",
+          date: "2018-12-05",
+          court_jurisdiction: "Ordentliche Gerichtsbarkeit",
+          court_level_of_appeal: "Bundesgericht",
+          decision_type: "Urteil",
+          snippets: [
+            { text: "eine <em>Mietminderung</em> in Höhe", offset: 2866, length: 205 },
+          ],
         },
       ],
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(sample)));
 
-    const result = await searchDECases({ query: "Grundgesetz" });
-    expect(result.count).toBe(419984);
-    expect(result.results[0].file_number).toBe("84 O 249/18");
-    expect(result.results[0].court.name).toBe("Landgericht Köln");
-    expect(result.results[0].ecli).toBe(
-      "ECLI:DE:LGK:2029:1113.84O249.18.00",
-    );
+    const result = await searchDECases({ query: "Mietminderung", court: "BGH" });
+    expect(result.count).toBe(60);
+    expect(result.results[0].court).toBe("BGH");
+    expect(result.results[0].court_level_of_appeal).toBe("Bundesgericht");
+    expect(result.results[0].snippets?.[0].text).toContain("Mietminderung");
   });
 
   it("HTTP 4xx 응답에 에러 throw", async () => {

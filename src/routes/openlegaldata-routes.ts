@@ -22,6 +22,9 @@ export function registerOpenlegalDataRoutes(
       const params = {
         query: q,
         court: req.query.court ? String(req.query.court) : undefined,
+        courtLevel: req.query.court_level_of_appeal
+          ? String(req.query.court_level_of_appeal)
+          : undefined,
         page: req.query.page ? Number(req.query.page) : undefined,
         pageSize: req.query.page_size ? Number(req.query.page_size) : undefined,
         dateFrom: req.query.date_after

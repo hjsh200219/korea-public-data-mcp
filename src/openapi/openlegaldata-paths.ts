@@ -12,12 +12,17 @@ export function getOpenlegalDataPaths(): OpenApiPaths {
       operationId: "openLegalDataSearch",
       summary: "독일 판례 검색 (OpenLegalData)",
       description:
-        "OpenLegalData API를 통해 독일 판례를 검색합니다. 본문/메타데이터는 독일어 원문으로 제공됩니다 (번역 미제공).",
+        "OpenLegalData 본문 검색(/cases/search/)으로 독일 판례를 검색합니다. 결과는 법원 코드·심급·일치 구간(snippets)이며, 사건번호·ECLI·본문은 상세 조회에서 독일어 원문으로 제공됩니다 (번역 미제공).",
       parameters: [
         param("q", "검색어", { required: true, schema: { type: "string" } }),
-        param("court", "법원 슬러그 (예: bgh, bverfg)", {
+        param("court", "법원 코드 (예: BGH, BVerfG — 연방법원 외 코드는 대소문자 구분)", {
           schema: { type: "string" },
         }),
+        param(
+          "court_level_of_appeal",
+          "심급 (Bundesgericht, Oberlandesgericht, Landgericht, Amtsgericht)",
+          { schema: { type: "string" } },
+        ),
         param("date_after", "판결일 시작 (YYYY-MM-DD)", {
           schema: { type: "string", format: "date" },
         }),

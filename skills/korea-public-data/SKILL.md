@@ -92,7 +92,7 @@ description: 대한민국 공공데이터 MCP 도구 19종의 라우팅 가이�
 
 ### 해외 판례 — `foreign_case_research`
 `search_us_cases` / `get_us_case_detail` — CourtListener, cursor 페이지네이션. 주요 법원 slug: `scotus`, `ca1`~`ca11`, `cadc`, `cafc`, `dcd`
-`search_de_cases` / `get_de_case_detail` — OpenLegalData, page 페이지네이션
+`search_de_cases` / `get_de_case_detail` — OpenLegalData 본문 검색, page 페이지네이션. 법원 코드 필터 court(BGH·BVerfG 등), 심급 필터 court_level(Bundesgericht 등)
 본문은 원문(영어/독일어) 그대로 반환된다.
 
 ### 민원 — `gov24_ai`

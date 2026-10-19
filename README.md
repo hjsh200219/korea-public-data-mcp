@@ -128,7 +128,7 @@
 |---|------|------|
 | - | `foreign_case_research.search_us_cases` | 미국 연방·주 법원 판례 검색 (CourtListener v4 cursor 페이지네이션, 정규화 도메인 응답) |
 | - | `foreign_case_research.get_us_case_detail` | 미국 Opinion 상세 (HTML fallback chain + 본문 offset 윈도우) |
-| - | `foreign_case_research.search_de_cases` | 독일 판례 검색 (OpenLegalData, page 페이지네이션) |
+| - | `foreign_case_research.search_de_cases` | 독일 판례 본문 검색 (OpenLegalData `/cases/search/`, page 페이지네이션, 법원 코드·심급 필터) |
 | - | `foreign_case_research.get_de_case_detail` | 독일 판례 상세 (Aktenzeichen, ECLI 포함) |
 
 추가 REST 전용 엔드포인트: `/api/courtlistener/clusters/{clusterId}`, `/api/courtlistener/courts` (Cluster 메타·법원 목록).

@@ -74,9 +74,18 @@ desc("OpenLegalData live", () => {
     expect(result.results.length).toBeGreaterThan(0);
     const first = result.results[0];
     expect(first.id).toBeTypeOf("number");
-    expect(first.file_number).toBeTypeOf("string");
-    expect(first.court).toBeDefined();
-    expect(first.court.name).toBeTypeOf("string");
+    expect(first.court).toBeTypeOf("string");
+  }, 30000);
+
+  it("무의미 검색어는 0건 — 검색어가 실제로 반영된다", async () => {
+    const result = await searchDECases({ query: "xqzvwplmnk", pageSize: 1 });
+    expect(result.count).toBe(0);
+  }, 30000);
+
+  it("court='bgh' → 400 없이 BGH 결과만", async () => {
+    const result = await searchDECases({ query: "Mietminderung", court: "bgh", pageSize: 5 });
+    expect(result.count).toBeGreaterThan(0);
+    for (const item of result.results) expect(item.court).toBe("BGH");
   }, 30000);
 
   it("getDECaseDetail(case_id) → 메타 반환", async () => {
