@@ -26,6 +26,7 @@ import {
   ensureArray,
   stripHtmlTags,
 } from "./helpers.js";
+import { toKSTDate, formatYYYYMMDD } from "../kst-date.js";
 
 // =========================================================
 // 판례 (prec)
@@ -39,7 +40,10 @@ export async function searchCases(
   const u = new URL(url);
   if (params.search) u.searchParams.set("search", String(params.search));
   if (params.dateFrom || params.dateTo) {
-    u.searchParams.set("prncYd", `${params.dateFrom || ""}~${params.dateTo || ""}`);
+    // 법제처 API는 양끝이 모두 있어야 동작(한쪽만 주면 0건) — 빠진 쪽을 채운다
+    const from = params.dateFrom || "19000101";
+    const to = params.dateTo || formatYYYYMMDD(toKSTDate());
+    u.searchParams.set("prncYd", `${from}~${to}`);
   }
   if (params.court) u.searchParams.set("org", params.court);
   url = u.toString();

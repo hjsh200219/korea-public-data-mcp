@@ -383,6 +383,28 @@ describe("searchCases", () => {
     expect(parsedUrl.searchParams.get("prncYd")).toBe("20250101~20260101");
   });
 
+  it("searchCases_시작일만_종료일을오늘로보정", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve("<PrecSearch><totalCnt>0</totalCnt></PrecSearch>"),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await searchCases(OC, { query: "해고", dateFrom: "20200101" });
+    const v = new URL(fetchMock.mock.calls[0][0] as string).searchParams.get("prncYd")!;
+    expect(v).toMatch(/^20200101~\d{8}$/);
+    expect(v.split("~")[1] >= "20260101").toBe(true);
+  });
+
+  it("searchCases_종료일만_시작일을19000101로보정", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve("<PrecSearch><totalCnt>0</totalCnt></PrecSearch>"),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await searchCases(OC, { query: "해고", dateTo: "20261029" });
+    expect(new URL(fetchMock.mock.calls[0][0] as string).searchParams.get("prncYd")).toBe("19000101~20261029");
+  });
+
   it("searchCases_HTTP에러_예외발생", async () => {
     mockFetchHttpError(404);
     await expect(searchCases(OC, { query: "테스트" })).rejects.toThrow("HTTP 404");

@@ -238,4 +238,31 @@ describe("case_research 스킬", () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Network timeout");
   });
+
+  it("get_case_detail_8000자초과_offset안내출력", async () => {
+    vi.mocked(getCaseDetail).mockResolvedValue({
+      id: 1, caseName: "사건", caseNumber: "n", courtName: "c", decisionDate: "d",
+      verdict: "v", caseType: "t", verdictType: "vt", content: "가".repeat(20000),
+    } as any);
+    const r1 = await handler({ action: "get_case_detail", case_id: 1 });
+    const t1 = r1.content[0].text;
+    expect(t1).toContain("1~8,000자 / 총 20,000자");
+    expect(t1).toContain('case_id="1", offset=8000');
+    const r2 = await handler({ action: "get_case_detail", case_id: 1, offset: 8000 });
+    expect(r2.content[0].text).toContain("8,001~16,000자");
+    expect(r2.content[0].text).toContain("offset=16000");
+    const r3 = await handler({ action: "get_case_detail", case_id: 1, offset: 16000 });
+    expect(r3.content[0].text).toContain("16,001~20,000자");
+    expect(r3.content[0].text).not.toContain("이어서 보기");
+  });
+
+  it("get_case_detail_짧은본문_안내없음", async () => {
+    vi.mocked(getCaseDetail).mockResolvedValue({
+      id: 1, caseName: "사건", caseNumber: "n", courtName: "c", decisionDate: "d",
+      verdict: "v", caseType: "t", verdictType: "vt", content: "짧은 본문",
+    } as any);
+    const r = await handler({ action: "get_case_detail", case_id: 1 });
+    expect(r.content[0].text).toContain("짧은 본문");
+    expect(r.content[0].text).not.toContain("이어서 보기");
+  });
 });

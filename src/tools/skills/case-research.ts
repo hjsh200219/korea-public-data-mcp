@@ -15,7 +15,7 @@ import {
   searchCommitteeDecisions, getCommitteeDecisionDetail, getCommitteeName,
   searchAdminAppeals, getAdminAppealDetail,
 } from "../../law-api.js";
-import { errorResponse, truncate } from "../../shared.js";
+import { errorResponse, truncateWindow } from "../../shared.js";
 import { createDispatcher, requireParam, type SkillResult, registerSkillTool } from "./_shared.js";
 
 const ACTIONS = [
@@ -51,7 +51,28 @@ type CaseResearchParams = {
   committee?: string;
   decision_id?: number;
   sections?: string[];
+  offset?: number;
 };
+
+/** 긴 본문을 offset 윈도우로 잘라 다음 offset 안내를 붙인다 (foreign_case_research 방식) */
+function bodyWindow(
+  body: string,
+  offset: number | undefined,
+  action: string,
+  idLabel: string,
+  idValue: string | number,
+): string {
+  const win = truncateWindow(body, { offset: Math.max(0, offset ?? 0) });
+  if (win.windowStart === 0 && !win.hasMore) return win.text;
+  const lines = [
+    `--- 본문 (${(win.windowStart + 1).toLocaleString()}~${win.windowEnd.toLocaleString()}자 / 총 ${win.totalLength.toLocaleString()}자) ---`,
+    win.text,
+  ];
+  if (win.hasMore) {
+    lines.push("", `--- 이어서 보기: ${action}에 ${idLabel}="${idValue}", offset=${win.windowEnd} 전달 ---`);
+  }
+  return lines.join("\n");
+}
 
 function handleSearchCases(oc: string) {
   return async (p: CaseResearchParams): Promise<SkillResult> => {
@@ -119,7 +140,7 @@ function handleGetCaseDetail(oc: string) {
       if ((showAll || sections.includes("reference_cases")) && d.referenceCases)
         parts.push("", "### 참조판례", "", d.referenceCases);
       if ((showAll || sections.includes("content")) && d.content)
-        parts.push("", "### 판례내용", "", truncate(d.content));
+        parts.push("", "### 판례내용", "", bodyWindow(d.content, p.offset, "get_case_detail", "case_id", p.case_id!));
 
       return { content: [{ type: "text", text: parts.join("\n") }] };
     } catch (error) {
@@ -182,7 +203,7 @@ function handleGetConstitutionalDetail(oc: string) {
       if ((showAll || sections.includes("decision_summary")) && d.decisionSummary)
         parts.push("", "### 결정요지", "", d.decisionSummary);
       if ((showAll || sections.includes("full_text")) && d.fullText)
-        parts.push("", "### 전문", "", truncate(d.fullText));
+        parts.push("", "### 전문", "", bodyWindow(d.fullText, p.offset, "get_constitutional_detail", "detc_id", p.detc_id!));
       if ((showAll || sections.includes("reference_laws")) && d.referenceLaws)
         parts.push("", "### 참조조문", "", d.referenceLaws);
       if ((showAll || sections.includes("reference_cases")) && d.referenceCases)
@@ -245,7 +266,7 @@ function handleGetInterpretationDetail(oc: string) {
 
       if (d.inquirySummary) parts.push("", "### 질의요지", "", d.inquirySummary);
       if (d.reply) parts.push("", "### 회답", "", d.reply);
-      if (d.reason) parts.push("", "### 이유", "", truncate(d.reason));
+      if (d.reason) parts.push("", "### 이유", "", bodyWindow(d.reason, p.offset, "get_interpretation_detail", "expc_id", p.expc_id!));
 
       return { content: [{ type: "text", text: parts.join("\n") }] };
     } catch (error) {
@@ -312,7 +333,7 @@ function handleGetCommitteeDecisionDetail(oc: string) {
 
       if (d.summary) parts.push("", "### 요지/개요", "", d.summary);
       if (d.ruling) parts.push("", "### 주문/조치내용", "", d.ruling);
-      if (d.reason) parts.push("", "### 이유", "", truncate(d.reason));
+      if (d.reason) parts.push("", "### 이유", "", bodyWindow(d.reason, p.offset, "get_committee_decision_detail", "decision_id", p.decision_id!));
 
       return { content: [{ type: "text", text: parts.join("\n") }] };
     } catch (error) {
@@ -374,7 +395,7 @@ function handleGetAdminAppealDetail(oc: string) {
       if (d.summary) parts.push("", "### 재결요지", "", d.summary);
       if (d.claim) parts.push("", "### 청구취지", "", d.claim);
       if (d.ruling) parts.push("", "### 주문", "", d.ruling);
-      if (d.reason) parts.push("", "### 이유", "", truncate(d.reason));
+      if (d.reason) parts.push("", "### 이유", "", bodyWindow(d.reason, p.offset, "get_admin_appeal_detail", "decc_id", p.decc_id!));
 
       return { content: [{ type: "text", text: parts.join("\n") }] };
     } catch (error) {
@@ -413,8 +434,8 @@ export function registerCaseResearch(server: McpServer, lawApiOc: string): void 
       page: z.number().optional().describe("페이지 번호"),
       display: z.number().optional().describe("페이지당 결과 수"),
       search_type: z.enum(["case_name", "full_text"]).optional().describe("검색 범위 (search_cases에서 사용)"),
-      date_from: z.string().optional().describe("검색 시작일 YYYYMMDD (search_cases에서 사용)"),
-      date_to: z.string().optional().describe("검색 종료일 YYYYMMDD (search_cases에서 사용)"),
+      date_from: z.string().optional().describe("검색 시작일 YYYYMMDD (search_cases에서 사용). 한쪽만 줘도 되며 빠진 쪽은 자동 보정"),
+      date_to: z.string().optional().describe("검색 종료일 YYYYMMDD (search_cases에서 사용). 한쪽만 줘도 되며 빠진 쪽은 자동 보정"),
       court: z.enum(["supreme", "lower", "all"]).optional().describe("법원 유형 (search_cases에서 사용)"),
       case_id: z.number().optional().describe("판례 일련번호 (get_case_detail에서 사용)"),
       detc_id: z.number().optional().describe("헌재결정례 일련번호 (get_constitutional_detail에서 사용)"),
@@ -423,6 +444,7 @@ export function registerCaseResearch(server: McpServer, lawApiOc: string): void 
       committee: z.enum(COMMITTEE_VALUES).optional().describe("위원회 코드 (search_committee_decisions, get_committee_decision_detail에서 사용)"),
       decision_id: z.number().optional().describe("결정문 일련번호 (get_committee_decision_detail에서 사용)"),
       sections: z.array(z.string()).optional().describe("조회할 섹션 (get_case_detail, get_constitutional_detail에서 사용)"),
+      offset: z.number().optional().describe("본문(판례내용·전문·이유) 윈도우 시작 위치 (기본 0). 8000자씩 반환하며 잘리면 응답 끝의 offset 안내값을 전달해 이어 읽는다. get_case_detail / get_constitutional_detail / get_interpretation_detail / get_committee_decision_detail / get_admin_appeal_detail에서 사용"),
     },
     callback: async (params) => handler(params as CaseResearchParams),
   });
