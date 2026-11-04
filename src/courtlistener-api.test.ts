@@ -25,6 +25,23 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("createCourtListenerClient — 검색 결과 ID", () => {
+  it("v4 응답은 hit.id 가 없으므로 opinions[0].id 를 opinion ID 로 쓴다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          count: 1,
+          results: [{ cluster_id: 2245941, caseName: "A v. B", opinions: [{ id: 2245942 }] }],
+        }),
+      ),
+    );
+    const r = await createCourtListenerClient().searchOpinions({ query: "x" });
+    expect(r.items[0].id).toBe(2245942);
+    expect(r.items[0].clusterId).toBe(2245941);
+  });
+});
+
 describe("createCourtListenerClient — 검색", () => {
   it("올바른 검색 URL 호출 (q + type=o)", async () => {
     const fetchMock = vi

@@ -352,7 +352,7 @@ export function registerLawAmendment(
     description: "Law Amendment Comparison — old-vs-new text comparison, law hierarchy chart, three-column comparison, revision history, and administrative rule amendments. / 법령 개정 비교 — 신구법비교, 법령 체계도, 3단비교, 변경이력, 행정규칙 신구법비교를 검색/조회하는 통합 도구",
     inputSchema: {
       action: z.enum(ACTIONS).describe(
-        "search_old_new_law=신구법비교검색 | get_old_new_law_detail=신구법비교상세(law_id필수) | search_law_system=법령체계도검색 | get_law_system_detail=법령체계도상세(law_id필수) | search_three_way_comp=3단비교검색 | get_three_way_comp_detail=3단비교상세(law_id필수) | search_law_change_history=법령변경이력(law_id필수) | search_admin_rule_old_new=행정규칙신구법비교검색 | get_admin_rule_old_new_detail=행정규칙신구법비교상세(oldnew_id필수)",
+        "search_old_new_law=신구법비교검색 | get_old_new_law_detail=신구법비교상세(oldnew_id필수) | search_law_system=법령체계도검색 | get_law_system_detail=법령체계도상세(law_id필수) | search_three_way_comp=3단비교검색 | get_three_way_comp_detail=3단비교상세(law_id필수) | search_law_change_history=법령변경이력(date필수 YYYYMMDD) | search_admin_rule_old_new=행정규칙신구법비교검색 | get_admin_rule_old_new_detail=행정규칙신구법비교상세(oldnew_id필수)",
       ),
       query: z.string().optional().describe("검색어 (search 계열 action에서 사용)"),
       page: z.number().optional().describe("페이지 번호"),

@@ -28,6 +28,13 @@ import {
 } from "./helpers.js";
 import { toKSTDate, formatYYYYMMDD } from "../kst-date.js";
 
+/** 중첩 요소(예: 공정위 피심정보)를 값만 줄바꿈으로 편다. str()은 "[object Object]"가 된다. */
+function flattenText(v: unknown): string {
+  if (Array.isArray(v)) return v.map(flattenText).filter(Boolean).join("\n");
+  if (v && typeof v === "object") return Object.values(v).map(flattenText).filter(Boolean).join("\n");
+  return str(v);
+}
+
 // =========================================================
 // 판례 (prec)
 // =========================================================
@@ -65,6 +72,7 @@ export async function searchCases(
       caseType: str(raw.사건종류명),
       verdictType: str(raw.판결유형),
       verdict: str(raw.선고),
+      dataSource: str(raw.데이터출처명),
       detailLink: str(raw.판례상세링크),
     })),
   };
@@ -78,7 +86,7 @@ export async function getCaseDetail(
   const data = await fetchXml(url);
 
   const root = data.PrecService as Record<string, unknown> | undefined;
-  if (!root) throw new Error("판례를 찾을 수 없습니다");
+  if (!root) throw new Error("판례를 찾을 수 없습니다 (데이터 출처가 국세법령정보시스템인 판례는 법제처 API가 상세를 제공하지 않습니다)");
 
   return {
     id: num(root.판례정보일련번호 || root.판례일련번호),
@@ -293,7 +301,7 @@ export async function getCommitteeDecisionDetail(
   };
 
   for (const field of extraFields[committee] || []) {
-    const val = str(root[field]);
+    const val = flattenText(root[field]);
     if (val) extras[field] = stripHtmlTags(val);
   }
 

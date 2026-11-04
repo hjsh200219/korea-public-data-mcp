@@ -84,6 +84,8 @@ export interface CaseListItem {
   caseType: string;
   verdictType: string;
   verdict: string;
+  /** 데이터출처명. 국세법령정보시스템 출처는 법제처 상세 조회가 되지 않는다 */
+  dataSource?: string;
   detailLink: string;
 }
 

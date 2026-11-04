@@ -97,6 +97,18 @@ export async function getAdminRuleDetail(
   };
 }
 
+/**
+ * 자치법규 조문번호는 6자리(앞 4자리 조·뒤 2자리 가지)이고 XML 파서가 숫자로 읽어 앞 0이 사라진다.
+ * 000100 → "1", 000302 → "3의2", 000000(장·절 제목) → "".
+ */
+function parseOrdinanceArticleNumber(raw: unknown): string {
+  const digits = str(raw).padStart(6, "0");
+  const article = parseInt(digits.slice(0, 4), 10);
+  const branch = parseInt(digits.slice(4, 6), 10);
+  if (!article) return "";
+  return branch ? `${article}의${branch}` : String(article);
+}
+
 // =========================================================
 // 자치법규 (ordin) — 상세
 // =========================================================
@@ -125,7 +137,7 @@ export async function getOrdinanceDetail(
     promulgationDate: str(basic["공포일자"]),
     enforcementDate: str(basic["시행일자"]),
     articles: rawArticles.map((a) => ({
-      articleNumber: str(a["조문번호"]),
+      articleNumber: parseOrdinanceArticleNumber(a["조문번호"]),
       articleTitle: str(a["조제목"]),
       articleContent: stripHtmlTags(str(a["조내용"])),
     })),

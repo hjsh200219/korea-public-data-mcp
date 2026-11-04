@@ -253,8 +253,14 @@ function handleGetOrdinanceDetail(oc: string) {
       if (d.articles.length > 0) {
         parts.push("", "### 조문");
         for (const a of d.articles) {
+          // 장·절 제목은 번호가 없어 본문만 보인다. 가지조문은 "3의2" → 제3조의2
+          if (!a.articleNumber) {
+            parts.push("", a.articleContent);
+            continue;
+          }
           const title = a.articleTitle ? ` (${a.articleTitle})` : "";
-          parts.push("", `**제${a.articleNumber}조${title}**`, "", a.articleContent);
+          const [article, branch] = a.articleNumber.split("의");
+          parts.push("", `**제${article}조${branch ? `의${branch}` : ""}${title}**`, "", a.articleContent);
         }
       }
 

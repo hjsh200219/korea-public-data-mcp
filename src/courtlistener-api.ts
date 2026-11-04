@@ -35,6 +35,8 @@ interface ClientOptions {
 
 interface CourtListenerSearchHit {
   id?: number;
+  /** v4 검색 응답은 opinion ID 를 hit.id 가 아니라 여기에 담는다 */
+  opinions?: { id?: number }[];
   cluster_id?: number;
   caseName?: string;
   case_name?: string;
@@ -156,7 +158,7 @@ function toOpinionListItem(hit: CourtListenerSearchHit): OpinionListItem {
   const courtSlug = hit.court_id ?? "";
   const courtName = hit.court ?? courtSlug;
   return {
-    id: hit.id ?? 0,
+    id: hit.id ?? hit.opinions?.[0]?.id ?? 0,
     clusterId: hit.cluster_id ?? 0,
     caseName: hit.caseName ?? hit.case_name ?? "",
     citation: pickFirstCitation(hit.citation ?? null),

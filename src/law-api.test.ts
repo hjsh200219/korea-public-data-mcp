@@ -936,7 +936,7 @@ describe("getOrdinanceDetail", () => {
         </자치법규기본정보>
         <조문>
           <조>
-            <조문번호>1</조문번호>
+            <조문번호>000100</조문번호>
             <조제목>제목</조제목>
             <조내용>조내용텍스트</조내용>
           </조>
@@ -947,6 +947,24 @@ describe("getOrdinanceDetail", () => {
     expect(r.ordinanceId).toBe("O1");
     expect(r.articles).toHaveLength(1);
     expect(r.articles[0].articleContent).toBe("조내용텍스트");
+  });
+});
+
+describe("getOrdinanceDetail 조문번호", () => {
+  it("6자리_조문번호를_조·가지번호로_풀고_장제목은_번호를_비운다", async () => {
+    mockFetchXml(`
+      <LawService>
+        <자치법규기본정보><자치법규ID>O1</자치법규ID></자치법규기본정보>
+        <조문>
+          <조><조문번호>000000</조문번호><조문여부>N</조문여부><조내용>제1장 총칙</조내용></조>
+          <조><조문번호>000100</조문번호><조문여부>Y</조문여부><조제목>목적</조제목><조내용>제1조(목적)</조내용></조>
+          <조><조문번호>000302</조문번호><조문여부>Y</조문여부><조제목>감면</조제목><조내용>제3조의2(감면)</조내용></조>
+          <조><조문번호>012000</조문번호><조문여부>Y</조문여부><조제목>끝</조제목><조내용>제120조(끝)</조내용></조>
+        </조문>
+      </LawService>
+    `);
+    const r = await getOrdinanceDetail(OC, 600001);
+    expect(r.articles.map((a) => a.articleNumber)).toEqual(["", "1", "3의2", "120"]);
   });
 });
 
@@ -1113,6 +1131,32 @@ describe("getCommitteeDecisionDetail", () => {
     expect(r.id).toBe(800001);
     expect(r.ruling).toBe("인용");
     expect((r.extras as any).피심정보).toBe("피심");
+  });
+});
+
+describe("getCommitteeDecisionDetail 중첩 필드", () => {
+  it("피심정보가_중첩요소면_object_Object_대신_글자로_편다", async () => {
+    mockFetchXml(`
+      <FtcService>
+        <사건명>상세사건</사건명>
+        <피심정보><피심정보명>이의신청인</피심정보명><피심정보내용>현대오일뱅크</피심정보내용></피심정보>
+      </FtcService>
+    `);
+    const r = await getCommitteeDecisionDetail(OC, "ftc", 800001);
+    expect((r.extras as any).피심정보).toBe("이의신청인\n현대오일뱅크");
+  });
+});
+
+describe("searchCases 데이터 출처", () => {
+  it("데이터출처명을_목록에_담는다", async () => {
+    mockFetchXml(`
+      <PrecSearch>
+        <totalCnt>1</totalCnt><page>1</page>
+        <prec><판례일련번호>624585</판례일련번호><사건명>세금</사건명><데이터출처명>국세법령정보시스템</데이터출처명></prec>
+      </PrecSearch>
+    `);
+    const r = await searchCases(OC, { query: "세금" });
+    expect(r.items[0].dataSource).toBe("국세법령정보시스템");
   });
 });
 
