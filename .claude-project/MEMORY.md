@@ -41,3 +41,4 @@
 - [yt-dlp-stderr-429-false-positive](memory/yt-dlp-stderr-429-false-positive.md) — ⛔ execFile 에러 앞머리=명령 에코 · 분류·로깅 모두 에코 제거 후
 - [yt-dlp-version-pin-and-nightly-canary](memory/yt-dlp-version-pin-and-nightly-canary.md) — Dockerfile 2026.08.19 고정(임베드 경로 하한) · nightly canary로 정책 변경 감지
 - [product-review-registration-gate](memory/product-review-registration-gate.md) — product_review 는 YouTube 키 없이 쿠팡 키만으로도 등록(로컬 kpd 는 YouTube 키 안 넘김, 10-09)
+- [law-ordinance-article-number-6digit](memory/law-ordinance-article-number-6digit.md) — 자치법규 조문번호 6자리·앞 0 소실 · 국세 출처 판례 상세 없음 · CourtListener v4 ID 는 opinions[0].id
