@@ -27,7 +27,7 @@ summary: 법제처·미국 판례 표시 결함 5건 수정(00d6f38) — 자치�
 
 ## Watch Out
 
-- 공정위 피심정보 펴기와 가지조문(`3의2`)·장 제목 빈 번호는 단위 테스트로만 확인했다. 라이브 표본 자치법규 3건에는 가지조문·장 제목이 없었다
+- 자치법규 조문번호는 XML 파서가 앞 0을 지우므로 `padStart(6)` 뒤에 나눈다. 운영 표본 자치법규 30건(가지조문 160·장 제목 98·이상값 0)과 공정위 상세 4건(`[object Object]` 없음)으로 확인했다
 - OpenLegalData 검색 결과엔 사건번호·ECLI 가 없다 — 상세(`get_de_case_detail`)에서만 나온다
 - OpenLegalData 는 모르는 파라미터를 조용히 무시한다(`date_after` 등) — 바꿀 땐 count 변화를 라이브로 잴 것(memory `openlegaldata-search-endpoint`)
 - REST `/api/openlegaldata/search` 의 외부 파라미터 이름 `date_after`/`date_before` 는 호환상 유지, 내부에서 `start_date`/`end_date` 로 보낸다
