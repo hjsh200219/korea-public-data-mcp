@@ -108,7 +108,15 @@ describe("legal_research 스킬", () => {
     const result = await handler({ action: "get_attached_form", law_id: 288723, form_number: "0001" });
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toContain("별표 본문 한 줄");
-    expect(getAttachedForm).toHaveBeenCalledWith(MOCK_OC, 288723, "0001", "00");
+    expect(getAttachedForm).toHaveBeenCalledWith(MOCK_OC, 288723, "0001", "00", "별표");
+  });
+
+  it("get_attached_form_form_type으로_서식조회", async () => {
+    vi.mocked(getAttachedForm).mockResolvedValue(null);
+
+    const result = await handler({ action: "get_attached_form", law_id: 287729, form_number: "4", form_type: "form" });
+    expect(getAttachedForm).toHaveBeenCalledWith(MOCK_OC, 287729, "4", "00", "서식");
+    expect(result.content[0].text).toContain("서식 4");
   });
 
   it("get_attached_form_law_id또는form_number누락_에러", async () => {

@@ -30,6 +30,7 @@ import {
   searchThreeWayComp,
   getThreeWayCompDetail,
   searchAttachedForms,
+  getAttachedForm,
   searchLawAbbreviations,
   searchLawChangeHistory,
   getLawArticleSub,
@@ -318,6 +319,52 @@ describe("getLawDetail", () => {
     expect(calledUrl).toContain("MST=12345");
     expect(calledUrl).toContain("target=law");
     expect(calledUrl).toContain("lawService.do");
+  });
+});
+
+// =========================================================
+// getAttachedForm (별표 본문)
+// =========================================================
+
+describe("getAttachedForm", () => {
+  // 법제처 응답 형상(2026-11-15 MST 287729 실측): 번호는 "0004"·"02" 처럼 0 을 채워 오고,
+  // 같은 번호를 별표와 서식이 함께 쓴다. XML 파서는 이 값을 숫자로 바꾼다.
+  const unit = (no: string, branch: string, kind: string, title: string) =>
+    `<별표단위 별표키="${no}${branch}"><별표번호>${no}</별표번호><별표가지번호>${branch}</별표가지번호>` +
+    `<별표구분>${kind}</별표구분><별표제목>${title}</별표제목>` +
+    `<별표서식파일링크>/f/${kind}${no}</별표서식파일링크><별표내용>${title} 본문</별표내용></별표단위>`;
+  const xml =
+    "<법령><기본정보><법령ID>1</법령ID></기본정보><별표>" +
+    unit("0004", "00", "별표", "수수료의 기준") +
+    unit("0004", "02", "별표", "신약 수수료의 기준") +
+    unit("0004", "00", "서식", "신청서") +
+    "</별표></법령>";
+
+  it("getAttachedForm_0채운번호_숫자로파싱돼도_찾음", async () => {
+    mockFetchXml(xml);
+    const f = await getAttachedForm(OC, 287729, "4");
+    expect(f?.title).toBe("수수료의 기준");
+    expect(f?.formNumber).toBe("0004");
+    expect(f?.branch).toBe("00");
+  });
+
+  it("getAttachedForm_가지번호_구분해찾음", async () => {
+    mockFetchXml(xml);
+    const f = await getAttachedForm(OC, 287729, "0004", "2");
+    expect(f?.title).toBe("신약 수수료의 기준");
+    expect(f?.branch).toBe("02");
+  });
+
+  it("getAttachedForm_같은번호서식_종류로구분", async () => {
+    mockFetchXml(xml);
+    const f = await getAttachedForm(OC, 287729, "4", "00", "서식");
+    expect(f?.title).toBe("신청서");
+    expect(f?.content).toBe("신청서 본문");
+  });
+
+  it("getAttachedForm_없는번호_null", async () => {
+    mockFetchXml(xml);
+    expect(await getAttachedForm(OC, 287729, "9")).toBeNull();
   });
 });
 

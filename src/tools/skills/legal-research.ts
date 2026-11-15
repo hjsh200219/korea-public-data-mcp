@@ -489,6 +489,8 @@ function handleSearchAttachedForms(oc: string) {
   };
 }
 
+const ATTACHED_FORM_KIND: Record<string, string> = { table: "별표", form: "서식", annex: "별지" };
+
 function handleGetAttachedForm(oc: string) {
   return async (p: LegalParams): Promise<SkillResult> => {
     if (p.law_id === undefined) {
@@ -498,12 +500,14 @@ function handleGetAttachedForm(oc: string) {
     if (!formNumber) {
       return { content: [{ type: "text", text: "get_attached_form 에는 form_number 가 필요합니다" }], isError: true };
     }
+    // 법령 본문의 별표단위는 같은 번호를 별표·서식·별지가 함께 쓴다 — form_type 으로 고르고 기본은 별표
+    const kind = ATTACHED_FORM_KIND[p.form_type ?? ""] ?? "별표";
     try {
-      const f = await getAttachedForm(oc, p.law_id, formNumber, p.form_branch ?? "00");
+      const f = await getAttachedForm(oc, p.law_id, formNumber, p.form_branch ?? "00", kind);
       if (!f) {
-        return { content: [{ type: "text", text: `법령 ${p.law_id} 에 별표 ${formNumber} 가 없습니다.` }] };
+        return { content: [{ type: "text", text: `법령 ${p.law_id} 에 ${kind} ${formNumber} 가 없습니다.` }] };
       }
-      const text = `## 별표 ${f.formNumber}-${f.branch}\n\n제목: ${f.title}\n파일: ${f.fileLink}\n\n${f.content}`;
+      const text = `## ${kind} ${f.formNumber}-${f.branch}\n\n제목: ${f.title}\n파일: ${f.fileLink}\n\n${f.content}`;
       return { content: [{ type: "text", text: truncate(text) }] };
     } catch (error) {
       return errorResponse("별표 본문 조회", error);
@@ -696,7 +700,7 @@ export function registerLegalResearch(
       treaty_id: z.number().optional().describe("조약 일련번호 (get_treaty_detail에서 사용)"),
       term_id: z.string().optional().describe("법령용어 ID (get_legal_term_detail에서 사용)"),
       form_type: z.enum(["all", "table", "form", "annex", "other", "unclassified"]).optional()
-        .describe("별표서식 종류 (search_attached_forms에서 사용)"),
+        .describe("별표서식 종류 (search_attached_forms에서 사용 · get_attached_form에서는 table=별표(기본)·form=서식·annex=별지)"),
       article: z.string().optional().describe("조번호 6자리 (get_law_article_sub에서 사용, 예: '000100'은 제1조, '027600'은 제276조)"),
       paragraph: z.string().optional().describe("항번호 6자리 (get_law_article_sub에서 사용)"),
       clause: z.string().optional().describe("호번호 6자리 (get_law_article_sub에서 사용)"),

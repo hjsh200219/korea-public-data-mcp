@@ -363,12 +363,17 @@ interface AttachedFormDetail {
   fileLink: string;
 }
 
-/** 법령 MST 의 별표단위에서 별표번호·가지번호가 맞는 항목의 본문을 돌려준다. 없으면 null. */
+/**
+ * 법령 MST 의 별표단위에서 종류(별표·서식·별지)·별표번호·가지번호가 맞는 항목의 본문을 돌려준다. 없으면 null.
+ * 번호는 숫자로 비교한다 — 법제처는 "0004"·"02" 처럼 0 을 채워 주지만 XML 파서가 4·2 로 바꾼다.
+ * 같은 번호를 별표와 서식이 함께 쓰므로(MST 287729 별표 4 와 서식 4) 종류도 맞춰야 한다.
+ */
 export async function getAttachedForm(
   oc: string,
   lawId: number,
   formNumber: string,
-  branch = "00"
+  branch = "00",
+  kind = "별표"
 ): Promise<AttachedFormDetail | null> {
   const url = buildDetailUrl(oc, "law", "MST", lawId);
   const data = await fetchXml(url);
@@ -379,7 +384,10 @@ export async function getAttachedForm(
   const want = formNumber.padStart(4, "0");
   const wantBranch = branch.padStart(2, "0");
   const hit = units.find(
-    (u) => str(u["별표번호"]) === want && str(u["별표가지번호"]) === wantBranch
+    (u) =>
+      Number(str(u["별표번호"])) === Number(formNumber) &&
+      Number(str(u["별표가지번호"])) === Number(branch) &&
+      str(u["별표구분"]) === kind
   );
   if (!hit) return null;
   return {
