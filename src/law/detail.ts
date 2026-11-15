@@ -355,7 +355,7 @@ export async function getLawArticleSub(
 // 별표 본문 (licbyl 검색 결과 → 법령 상세의 별표단위)
 // =========================================================
 
-export interface AttachedFormDetail {
+interface AttachedFormDetail {
   formNumber: string;
   branch: string;
   title: string;
