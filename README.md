@@ -417,6 +417,7 @@
 - **get_committee_decision_detail**: `committee` (필수), `decision_id`
 - **get_three_way_comp_detail**: `comparison_type` (citation/delegation)
 - **search_attached_forms**: `form_type` (all/table/form/annex/other/unclassified)
+- **get_attached_form**: `law_id`(법령 일련번호) + `form_number`(별표번호, 예 `0001`) + `form_branch`(가지번호, 기본 `00`) — 별표 본문(별표내용) 조회
 - **search_law_change_history**: `date` (YYYYMMDD, 필수)
 - **get_law_article_sub**: `law_id`, `article` (필수), `paragraph`, `clause`, `subclause` (선택)
 

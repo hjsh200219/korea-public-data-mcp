@@ -16,7 +16,7 @@ import {
   searchTreaties, getTreatyDetail,
   searchLegalTerms, getLegalTermDetail,
   searchEnglishLaws, getEnglishLawDetail,
-  searchAttachedForms, searchLawAbbreviations,
+  searchAttachedForms, getAttachedForm, searchLawAbbreviations,
   getLawArticleSub, searchAILegalTerms, searchLinkedOrdinances,
 } from "../../law-api.js";
 import { errorResponse, truncate } from "../../shared.js";
@@ -36,6 +36,7 @@ const ACTIONS = [
   "search_english_laws",
   "get_english_law_detail",
   "search_attached_forms",
+  "get_attached_form",
   "search_law_abbreviations",
   "get_law_article_sub",
   "search_ai_legal_terms",
@@ -54,6 +55,8 @@ type LegalParams = {
   treaty_id?: number;
   term_id?: string;
   form_type?: string;
+  form_number?: string;
+  form_branch?: string;
   article?: string;
   paragraph?: string;
   clause?: string;
@@ -486,6 +489,28 @@ function handleSearchAttachedForms(oc: string) {
   };
 }
 
+function handleGetAttachedForm(oc: string) {
+  return async (p: LegalParams): Promise<SkillResult> => {
+    if (p.law_id === undefined) {
+      return { content: [{ type: "text", text: "get_attached_form 에는 law_id 가 필요합니다" }], isError: true };
+    }
+    const formNumber = p.form_number;
+    if (!formNumber) {
+      return { content: [{ type: "text", text: "get_attached_form 에는 form_number 가 필요합니다" }], isError: true };
+    }
+    try {
+      const f = await getAttachedForm(oc, p.law_id, formNumber, p.form_branch ?? "00");
+      if (!f) {
+        return { content: [{ type: "text", text: `법령 ${p.law_id} 에 별표 ${formNumber} 가 없습니다.` }] };
+      }
+      const text = `## 별표 ${f.formNumber}-${f.branch}\n\n제목: ${f.title}\n파일: ${f.fileLink}\n\n${f.content}`;
+      return { content: [{ type: "text", text: truncate(text) }] };
+    } catch (error) {
+      return errorResponse("별표 본문 조회", error);
+    }
+  };
+}
+
 function handleSearchLawAbbreviations(oc: string) {
   return async (p: LegalParams): Promise<SkillResult> => {
     try {
@@ -636,6 +661,7 @@ export function createLegalResearchHandler(lawApiOc: string) {
     search_english_laws: handleSearchEnglishLaws(lawApiOc),
     get_english_law_detail: handleGetEnglishLawDetail(lawApiOc),
     search_attached_forms: handleSearchAttachedForms(lawApiOc),
+    get_attached_form: handleGetAttachedForm(lawApiOc),
     search_law_abbreviations: handleSearchLawAbbreviations(lawApiOc),
     get_law_article_sub: handleGetLawArticleSub(lawApiOc),
     search_ai_legal_terms: handleSearchAILegalTerms(lawApiOc),
@@ -662,7 +688,9 @@ export function registerLegalResearch(
       display: z.number().optional().describe("페이지당 결과 수 (검색 action에서 사용)"),
       search_type: z.enum(["law_name", "full_text", "ordinance_name", "case_name"]).optional()
         .describe("검색 범위 (search_laws, search_ordinances에서 사용)"),
-      law_id: z.number().optional().describe("법령/영문법령 일련번호 (get_law_detail, get_english_law_detail, get_law_article_sub에서 사용)"),
+      law_id: z.number().optional().describe("법령/영문법령 일련번호 (get_law_detail, get_english_law_detail, get_law_article_sub, get_attached_form에서 사용)"),
+      form_number: z.string().optional().describe("별표번호 (get_attached_form에서 사용, 예: '0001' 또는 '1')"),
+      form_branch: z.string().optional().describe("별표가지번호 (get_attached_form에서 사용, 기본 '00')"),
       admrul_id: z.number().optional().describe("행정규칙 일련번호 (get_admin_rule_detail에서 사용)"),
       ordin_id: z.number().optional().describe("자치법규 일련번호 (get_ordinance_detail에서 사용)"),
       treaty_id: z.number().optional().describe("조약 일련번호 (get_treaty_detail에서 사용)"),

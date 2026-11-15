@@ -350,3 +350,43 @@ export async function getLawArticleSub(
     articleContent,
   };
 }
+
+// =========================================================
+// 별표 본문 (licbyl 검색 결과 → 법령 상세의 별표단위)
+// =========================================================
+
+export interface AttachedFormDetail {
+  formNumber: string;
+  branch: string;
+  title: string;
+  content: string;
+  fileLink: string;
+}
+
+/** 법령 MST 의 별표단위에서 별표번호·가지번호가 맞는 항목의 본문을 돌려준다. 없으면 null. */
+export async function getAttachedForm(
+  oc: string,
+  lawId: number,
+  formNumber: string,
+  branch = "00"
+): Promise<AttachedFormDetail | null> {
+  const url = buildDetailUrl(oc, "law", "MST", lawId);
+  const data = await fetchXml(url);
+  const root = data["법령"] as Record<string, unknown> | undefined;
+  if (!root) throw new Error("법령을 찾을 수 없습니다");
+  const annex = root["별표"] as Record<string, unknown> | undefined;
+  const units = ensureArray(annex?.["별표단위"] as Record<string, unknown>[]);
+  const want = formNumber.padStart(4, "0");
+  const wantBranch = branch.padStart(2, "0");
+  const hit = units.find(
+    (u) => str(u["별표번호"]) === want && str(u["별표가지번호"]) === wantBranch
+  );
+  if (!hit) return null;
+  return {
+    formNumber: want,
+    branch: wantBranch,
+    title: str(hit["별표제목"]),
+    content: stripHtmlTags(str(hit["별표내용"])),
+    fileLink: str(hit["별표서식파일링크"]),
+  };
+}

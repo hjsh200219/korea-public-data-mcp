@@ -14,6 +14,7 @@ vi.mock("../../law-api.js", () => ({
   searchEnglishLaws: vi.fn(),
   getEnglishLawDetail: vi.fn(),
   searchAttachedForms: vi.fn(),
+  getAttachedForm: vi.fn(),
   searchLawAbbreviations: vi.fn(),
   getLawArticleSub: vi.fn(),
   searchAILegalTerms: vi.fn(),
@@ -34,6 +35,7 @@ import {
   searchEnglishLaws,
   getEnglishLawDetail,
   searchAttachedForms,
+  getAttachedForm,
   searchLawAbbreviations,
   getLawArticleSub,
   searchAILegalTerms,
@@ -90,6 +92,31 @@ describe("legal_research 스킬", () => {
     const result = await handler({ action: "search_laws" } as any);
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("query");
+  });
+
+  // -- get_attached_form --
+
+  it("get_attached_form_유효한별표_본문반환", async () => {
+    vi.mocked(getAttachedForm).mockResolvedValue({
+      formNumber: "0001",
+      branch: "00",
+      title: "별표 1 시험",
+      content: "별표 본문 한 줄",
+      fileLink: "/LSW/flDownload.do?flSeq=1",
+    });
+
+    const result = await handler({ action: "get_attached_form", law_id: 288723, form_number: "0001" });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toContain("별표 본문 한 줄");
+    expect(getAttachedForm).toHaveBeenCalledWith(MOCK_OC, 288723, "0001", "00");
+  });
+
+  it("get_attached_form_law_id또는form_number누락_에러", async () => {
+    const a = await handler({ action: "get_attached_form", form_number: "0001" } as any);
+    expect(a.isError).toBe(true);
+    const b = await handler({ action: "get_attached_form", law_id: 1 } as any);
+    expect(b.isError).toBe(true);
+    expect(getAttachedForm).not.toHaveBeenCalled();
   });
 
   // -- get_law_detail --

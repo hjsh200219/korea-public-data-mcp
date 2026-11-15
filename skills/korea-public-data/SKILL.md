@@ -34,7 +34,7 @@ description: 대한민국 공공데이터 MCP 도구 19종의 라우팅 가이�
 ## 2단계: action 선택
 
 ### 법령 — `legal_research`
-검색: `search_laws`(법률·시행령) `search_admin_rules`(행정규칙) `search_ordinances`(자치법규) `search_treaties`(조약) `search_legal_terms` `search_english_laws` `search_attached_forms`(별표·서식) `search_law_abbreviations` `search_ai_legal_terms` `search_linked_ordinances`
+검색: `search_laws`(법률·시행령) `search_admin_rules`(행정규칙) `search_ordinances`(자치법규) `search_treaties`(조약) `search_legal_terms` `search_english_laws` `search_attached_forms`(별표·서식) `get_attached_form`(별표 본문: law_id·form_number) `search_law_abbreviations` `search_ai_legal_terms` `search_linked_ordinances`
 상세: `get_law_detail` `get_admin_rule_detail` `get_ordinance_detail` `get_treaty_detail` `get_legal_term_detail` `get_english_law_detail` `get_law_article_sub`
 
 > 조문이 많은 법령은 응답이 8000자에서 잘린다. `get_law_detail`에 `article_start`/`article_end`를 주어 범위로 나눠 조회할 것.
