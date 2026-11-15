@@ -471,11 +471,7 @@ function handleSearchAttachedForms(oc: string) {
         return { content: [{ type: "text", text: `"${p.query}" 별표서식 검색 결과가 없습니다.` }] };
       }
 
-      const listText = result.items
-        .map((f, i) =>
-          `${i + 1}. [${f.id}] ${f.formName}\n   관련법령: ${f.relatedLawName} | 종류: ${f.formType} | 공포: ${f.promulgationDate}`
-        )
-        .join("\n\n");
+      const listText = result.items.map((f, i) => formatAttachedFormItem(f, i)).join("\n\n");
 
       return {
         content: [{
@@ -490,6 +486,26 @@ function handleSearchAttachedForms(oc: string) {
 }
 
 const ATTACHED_FORM_KIND: Record<string, string> = { table: "별표", form: "서식", annex: "별지" };
+const ATTACHED_FORM_TYPE: Record<string, string> = { 별표: "table", 서식: "form", 별지: "annex" };
+
+/**
+ * 별표 검색 한 줄 — get_attached_form 에 그대로 넘길 law_id·번호를 함께 보인다.
+ * licbyl 의 별표번호는 본번호×100+가지번호다(2026-11-15 실측: 402 = 별표 4의2, 3200 = 서식 32).
+ */
+function formatAttachedFormItem(
+  f: { id: number; formName: string; relatedLawId: number; relatedLawName: string; formNumber: string; formType: string; promulgationDate: string },
+  i: number
+): string {
+  const n = Number(f.formNumber);
+  const main = Math.floor(n / 100);
+  const branch = n % 100;
+  const label = `${f.formType} ${main}${branch ? `의${branch}` : ""}`;
+  const type = ATTACHED_FORM_TYPE[f.formType];
+  const call = type
+    ? `\n   본문: get_attached_form law_id=${f.relatedLawId} form_number=${main} form_branch=${branch} form_type=${type}`
+    : "";
+  return `${i + 1}. [${f.id}] ${f.formName}\n   관련법령: ${f.relatedLawName} | ${label} | 공포: ${f.promulgationDate}${call}`;
+}
 
 function handleGetAttachedForm(oc: string) {
   return async (p: LegalParams): Promise<SkillResult> => {

@@ -343,6 +343,24 @@ describe("legal_research 스킬", () => {
     expect(searchAttachedForms).toHaveBeenCalledWith(MOCK_OC, expect.objectContaining({ query: "별표" }));
   });
 
+  it("search_attached_forms_get_attached_form에넘길값_표시", async () => {
+    // licbyl 의 별표번호는 본번호×100+가지번호 (2026-11-15 실측: 402 = 별표 4의2, 3200 = 서식 32)
+    vi.mocked(searchAttachedForms).mockResolvedValue({
+      items: [
+        { id: 18247299, relatedLawId: 287729, formName: "신약 수수료의 기준", relatedLawName: "첨단바이오의약품 안전 및 지원에 관한 규칙", formNumber: "402", formType: "별표", departmentName: "식품의약품안전처", promulgationDate: "20260630", amendmentType: "일부개정", lawType: "총리령", fileLink: "", detailLink: "" },
+        { id: 2, relatedLawId: 287729, formName: "지정서", relatedLawName: "첨단바이오의약품 안전 및 지원에 관한 규칙", formNumber: "3200", formType: "서식", departmentName: "식품의약품안전처", promulgationDate: "20260630", amendmentType: "일부개정", lawType: "총리령", fileLink: "", detailLink: "" },
+      ],
+      totalCount: 2,
+      currentPage: 1,
+    });
+
+    const text = (await handler({ action: "search_attached_forms", query: "첨단바이오의약품" })).content[0].text;
+    expect(text).toContain("별표 4의2");
+    expect(text).toContain("law_id=287729 form_number=4 form_branch=2 form_type=table");
+    expect(text).toContain("서식 32");
+    expect(text).toContain("law_id=287729 form_number=32 form_branch=0 form_type=form");
+  });
+
   // -- search_law_abbreviations --
 
   it("search_law_abbreviations_query없이호출_가능", async () => {
