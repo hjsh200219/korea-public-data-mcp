@@ -66,6 +66,7 @@ npm run refresh:cookies -- --browser chrome
 
 ### 3. 검증
 - `/health/youtube` 호출하여 `status: "healthy"` + `expiresIn` 갱신 확인
+- 갱신 잡이 「No video formats found」로 실패해도 쿠키 문제가 아니다 — 프로브 영상의 n 챌린지를 그 yt-dlp 가 못 푼 것이다. 추출 인자에 `--ignore-no-formats-error` 를 넣어 형식 해석과 끊었다(`buildCookieExportArgs`, 2026-11-25 플레이어 `b485e332` · yt-dlp 2026.10.26 이하).
 
 ### 4. 장애 시 즉시 대응
 ```bash

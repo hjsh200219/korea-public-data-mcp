@@ -37,6 +37,26 @@ export function isRotatedSessionWarning(ytdlpStderr: string): boolean {
   return ytdlpStderr.includes(ROTATED_SESSION_WARNING);
 }
 
+/**
+ * 브라우저 쿠키를 Netscape 파일로 내보내는 yt-dlp 인자.
+ *
+ * 프로브 URL 실요청은 세션 생사 판별용이다 — 응답이 폐기된 세션의 인증 쿠키를 지우고
+ * 「account cookies are no longer valid」 경고를 내야 [ROTATED] 를 가를 수 있다.
+ * 영상 형식 해석은 쿠키 추출과 무관하므로 `--ignore-no-formats-error` 로 끊는다:
+ * YouTube 플레이어가 바뀌어 n 챌린지를 못 풀면 「No video formats found」 exit 1 이 나는데,
+ * 쿠키는 이미 다 뽑힌 뒤라도 갱신 잡이 통째로 실패했다(2026-11-25, yt-dlp 2026.10.26 이하).
+ */
+export function buildCookieExportArgs(sourceArg: string, outPath: string): string[] {
+  return [
+    "--cookies-from-browser", sourceArg,
+    "--cookies", outPath,
+    "--skip-download",
+    "--ignore-no-formats-error",
+    // 세션 생사 판별용 실요청. dQw4w9WgXcQ는 봇 트래픽이 몰려 상시 429라 부적합.
+    PROBE_VIDEO_URL,
+  ];
+}
+
 /** 필터링된 Netscape 쿠키에서 누락된 필수 인증 쿠키 목록 반환 (빈 배열 = 정상) */
 export function findMissingAuthCookies(filtered: string): string[] {
   const names = new Set<string>();
@@ -168,13 +188,10 @@ async function main(): Promise<void> {
   // yt-dlp로 브라우저 쿠키 export
   let ytdlpStderr = "";
   try {
-    ({ stderr: ytdlpStderr } = await execFileAsync("yt-dlp", [
-      "--cookies-from-browser", sourceArg,
-      "--cookies", RAW_COOKIE_PATH,
-      "--skip-download",
-      // 세션 생사 판별용 실요청. dQw4w9WgXcQ는 봇 트래픽이 몰려 상시 429라 부적합.
-      PROBE_VIDEO_URL,
-    ]));
+    ({ stderr: ytdlpStderr } = await execFileAsync(
+      "yt-dlp",
+      buildCookieExportArgs(sourceArg, RAW_COOKIE_PATH),
+    ));
   } catch (err) {
     console.error("yt-dlp 실행 실패:", err);
     process.exit(1);

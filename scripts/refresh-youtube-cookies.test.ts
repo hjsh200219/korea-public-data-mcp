@@ -4,6 +4,7 @@ import {
   ensureNetscapeHeader,
   findMissingAuthCookies,
   isRotatedSessionWarning,
+  buildCookieExportArgs,
 } from "./refresh-youtube-cookies.js";
 
 const NETSCAPE_HEADER = "# Netscape HTTP Cookie File\n";
@@ -172,5 +173,27 @@ describe("크기 경고 임계값 (32KB)", () => {
     const smallContent = "a".repeat(10 * 1024);
     const byteSize = Buffer.byteLength(smallContent, "utf8");
     expect(byteSize).toBeLessThan(20 * 1024);
+  });
+});
+
+describe("buildCookieExportArgs (yt-dlp 쿠키 추출 인자)", () => {
+  const args = buildCookieExportArgs("chrome:/tmp/yt_chrome_profile", "/tmp/yt_raw_cookies.txt");
+
+  it("영상 형식을 못 구해도 실패하지 않는다 — 쿠키 추출은 형식 해석과 무관", () => {
+    // 2026-11-25: 플레이어 b485e332 의 n 챌린지를 yt-dlp 2026.10.26 이하가 못 풀어
+    // 「No video formats found」 exit 1 → 쿠키는 2378개 뽑혔는데 갱신 잡이 통째로 실패했다.
+    expect(args).toContain("--ignore-no-formats-error");
+  });
+
+  it("세션 생사 판별용 실요청(프로브 URL)은 유지한다 — [ROTATED] 감지가 여기에 의존", () => {
+    expect(args[args.length - 1]).toBe("https://www.youtube.com/watch?v=jNQXAC9IVRw");
+  });
+
+  it("브라우저 소스와 출력 파일을 넘긴다", () => {
+    expect(args.slice(0, 4)).toEqual([
+      "--cookies-from-browser", "chrome:/tmp/yt_chrome_profile",
+      "--cookies", "/tmp/yt_raw_cookies.txt",
+    ]);
+    expect(args).toContain("--skip-download");
   });
 });
