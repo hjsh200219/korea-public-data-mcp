@@ -3,7 +3,7 @@ name: yt-dlp-version-pin-and-nightly-canary
 description: Dockerfile yt-dlp 버전 고정(2026.08.19 — 임베드 경로 하한) + CI nightly canary로 업스트림 변경 감지
 type: project
 created: 2026-05-03
-updated: 2026-09-16
+updated: 2026-11-27
 ---
 
 `Dockerfile`에서 yt-dlp를 특정 릴리즈로 고정:
@@ -14,7 +14,9 @@ curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp
 CI `.github/workflows/ci.yml`의 `nightly-canary` job이 매일 UTC 00:00에 `npm run canary:ytdlp` 실행 (`continue-on-error: true` — 실패해도 main CI 차단 안 함).
 `scripts/canary-ytdlp.ts`: yt-dlp 버전 확인 + 프로브 영상 자막 추출 → JSON 결과 + exit 0/1.
 
-**핀 이력**: 2026.03.17 → 2026.06.09 → **2026.08.19** (2026-09-16, 커밋 70f5a58).
+**핀 이력**: 2026.03.17 → 2026.06.09 → 2026.08.19 (2026-09-16, 커밋 70f5a58) → **2026.11.23** (2026-11-27).
+11-27 갱신 사유: 11-25 플레이어의 n 챌린지를 2026.08.19 가 못 풀어 임베드 자막이 전멸 — 재배포(IP 교체)·같은 쿠키로는 안 풀렸다.
+주의: nightly canary 는 CI 러너에 yt-dlp 를 깔지 않아 매일 `spawn yt-dlp ENOENT` 로 실패하고 `continue-on-error` 로 가려져 있었다(11-26 run 45766817538 로그). 감지 장치로 믿지 말 것.
 마지막 갱신 사유는 canary 실패가 아니라 기능 요구 — `tv_embedded`/`web_embedded` 임베드 자막 경로가
 2026.08.19 이상에서만 동작한다(2026.06.09은 자막 0건).
 

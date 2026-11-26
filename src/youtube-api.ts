@@ -270,6 +270,9 @@ const SKIP_CLIENT_WARNING_RE = /skipping client\s+"[^"]*"\s+since it does not su
 /** 봇 차단 챌린지 문구 ("Sign in to confirm you're not a bot") — 아포스트로피 변종 허용 */
 const BOT_CHALLENGE_RE = /confirm\s+you.{0,3}re\s+not\s+a\s+bot/i;
 
+/** n 챌린지 풀이·형식 해석 실패 — 대개 yt-dlp 판이 새 플레이어를 못 따라간 것(2026-11-27) */
+const N_CHALLENGE_FAILED_RE = /n challenge solving failed|requested format is not available/i;
+
 /**
  * 단일 yt-dlp 시도. 성공 시 success outcome, 실패 시 cascade 사유 outcome.
  * 즉시 종료해야 하는 에러(yt-dlp 미설치 / 자막 비활성 / 지역차단)는 throw.
@@ -286,6 +289,10 @@ async function tryYtDlpClient(
 ): Promise<TryYtDlpOutcome> {
   const ytdlpArgs = [
     "--skip-download",
+    // 영상 형식 해석은 자막과 무관하다. 플레이어가 바뀌어 n 챌린지를 못 풀면 yt-dlp 가
+    // 「Requested format is not available」 exit 1 로 자막 파일까지 안 쓴다 — 2026-11-27
+    // 서버 전면 차단의 직접 원인(핀 2026.08.19, 같은 쿠키로 이 플래그만 넣으면 json3 써짐).
+    "--ignore-no-formats-error",
     "--write-sub",
     "--write-auto-subs",
     "--sub-lang", subLangArg,
@@ -299,9 +306,11 @@ async function tryYtDlpClient(
 
   let ytdlpError: Error | null = null;
   let stdoutBody = "";
+  let stderrBody = "";
   try {
-    const { stdout } = await execFileAsync("yt-dlp", ytdlpArgs, { timeout: attemptTimeoutMs });
+    const { stdout, stderr } = await execFileAsync("yt-dlp", ytdlpArgs, { timeout: attemptTimeoutMs });
     stdoutBody = typeof stdout === "string" ? stdout : "";
+    stderrBody = typeof stderr === "string" ? stderr : "";
   } catch (e) {
     if (!(e instanceof Error)) throw e;
     const msg = e.message;
@@ -393,15 +402,25 @@ async function tryYtDlpClient(
     return cascade(TranscriptErrorCode.BOT_DETECTED, errMsg);
   }
 
-  // yt-dlp가 exit 0으로 종료했지만 자막 파일 0개 — stdout에 PO Token 경고가 있는지 확인
-  // (web 클라이언트 자동자막의 전형적인 PO Token 차단 패턴)
-  const stdoutLower = stdoutBody.toLowerCase();
-  if (stdoutLower.includes("po token") && stdoutLower.includes("no subtitles")) {
-    return cascade(TranscriptErrorCode.PO_TOKEN_REQUIRED, stdoutBody);
+  // yt-dlp가 exit 0으로 종료했지만 자막 파일 0개 — 경고는 stderr 로 나오므로 둘 다 본다.
+  // (--ignore-no-formats-error 이후 형식 해석 실패도 exit 0 + stderr 경고로만 남는다)
+  const output = `${stdoutBody}\n${stderrBody}`;
+  const outputLower = output.toLowerCase();
+  // web 클라이언트 자동자막의 전형적인 PO Token 차단 패턴. 「missing subtitles languages because a
+  // PO token was not provided」(2026-11 web 실측)도 같은 뜻 — 자막은 있는데 토큰 없이 못 받은 것.
+  // n 챌린지 경고가 함께 떠도 이쪽이 더 구체적이므로 먼저 본다.
+  if (outputLower.includes("po token")
+    && (outputLower.includes("no subtitles") || outputLower.includes("missing subtitles"))) {
+    return cascade(TranscriptErrorCode.PO_TOKEN_REQUIRED, output);
+  }
+  // n 챌린지·형식 해석 실패 — 자막 없는 영상이 아니라 서버가 못 뽑은 것. NO_SUBTITLES 로
+  // 떨어뜨리면 SERVER_TRANSCRIPT_UNAVAILABLE 신호와 감시자의 차단 판정이 사라진다.
+  if (N_CHALLENGE_FAILED_RE.test(output)) {
+    return cascade(TranscriptErrorCode.BOT_DETECTED, output);
   }
 
   // 사유 미상 — 일반적인 NO_SUBTITLES로 cascade
-  return cascade(TranscriptErrorCode.NO_SUBTITLES, stdoutBody);
+  return cascade(TranscriptErrorCode.NO_SUBTITLES, output);
 }
 
 /** cascade 사유 → 사용자 메시지 */

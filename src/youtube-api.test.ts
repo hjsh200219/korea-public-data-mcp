@@ -1136,6 +1136,98 @@ describe("TranscriptError 에러 코드 분류 (yt-dlp stderr)", () => {
     expect(attempt).toBeGreaterThanOrEqual(2); // tv → web 캐스케이드 확인
   });
 
+  it("자막 추출 인자에 --ignore-no-formats-error 포함 — n 챌린지 실패가 자막 쓰기를 막지 않게", async () => {
+    // 2026-11-27: 핀 yt-dlp 2026.08.19 가 새 플레이어 n 챌린지를 못 풀자 임베드 클라이언트가
+    // 「Requested format is not available」 exit 1 로 자막 파일을 안 썼다. 이 플래그가 있으면
+    // 같은 판·같은 쿠키로 json3 가 써진다(로컬 실측).
+    const allCalls: string[][] = [];
+    vi.mocked(execFile).mockImplementation((_cmd, args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") allCalls.push(args as string[]);
+      (cb as (err: Error | null, stdout: string, stderr: string) => void)(null, "", "");
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockResolvedValue(
+      JSON.stringify({ events: [{ tStartMs: 0, dDurationMs: 1000, segs: [{ utf8: "자막" }] }] }) as unknown as Buffer,
+    );
+
+    await getTranscript("gc297hx4F7o", "ko");
+
+    expect(allCalls[0]).toContain("--ignore-no-formats-error");
+  });
+
+  it("exit 0·파일 0개에 stderr 의 n 챌린지 실패 → NO_SUBTITLES 로 숨기지 않고 BOT_DETECTED 유지", async () => {
+    // --ignore-no-formats-error 로 exit 0 이 돼도 형식 해석 실패는 stderr 경고로만 남는다.
+    // stdout 만 보면 «자막 없는 영상»(NO_SUBTITLES)으로 둔갑해 서버 차단 신호가 사라진다.
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        const stderrText =
+          "WARNING: [youtube] gc297hx4F7o: n challenge solving failed: Some formats may be missing.\n" +
+          "WARNING: Requested format is not available\n";
+        (cb as (err: Error | null, value: { stdout: string; stderr: string }) => void)(null, { stdout: "", stderr: stderrText });
+      } else {
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect(thrown).toBeInstanceOf(TranscriptError);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.BOT_DETECTED);
+  });
+
+  it("exit 0·파일 0개에 stderr 의 PO Token + no subtitles 경고 → PO_TOKEN_REQUIRED", async () => {
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        const stderrText =
+          "WARNING: [youtube] Some web client subtitles require a PO Token which was not provided.\n";
+        const stdoutText = "[info] There are no subtitles for the requested languages\n";
+        (cb as (err: Error | null, value: { stdout: string; stderr: string }) => void)(null, { stdout: stdoutText, stderr: stderrText });
+      } else {
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const thrown = await getTranscript("gc297hx4F7o").catch((e) => e);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.PO_TOKEN_REQUIRED);
+  });
+
+  it("exit 0·파일 0개에 web 의 「missing subtitles languages because a PO token」 경고 → n 챌린지 경고가 함께 있어도 PO_TOKEN_REQUIRED", async () => {
+    // 2026-11-27 서버 로그·로컬 실측 문구(yt-dlp 2026.08.19 web + --ignore-no-formats-error 는 exit 0).
+    // 플래그 전에는 exit 1 의 PO Token 분기로 PO_TOKEN_REQUIRED 였다 — 플래그 때문에 사유가 바뀌면 안 된다.
+    vi.mocked(execFile).mockImplementation((_cmd, _args, _opts, callback) => {
+      const cb = typeof _opts === "function" ? _opts : callback;
+      if (_cmd === "yt-dlp") {
+        const stderrText =
+          "WARNING: [youtube] aircAruvnKk: n challenge solving failed: Some formats may be missing.\n" +
+          "WARNING: [youtube] aircAruvnKk: There are missing subtitles languages because a PO token was not provided. Subtitles for these languages are missing: ko, en\n" +
+          "WARNING: Requested format is not available\n";
+        (cb as (err: Error | null, value: { stdout: string; stderr: string }) => void)(null, { stdout: "", stderr: stderrText });
+      } else {
+        const fallbackOut = JSON.stringify({ ok: false, error: "No transcripts found" });
+        (cb as (err: Error | null, stdout: string) => void)(null, fallbackOut);
+      }
+      return {} as ReturnType<typeof execFile>;
+    });
+    vi.mocked(readFile).mockRejectedValue(
+      Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+    );
+
+    const thrown = await getTranscript("aircAruvnKk").catch((e) => e);
+    expect((thrown as TranscriptError).code).toBe(TranscriptErrorCode.PO_TOKEN_REQUIRED);
+  });
+
   it("python fallback이 TranscriptError throw 시 외부 catch가 마스킹하지 않고 재throw", async () => {
     // yt-dlp 모든 시도 cascade null → python fallback ok:false (NO_SUBTITLES throw)
     // 외부 catch가 cascade 사유 또는 fallback의 NO_SUBTITLES를 보존해야 함

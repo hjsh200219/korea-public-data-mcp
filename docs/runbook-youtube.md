@@ -1,6 +1,26 @@
 # YouTube 자막 추출 Runbook
 
-## 먼저 읽을 것 — 2026-09-20 관측 기록
+## 먼저 읽을 것 — 2026-11-27 관측: 재배포·쿠키로 안 풀리는 yt-dlp 판 문제
+
+07:05 KST 감시자가 재배포해 출구 IP 가 `208.77.244.28 → 152.55.185.249` 로 바뀌었지만 같은 영상
+(`aircAruvnKk`)이 계속 실패했다. 인증 쿠키 지문은 앞뒤 모두 `7e29bbb5ad2d` 였다.
+
+| 관찰(같은 영상·같은 쿠키 지문 `7e29bbb5ad2d`) | yt-dlp 2026.08.19(당시 핀) | 2026.10.26 | 2026.11.23 |
+|---|---|---|---|
+| 서버(Railway) `tv_embedded`·`web_embedded` | `n challenge solving failed` → `Requested format is not available` | — | (배포 전) |
+| 로컬 맥 `tv_embedded`·`web_embedded` + 쿠키 | 서버와 같은 문구로 실패 | `tv_embedded` 같은 실패(`web_embedded` 미측정) | json3 ko·en 정상 |
+| 로컬 맥 같은 조건 + `--ignore-no-formats-error` | json3 ko·en 정상 | — | — |
+
+- 결론: **쿠키·계정 문제가 아니고(같은 쿠키로 새 판은 성공), IP 문제도 아니다(가정 IP 에서도 같은 실패).**
+  플레이어 변경(11-25)을 핀 yt-dlp 가 못 따라가 n 챌린지가 실패했고, 형식 해석 실패가 자막 쓰기까지 막았다.
+  `android_vr`(쿠키 없음)의 `Sign in to confirm you're not a bot` 은 데이터센터 IP 탓으로 평소와 같다.
+- 대응: Dockerfile 핀 2026.11.23 + 자막 인자 `--ignore-no-formats-error`. 로컬 실측만 끝났고 데이터센터 출구에서의 확인은
+  master push → 이미지 재빌드 배포 뒤 감시자 `verify()`·`/health/youtube` 로 한다. `railway redeploy` 는 같은 이미지를
+  다시 띄울 뿐 재빌드가 아니라(11-27 54초 만에 SUCCESS) 판 문제에 효과가 없다.
+- 구별법: 로그 `yt-dlp 시도 실패` 의 `detail` 에 `n challenge solving failed` 가 보이면 판 문제 — 재배포·쿠키
+  갱신 대신 yt-dlp 핀을 올린다. 로컬에서 핀 판과 최신 판을 같은 영상·같은 인자로 돌려 갈라 볼 수 있다.
+
+## 2026-09-20 관측 기록
 
 **서버 자막은 끊겼다가 되살아났습니다. 원인은 확정되지 않았습니다.**
 
@@ -28,7 +48,7 @@
 
 | 보이는 것 | 할 일 |
 |---|---|
-| 응답에 `[SERVER_TRANSCRIPT_UNAVAILABLE]` | ①`/health/youtube` 로 상태 확인 ②**쿠키를 새로 뽑아 배포**해 본다(2026-09-20 에 이 경로로 복구됨) ③그래도 안 되면 로컬 yt-dlp 로 뽑고, 로컬은 되는지 함께 기록한다 |
+| 응답에 `[SERVER_TRANSCRIPT_UNAVAILABLE]` | ①`/health/youtube` 로 상태 확인 ②Railway 로그 `yt-dlp 시도 실패` 에 `n challenge solving failed` 가 있으면 yt-dlp 핀부터 올린다(2026-11-27, 맨 위 절) ③아니면 **쿠키를 새로 뽑아 배포**해 본다(2026-09-20 에 이 경로로 복구됨) ④그래도 안 되면 로컬 yt-dlp 로 뽑고, 로컬은 되는지 함께 기록한다 |
 | 응답에 `[CONFIG_MISSING]` | 채널 목록 파일이 배포에 없음 — `Dockerfile` 의 `COPY youtube.md ./` 와 `.dockerignore` 의 `!youtube.md` 를 둘 다 확인 |
 | `cookiePool[n].warning: expires_soon` | 진짜 쿠키 만료 임박 — 아래 4단계 SOP |
 | `COOKIE_EXPIRED` | 진짜 세션 만료 — 아래 4단계 SOP |

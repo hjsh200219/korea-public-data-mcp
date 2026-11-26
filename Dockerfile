@@ -11,9 +11,11 @@ RUN npm run build
 FROM node:22-slim
 
 # yt-dlp + deno 설치 (deno: YouTube JS 챌린지 해결용)
+# yt-dlp 판은 YouTube 플레이어를 따라가야 한다 — 2026.08.19 는 2026-11-25 플레이어의 n 챌린지를
+# 못 풀어 임베드 클라이언트 자막이 전멸했다(11-27). 2026.11.23 은 같은 쿠키로 정상(로컬 실측).
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl ca-certificates python3 python3-pip unzip && \
-    curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp -o /usr/local/bin/yt-dlp && \
+    curl -fL https://github.com/yt-dlp/yt-dlp/releases/download/2026.11.23/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     pip3 install --no-cache-dir --break-system-packages youtube-transcript-api && \
     curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
