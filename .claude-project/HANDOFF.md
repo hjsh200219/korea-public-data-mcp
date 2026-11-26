@@ -1,10 +1,12 @@
 ---
-created: 2026-10-19T10:00:00+09:00
+created: 2026-11-27T08:50:00+09:00
 project: k-public-data-mcp
-summary: 법제처·미국 판례 표시 결함 5건 수정(00d6f38) — 자치법규 조문번호·공정위 피심정보·CourtListener opinion ID·국세 판례 안내·도구 설명 · CI·Railway 배포·운영 응답 확인 · 이전 인계(독일 판례 검색·YouTube A1b 판정) 유지
+summary: YouTube 자막 막힘 복구(028ac1e) — yt-dlp 2026.08.19→2026.11.23·--ignore-no-formats-error·n 챌린지 분류 · CI·Railway 배포·운영 확인 호출 ok · 이전 인계 유지
 ---
 
 ## Session Digest
+
+2026-11-27: 11-25 YouTube 플레이어(b485e332)의 n 챌린지를 yt-dlp 2026.08.19 가 못 풀어 임베드 클라이언트 자막이 전멸했다. 감시자의 railway redeploy 는 같은 이미지라 IP 만 바뀌고 그대로 실패. 같은 쿠키(지문 7e29bbb5ad2d)로 판만 올려 복구 — 쿠키·IP 원인 아님.
 
 2026-11-04: 법제처·미국 판례 표시 결함 5건 수정(00d6f38). 6자리 자치법규 조문번호를 조·가지번호로 풀고, 공정위 피심정보 중첩 요소를 펴고, CourtListener v4 opinion ID 를 `opinions[0].id` 에서 읽고, 국세법령정보시스템 출처 판례에 상세 미제공을 안내하고, 신구법 상세 필수 인자 설명을 `oldnew_id` 로 고쳤다.
 
@@ -14,6 +16,8 @@ summary: 법제처·미국 판례 표시 결함 5건 수정(00d6f38) — 자치�
 
 ## Progress
 
+- [x] `028ac1e` fix(youtube) — CI 동일 검사 로컬 통과(typecheck·lint·verify-docs·dead-code·verify-harness-meta·test:coverage 1167·build) → master push → CI run 45911554817 success → Railway 배포 81207ad9 SUCCESS → 운영 확인 호출 aircAruvnKk ok
+- [ ] CI nightly-canary 가 러너에 yt-dlp 를 안 깔아 매일 `spawn yt-dlp ENOENT`(continue-on-error 로 가려짐) — 러너 IP 봇 차단까지 고려한 설계 결정 필요
 - [x] `00d6f38` fix(law) — CI 동일 검사 로컬 통과(typecheck·lint·verify-docs·dead-code·verify-harness-meta·test:coverage 1152·build, 로컬 Node 24·CI Node 22) → master push → CI run 41813865217 success → Railway 재기동(10:24:05Z) → 운영 `/api/detail/ordinance/2039645` 조문번호 1~12, `/api/search/cases` 출처 표시, `/api/courtlistener/search` 20건 id=0 없음 확인
 - [x] `a4220a1` fix(foreign-case) — 새 테스트는 고치기 전 코드에서 red 8건 확인 후 green
 - [x] CI 동일 검사 로컬 통과(typecheck·lint·verify-docs·dead-code·verify-harness-meta·test:coverage 1144·build), RUN_LIVE_TESTS=1 OpenLegalData 라이브 4건 통과
